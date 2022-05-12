@@ -1,0 +1,83 @@
+---
+title: "Data Overview"
+description: |
+  Exploratory overview of ASCOT anticoagulation data.
+author: "James Totterdell"
+date: "`r Sys.Date()`"
+format: 
+  html:
+    theme: lux
+    fontsize: 0.9em
+    self-contained: true
+warning: false
+echo: false
+---
+
+```{r}
+#| label: pkgs
+library(tidyverse)
+library(DT)
+library(plotly)
+
+theme_set(theme_minimal())
+```
+
+
+```{r}
+#| label: load-data
+all_data <- readRDS(file.path(ANTICOAG_DATA, "all_data.rds"))
+all_daily_data <- readRDS(file.path(ANTICOAG_DATA, "all_daily_data.rds"))
+```
+
+## Dictionary
+
+```{r}
+#| label: data-dict
+#| column: page
+source("r/read_raw_data.r")
+dict <- read_dictionary() %>%
+  select(DbField, FieldTitle, FieldFormatting, ValidationNotes)
+datatable(dict)
+```
+
+## Data Completeness
+
+```{r}
+#| label: completeness-table
+#| column: screen-inset-shaded
+#| tbl-cap: Data completion
+source("r/data_completeness.r")
+completeness <- summarise_completeness_data(generate_completeness_data(all_daily_data))
+completeness$combined %>%
+  datatable() %>%
+  formatStyle(2:10, 'text-align' = "right")
+```
+
+## Available Records
+
+```{r}
+all_data %>%
+  count(EL_rec, ENR_rec, BAS_rec, DIS_rec, D28_rec)
+```
+
+## Enrolment
+
+```{r}
+p <- all_data %>%
+  filter(ENR_rec == 1) %>%
+  count(RandDate) %>%
+  complete(RandDate = seq.Date(min(RandDate), max(RandDate), by = "1 day"),
+           fill = list(n = 0)) %>%
+  mutate(`Cumulative enrolments` = cumsum(n)) %>%
+  rename(`Randomisation date` = RandDate) %>%
+  ggplot(., aes(`Randomisation date`, `Cumulative enrolments`)) +
+  geom_step()
+ggplotly(p)
+```
+
+## Intervention Assignments
+
+```{r}
+all_data %>%
+  count(ACS_ITT, AVS_ITT, AAssignment, CAssignment)
+```

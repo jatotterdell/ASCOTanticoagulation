@@ -8,7 +8,7 @@ library(tidyverse)
 # FUNCTIONS ----
 
 read_dictionary <- function() {
-  read_csv(file.path(ASCOT_DATA, "dictionary", "2021-11-23", "ASCOT Dictionary Forms.csv"))
+  read_csv(file.path(ASCOT_DATA, "dictionary", "2021-11-23", "ASCOT Dictionary Fields.csv"))
 }
 
 
