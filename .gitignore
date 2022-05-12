@@ -1,0 +1,36 @@
+# Ignore all (so Stan binaries are ignored)
+*
+# Unignore all with extensions
+!*.*
+# Unignore all dirs
+!*/
+
+# R specific files
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+renv/*
+
+# Data files
+*.xlsx
+
+# Tex files
+*.toc
+*.log
+*.aux
+*.fls
+*.fdb_latexmk
+
+# Ignore PDFs and DOCX
+*.pdf
+*.docx
+
+# RDS files
+.DS*
+._DS*
+._*
+.~*
+
+# Custom
+outputs/*
