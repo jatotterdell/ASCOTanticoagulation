@@ -14,13 +14,31 @@ The `.Rprofile` file then defines a few additional global constants.
 
 Both are automatically loaded when opening `ASCOTanticoagulation.Rproj`.
 
+### Directories
+
+Planned structure
+
+```
+├── docs
+├── eda
+├── outputs
+│   ├── figures
+│   ├── models
+│   └── tables
+├── r
+├── report
+└── stan
+```
+
+
 ## Raw Data
 
-If desired, the raw datasets can be added to the global environment with
+If desired, the raw datasets can be added to the global environment with, for example,
 
 ```{r}
 source("r/read_raw_data.r")
-read_raw_extracts("enrolled")
+read_raw_extract("enrolled")
+read_all_raw_extracts()
 ```
 
 Otherwise, it is better to work from the derived datasets.

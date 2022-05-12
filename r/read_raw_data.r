@@ -188,7 +188,8 @@ read_daily_file <- function(fn) {
     mutate(DD_n = max(DD_StudyDay)) %>%
     ungroup() %>%
     filter(PT_ProtocolVersion != "1.0") %>%
-    select(-PT_ProtocolVersion)
+    select(-PT_ProtocolVersion) %>%
+    mutate(DD_rec = 1)
 }
 
 
@@ -260,6 +261,12 @@ read_raw_extracts <- function(fn) {
   for (i in 1:length(fn)) {
     assign(fn[i], get(paste0("read_", fn[i], "_file"))(paths[i]), envir = .GlobalEnv)
   }
+}
+
+
+read_all_raw_extracts <- function() {
+  fns <- c("eligibility", "enrolled", "baseline", "withdrawal", "discharge", "daily", "d28")
+  read_raw_extracts(fns)
 }
 
 
