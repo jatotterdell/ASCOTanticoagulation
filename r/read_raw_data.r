@@ -89,7 +89,8 @@ read_consent_file <- function(fn) {
     )
   ) %>%
     filter(PT_ProtocolVersion != "1.0") %>%
-    select(-PT_ProtocolVersion)
+    select(-PT_ProtocolVersion) %>%
+    mutate(CON_rec = 1)
 }
 
 
@@ -157,7 +158,8 @@ read_discharge_file <- function(fn) {
     na = c("", "NA", "n/a"),
     col_types = cols(
       .default = col_character(),
-      DIS_DateOfDischarge = col_date("%d-%b-%Y")
+      DIS_DateOfDischarge = col_date("%d-%b-%Y"),
+      DIS_DateOfDeath = col_date("%d-%b-%Y")
     )
   ) %>%
     filter(PT_ProtocolVersion != "1.0") %>%
@@ -265,7 +267,7 @@ read_raw_extracts <- function(fn) {
 
 
 read_all_raw_extracts <- function() {
-  fns <- c("eligibility", "enrolled", "baseline", "withdrawal", "discharge", "daily", "d28")
+  fns <- c("eligibility", "consent", "enrolled", "baseline", "withdrawal", "discharge", "daily", "d28")
   read_raw_extracts(fns)
 }
 
