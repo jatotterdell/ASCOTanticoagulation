@@ -11,9 +11,13 @@ source("r/read_raw_data.r")
 # PACKAGES ----
 
 library(tidyverse)
+library(labelled)
 
 # FUNCTIONS ----
 
+## CREATED DERIVED DATA ----
+
+### FORMAT RAW DATA ----
 
 #' @title add_withdrawn_followup
 #'
@@ -27,9 +31,9 @@ add_withdrawn_followup <- function(dat) {
     mutate(WTH_FU = if_else(
       WTH_rec == 0, 0L, as.integer(
         CON_WithdrawnContact28 == "Yes" |
-          CON_WithdrawnDailyCollection == "Withdrawn" |
-          # Covers withdrawal due to ineligibility
-          is.na(CON_WithdrawnContact28)
+        CON_WithdrawnDailyCollection == "Withdrawn" |
+        # Covers withdrawal due to ineligibility
+        is.na(CON_WithdrawnContact28)
       )
     ))
 }
@@ -44,6 +48,177 @@ add_primary_outcome <- function(dat, daily_dat) {
 
 }
 
+format_eligibility_data <- function(el) {
+  el %>%
+    select(-EligibilityID, -EligibilityCode) %>%
+    mutate(
+
+      # Ineligible for Nafamostat
+      EL_inelg_a2 = labelled(as.integer(
+        EL_TherapeuticAnticoagBleeding == "Yes" |
+          EL_HyperNafamostat == "Yes" |
+          EL_ReceivedNafamostat == "Yes" |
+          EL_HeartRenalDialysis == "Yes" |
+          as.numeric(EL_SerumPotassium) > 5.5 |
+          as.numeric(EL_SerumSodium) < 120
+      ), label = "Ineligible for Nafamostat (A2)"),
+
+      # Given only two interventions in domain, if
+      # ineligible for A2 then ineligible for the domain
+      EL_inelg_a = labelled(EL_inelg_a2, label = "Ineligible for domain A"),
+
+      # Ineligible for the anticoagulation domain
+      EL_inelg_c = labelled(as.integer(
+        EL_TherapeuticAnticoag == "Yes" |
+          EL_DualAntiplateletTherapy == "Yes" |
+          EL_ContraHeparinReact == "Yes" |
+          EL_IntracranialHaemorrhage == "Yes" |
+          EL_BleedingConditionThrombo == "Yes" |
+          as.numeric(EL_BloodPlateletTestAs_x10_9_L) < 30
+      ), label = "Ineligible for domain C"),
+
+      # Ineligible for the intervention C3
+      # Note, once C3 had been removed, ceased to be assessed,
+      # protocol v5 participants eligibility is unknown...
+      EL_inelg_c3 = labelled(as.integer(
+        EL_ReceivingAntiplatelet == "Yes" |
+          EL_HyperAspirin == "Yes"
+      ), label = "Ineligible for LWMH + Aspirin (C3)")
+    )
+}
+
+
+format_consent_data <- function(con) {
+  con %>%
+    select(
+      StudyPatientID,
+      CON_Consent,
+      CON_DomainA,
+      CON_DomainB,
+      CON_DomainC,
+      CON_rec
+    )
+}
+
+
+format_enrolled_data <- function(enr) {
+  enr %>%
+    select(-PT_YOB, -PT_DOD, -EID, -ECode) %>%
+    mutate(
+      ENR_regimen = paste0(AAssignment, BAssignment, CAssignment),
+      FAS_ITT = 1L,
+      ACS_ITT = if_else(CAssignment != "C0", 1L, 0L),
+      AVS_ITT = if_else(AAssignment != "A0", 1L, 0L),
+      agegt60 = labelled(as.integer(AgeAtEntry > 60), label = "Age > 60")
+    )
+}
+
+
+format_baseline_data <- function(bas) {
+  bas %>%
+    select(-SDV, -FormLock, -BAS_PatientInitials) %>%
+
+    # Summarise ethnicity data
+    relocate(BAS_EthnicityUnknown, .before = "BAS_EthnicityAboriginal") %>%
+    rowwise() %>%
+    mutate(
+      BAS_eth_all_na = all(is.na(c_across(BAS_EthnicityUnknown:BAS_EthnicityOther))),
+      BAS_eth_all_but_unknown_na = all(is.na(c_across(BAS_EthnicityAboriginal:BAS_EthnicityOther))),
+      BAS_eth_count = sum(c_across(BAS_EthnicityAboriginal:BAS_EthnicityOther) == "Yes", na.rm = T)
+    ) %>%
+    ungroup() %>%
+    mutate(
+      # Replace NA with "No"
+      across(BAS_EthnicityUnknown:BAS_EthnicityOther, ~ if_else(is.na(.x), "No", .x))
+    ) %>%
+
+    # Summarise co-morbidities data
+    relocate(BAS_Comorbidities_None, .before = "BAS_ChonicCardiacDisease") %>%
+    rowwise() %>%
+    mutate(
+      BAS_com_all_na = all(is.na(c_across(BAS_Comorbidities_None:BAS_IatrogenicImmuno))),
+      BAS_com_all_but_none_na = all(is.na(c_across(BAS_ChonicCardiacDisease:BAS_IatrogenicImmuno))),
+      BAS_com_count = sum(c_across(BAS_ChonicCardiacDisease:BAS_IatrogenicImmuno) == "Yes", na.rm = T)
+    ) %>%
+      ungroup() %>%
+      mutate(
+        across(BAS_Comorbidities_None:BAS_IatrogenicImmuno, ~ if_else(is.na(.x), "No", .x))
+      )
+}
+
+
+format_withdrawal_data <- function(wth) {
+  wth %>%
+    add_withdrawn_followup()
+}
+
+
+format_discharge_data <- function(dis) {
+  dis %>%
+    mutate(
+      DIS_Outcome = factor(DIS_Outcome, levels = c(
+        "Death",
+        "Discharged alive (including hospital in the home)",
+        "Discharged alive but against medical advice",
+        "Unknown"
+      )),
+      DIS_Death = case_when(
+        DIS_Outcome == "Death" ~ 1L,
+        is.na(DIS_Outcome) | DIS_Outcome == "Unknown" ~ NA_integer_,
+        TRUE ~ 0L
+      ),
+      DIS_DAMA = case_when(
+        DIS_Outcome == "Discharged alive but against medical advice" ~ 1L,
+        is.na(DIS_Outcome) | DIS_Outcome == "Unknown" ~ NA_integer_,
+        TRUE ~ 0L
+      ),
+      DIS_DAMAlikelytodie = case_when(
+        DIS_DAMA == 1 & DIS_LikelyToDie28 == "Yes" ~ 1L,
+        DIS_DAMA == 1 & DIS_LikelyToDie28 == "No" ~ 0L,
+        DIS_DAMA == 0 ~ 0L,
+        is.na(DIS_DAMA) | DIS_DAMA == 1 & (is.na(DIS_LikelyToDie28) | DIS_LikelyToDie28 == "Unknown") ~ NA_integer_
+      )
+    ) %>%
+
+    # Check antiviral and immouno use
+    relocate(DIS_ReceivedNone, .before = "DIS_CamostatReceived") %>%
+    relocate(Dis_ImmunoNone, .before = "DIS_ImmunoAnakinra") %>%
+    rowwise() %>%
+    mutate(
+      DIS_av_all_na = all(is.na(c_across(DIS_ReceivedNone:DIS_ReceivedOther))),
+      DIS_av_count = sum(c_across(DIS_CamostatReceived:DIS_ReceivedOther) == 1, na.rm = TRUE),
+      DIS_im_all_na = all(is.na(c_across(Dis_ImmunoNone:DIS_IummunoOther))),
+      DIS_im_count = sum(c_across(DIS_ImmunoAnakinra:DIS_IummunoOther) == 1, na.rm = TRUE)
+    ) %>%
+    ungroup() %>%
+    mutate(
+      # Replace NA with "No"
+      across(DIS_ReceivedNone:DIS_ReceivedOther, ~ if_else(is.na(.x), "No", .x)),
+      across(Dis_ImmunoNone:DIS_IummunoOther, ~ if_else(is.na(.x), "No", .x))
+    )
+}
+
+
+format_d28_data <- function(d28) {
+  d28 %>%
+    mutate(
+      D28_who = as.integer(substr(D28_Status, 1, 1)),
+      D28_who2 = as.integer(substr(D28_StatusVentilation, 1, 1)),
+      # Required respiratory support AT D28
+      D28_resp = case_when(
+        D28_who < 6 ~ 0L,
+        D28_who == 7 | (D28_who == 6 & D28_who2 %in% c(2, 4)) ~ 1L,
+        is.na(D28_who) ~ NA_integer_,
+        TRUE ~ NA_integer_),
+      # Days free of ventilation up to day 28
+      D28_dfv = pmin(28, D28_OutcomeDaysFreeOfVentilation),
+      # Days free of hospital up to day 28
+      D28_dfh = pmax(0, 28 - D28_OutcomeTotalDaysHospitalised)
+    )
+}
+
+
+### JOIN DATASETS ADD FIELDS ----
 
 #' @title create_fulldata_no_daily()
 #' @description
@@ -52,45 +227,44 @@ add_primary_outcome <- function(dat, daily_dat) {
 #' Assumes all raw data extracts are in the global environment, e.g.
 #' via `read_all_raw_extracts()`.
 create_fulldata_no_daily <- function() {
-
-  sub_eligibility <- eligibility %>%
-    select(-EligibilityID, -EligibilityCode)
-
-  sub_enrolled <- enrolled %>%
-    select(-PT_YOB, -PT_DOD, -EID, -ECode) %>%
-    # Flag set membership
-    mutate(
-      FAS_ITT = 1L,
-      ACS_ITT = if_else(CAssignment != "C0", 1L, 0L),
-      AVS_ITT = if_else(AAssignment != "A0", 1L, 0L)
-    )
-
-  sub_baseline <- baseline %>%
-    select(-SDV, -FormLock, -BAS_PatientInitials)
-
-  sub_withdrawal <- withdrawal %>%
-    add_withdrawn_followup()
-
-  sub_discharge <- discharge
-
-  sub_d28 <- d28
+  sub_eligibility <- format_eligibility_data(eligibility)
+  sub_consent <- format_consent_data(consent)
+  sub_enrolled <- format_enrolled_data(enrolled)
+  sub_baseline <- format_baseline_data(baseline)
+  sub_withdrawal <- format_withdrawal_data(withdrawal)
+  sub_discharge <- format_discharge_data(discharge)
+  sub_d28 <- format_d28_data(d28)
 
   sub_eligibility %>%
     left_join(sub_enrolled, by = "StudyPatientID") %>%
+    left_join(sub_consent, by = "StudyPatientID") %>%
     left_join(sub_baseline, by = "StudyPatientID") %>%
     left_join(sub_withdrawal, by = "StudyPatientID") %>%
     left_join(sub_discharge, by = "StudyPatientID") %>%
     left_join(sub_d28, by = "StudyPatientID") %>%
     mutate(
       ENR_rec = if_else(is.na(ENR_rec), 0, ENR_rec),
+      CON_rec = if_else(is.na(CON_rec), 0, CON_rec),
       BAS_rec = if_else(is.na(BAS_rec), 0, BAS_rec),
       WTH_rec = if_else(is.na(WTH_rec), 0, WTH_rec),
       DIS_rec = if_else(is.na(DIS_rec), 0, DIS_rec),
-      D28_rec = if_else(is.na(D28_rec), 0, D28_rec)
-    ) %>%
-    mutate(
+      D28_rec = if_else(is.na(D28_rec), 0, D28_rec),
       WTH_FU = if_else(is.na(WTH_FU), 0L, WTH_FU),
-      WTH_Day = as.integer(CON_WithdrawnDate - RandDate)
+      WTH_day = as.integer(CON_WithdrawnDate - RandDate + 1),
+      DIS_day = as.numeric(DIS_DateOfDischarge - RandDate + 1),
+      DIS_dday = as.numeric(DIS_DateOfDeath - RandDate + 1),
+      DIS_deathlt28 = labelled(
+        as.integer(DIS_Death == 1 & DIS_day <= 28),
+        label = "Discharge: death within 28 days"),
+      D28_death = labelled(
+        case_when(
+          D28_PatientStatusDay28 == "Alive" ~ 0L,
+          D28_PatientStatusDay28 == "Dead" ~ 1L,
+          D28_PatientStatusDay28 == "Unknown" ~ NA_integer_,
+          DIS_deathlt28 == 1 ~ 1L,
+          TRUE ~ NA_integer_
+        ),
+        label = "All cause mortality at 28 days")
     )
 }
 
@@ -100,6 +274,7 @@ create_fulldata_add_daily <- function(dat) {
     full_join(daily, by = "StudyPatientID") %>%
     mutate(
       ENR_rec = if_else(is.na(ENR_rec), 0, ENR_rec),
+      CON_rec = if_else(is.na(CON_rec), 0, CON_rec),
       BAS_rec = if_else(is.na(BAS_rec), 0, BAS_rec),
       WTH_rec = if_else(is.na(WTH_rec), 0, WTH_rec),
       DIS_rec = if_else(is.na(DIS_rec), 0, DIS_rec),
@@ -107,10 +282,9 @@ create_fulldata_add_daily <- function(dat) {
     )
 }
 
+## SAVE DERIVED DATA ----
 
-# PROCESSING ----
-
-if (!interactive()) {
+create_and_save_derived_data <- function() {
   read_all_raw_extracts()
   all_dat <- create_fulldata_no_daily()
   all_dat_daily <- create_fulldata_add_daily(all_dat)
@@ -118,4 +292,13 @@ if (!interactive()) {
   save_derived_dataset(all_dat_daily, "all_daily_data.rds")
 }
 
-#
+## READ DERIVED DATA ----
+
+read_all_no_daily <- function() {
+  readRDS(file.path(ANTICOAG_DATA, "all_data.rds"))
+}
+
+
+read_all_daily <- function() {
+  readRDS(file.path(ANTICOAG_DATA, "all_daily_data.rds"))
+}
