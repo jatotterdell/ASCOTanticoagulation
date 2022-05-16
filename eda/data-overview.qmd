@@ -6,8 +6,8 @@ author: "James Totterdell"
 date: "`r Sys.Date()`"
 format: 
   html:
-    theme: lux
-    fontsize: 0.9em
+    theme: journal
+    fontsize: 1em
     self-contained: true
 warning: false
 echo: false
@@ -16,12 +16,12 @@ echo: false
 ```{r}
 #| label: pkgs
 library(tidyverse)
+library(patchwork)
 library(DT)
 library(plotly)
 
 theme_set(theme_minimal())
 ```
-
 
 ```{r}
 #| label: load-data
@@ -63,7 +63,9 @@ all_data %>%
 ## Enrolment
 
 ```{r}
-p <- all_data %>%
+md <- get_interim_dates()
+id <- get_intervention_dates()
+p1 <- all_data %>%
   filter(ENR_rec == 1) %>%
   count(RandDate) %>%
   complete(RandDate = seq.Date(min(RandDate), max(RandDate), by = "1 day"),
@@ -71,8 +73,28 @@ p <- all_data %>%
   mutate(`Cumulative enrolments` = cumsum(n)) %>%
   rename(`Randomisation date` = RandDate) %>%
   ggplot(., aes(`Randomisation date`, `Cumulative enrolments`)) +
-  geom_step()
-ggplotly(p)
+  geom_step() +
+  geom_vline(data = md,
+             aes(xintercept = as.numeric(meet_date)),
+             linetype = 2) +
+  labs(x = "")
+
+p2 <- id %>%
+  mutate(
+    CAssignment = fct_inorder(val_labels(CAssignment))
+  ) %>%
+  ggplot(.) +
+  geom_point(aes(x = CAssignment, y = endate), shape = 4) +
+  geom_segment(
+    aes(x = CAssignment, xend = CAssignment, 
+        y = stdate, yend = endate))  +
+  geom_hline(data = md,
+             aes(yintercept = as.numeric(meet_date)),
+             linetype = 2) +
+  coord_flip() +
+  labs(x = "", y = "Calendar date")
+
+p1 / p2
 ```
 
 ## Intervention Assignments
