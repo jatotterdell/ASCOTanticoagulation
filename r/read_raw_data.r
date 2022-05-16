@@ -8,6 +8,10 @@ library(labelled)
 
 # FUNCTIONS ----
 
+transform_coding <- function(cod_from, cod_to) {
+  MASS::ginv(cod_to) %*% cod_from
+}
+
 get_intervention_dates <- function() {
   tribble(
     ~ CAssignment, ~ stdate, ~ endate,
