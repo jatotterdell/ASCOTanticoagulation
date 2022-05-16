@@ -14,6 +14,15 @@ The `.Rprofile` file then defines a few additional global constants.
 
 Both are automatically loaded when opening `ASCOTanticoagulation.Rproj`.
 
+### Quarto
+
+Interactive notebooks are written using [Quarto](https://quarto.org/docs/get-started/).
+To render/preview the notebooks, run them from the root project directory via
+
+```
+quarto preview <filename>.qmd --execute-dir .
+```
+
 ### Directories
 
 Planned structure
