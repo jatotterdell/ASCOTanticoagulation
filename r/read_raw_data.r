@@ -4,8 +4,35 @@
 # PACKAGES ----
 
 library(tidyverse)
+library(labelled)
 
 # FUNCTIONS ----
+
+get_intervention_dates <- function() {
+  tribble(
+    ~ CAssignment, ~ stdate, ~ endate,
+    "C1", as.Date("2021-02-18"), as.Date("2022-04-08"),
+    "C2", as.Date("2021-02-18"), as.Date("2022-04-08"),
+    "C3", as.Date("2021-02-18"), as.Date("2021-09-10"),
+    "C4", as.Date("2021-10-14"), as.Date("2022-04-08")
+  ) %>%
+    mutate(CAssignment = labelled(
+      CAssignment,
+      labels = c(C1 = "Standard dose", C2 = "Intermediate dose", C3 = "Standard dose + aspirin", C4 = "Therapeutic dose"),
+      label = "Anticoagulation domain intervention"))
+}
+
+
+get_interim_dates <- function() {
+  tribble(
+    ~ meet_num, ~ meet_date,
+    1, as.Date("2021-07-21"),
+    2, as.Date("2021-09-15"),
+    3, as.Date("2021-12-01"),
+    4, as.Date("2022-02-22")
+  )
+}
+
 
 read_dictionary <- function() {
   read_csv(file.path(ASCOT_DATA, "dictionary", "2021-11-23", "ASCOT Dictionary Fields.csv"))
