@@ -3,14 +3,27 @@ title: "Data Overview"
 description: |
   Exploratory overview of ASCOT anticoagulation data.
 author: "James Totterdell"
-date: "`r Sys.Date()`"
+date: last-modified
 format: 
   html:
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    captions: true
+    fig-cap-location: margin
+    table-captions: true
+    tbl-cap-location: margin
+    reference-location: margin
     theme: journal
     fontsize: 1em
     self-contained: true
+    standalone: true
+    code-tools: true
+    code-fold: false
+    code-link: false
 warning: false
 echo: false
+engine: knitr
 ---
 
 ```{r}
@@ -19,8 +32,10 @@ library(tidyverse)
 library(patchwork)
 library(DT)
 library(plotly)
+library(knitr)
+library(kableExtra)
 
-theme_set(theme_minimal())
+theme_set(theme_minimal(base_size = 12))
 ```
 
 ```{r}
@@ -36,7 +51,7 @@ all_daily_data <- readRDS(file.path(ANTICOAG_DATA, "all_daily_data.rds"))
 #| column: page
 source("r/read_raw_data.r")
 dict <- read_dictionary() %>%
-  select(DbField, FieldTitle, FieldFormatting, ValidationNotes)
+  select(HeadingName, DbField, FieldTitle, FieldFormatting, ValidationNotes)
 datatable(dict)
 ```
 
@@ -44,25 +59,34 @@ datatable(dict)
 
 ```{r}
 #| label: completeness-table
-#| column: screen-inset-shaded
-#| tbl-cap: Data completion
+#| column: page
 source("r/data_completeness.r")
 completeness <- summarise_completeness_data(generate_completeness_data(all_daily_data))
 completeness$combined %>%
   datatable() %>%
-  formatStyle(2:10, 'text-align' = "right")
+  formatStyle(2:10, 'text-align' = "right", "white-space" = "nowrap")
 ```
 
 ## Available Records
 
 ```{r}
+#| label: tbl-available-records
+#| tbl-cap: Patterns of record availability for all screened participants.
+#| cap-location: margin
 all_data %>%
-  count(EL_rec, ENR_rec, BAS_rec, DIS_rec, D28_rec)
+  count(EL_rec, ENR_rec, BAS_rec, DIS_rec, D28_rec, WTH_rec) %>%
+  kable("html") %>%
+  kable_styling("striped")
 ```
 
 ## Enrolment
 
 ```{r}
+#| label: fig-enrolment
+#| fig-cap-location: margin
+#| fig-cap: |
+#|   Cumulative enrolments to the platform, 
+#|   vertical lines indicate timing of interim analyses
 md <- get_interim_dates()
 id <- get_intervention_dates()
 p1 <- all_data %>%
@@ -97,9 +121,99 @@ p2 <- id %>%
 p1 / p2
 ```
 
+```{r}
+#| label: fig-enrolment-country
+#| fig-cap-location: margin
+#| fig-cap: |
+#|   Cumulative enrolments to the platform by country, 
+#|   vertical lines indicate timing of interim analyses
+#| fig-height: 8
+p1 <- all_data %>%
+  filter(ENR_rec == 1) %>%
+  count(Country = PT_CountryName, RandDate) %>%
+  complete(
+    Country, 
+    RandDate = seq.Date(min(RandDate), max(RandDate), by = "1 day"),
+    fill = list(n = 0)) %>%
+  group_by(Country) %>%
+  mutate(`Cumulative enrolments` = cumsum(n)) %>%
+  rename(`Randomisation date` = RandDate) %>%
+  ggplot(., aes(`Randomisation date`, `Cumulative enrolments`)) +
+  facet_wrap( ~ Country, ncol = 1, scales = "free_y") +
+  geom_step() +
+  geom_vline(data = md,
+             aes(xintercept = as.numeric(meet_date)),
+             linetype = 2) +
+  labs(x = "")
+(p1 / p2) + plot_layout(heights = c(4, 1))
+```
+
+```{r}
+#| label: enrolment-site
+#| column: screen
+#| layout-nrow: 1
+#| fig-align: center
+#| fig-width: 20
+#| fig-height: 8
+p1 <- all_data %>%
+  filter(ENR_rec == 1) %>%
+  count(Country = PT_CountryName, Site = PT_LocationName, RandDate) %>%
+  complete(
+    nesting(Country, Site),
+    RandDate = seq.Date(min(RandDate), max(RandDate), by = "1 day"),
+    fill = list(n = 0)) %>%
+  group_by(Country, Site) %>%
+  mutate(`Cumulative enrolments` = cumsum(n)) %>%
+  rename(`Calendar date` = RandDate) %>%
+  ggplot(., aes(`Calendar date`, `Cumulative enrolments`)) +
+  facet_wrap( ~ paste(Country, Site, sep = ": "), 
+              ncol = 5, scales = "free_y") +
+  geom_step() +
+  geom_vline(data = md,
+             aes(xintercept = as.numeric(meet_date)),
+             linetype = 2) +
+  scale_y_continuous(breaks = function(x) 
+    unique(floor(pretty(seq(0, (max(x) + 1) * 1.1)))))
+p1
+```
+
 ## Intervention Assignments
 
 ```{r}
+#| label: tbl-intervention-assignments
+#| tbl-cap: Counts of intervention assignments
+#| tbl-cap-location: margin
 all_data %>%
-  count(ACS_ITT, AVS_ITT, AAssignment, CAssignment)
+  count(FAS_ITT, ACS_ITT, AVS_ITT, AAssignment, CAssignment) %>%
+  kable() %>%
+  kable_styling("striped")
+```
+
+## Baseline Factors
+
+The following provides an overview of the baseline covariates collected for individuals.
+
+There is an issue with the serum creatinine units for some participants. These have been reported as "umol/L" when in fact it is more likely they are in mg/dL (spike at values reported as umol/L and less than 1, noting that 1 mg/dL = 88.42 umol/L).
+
+```{r}
+#| label: fig-serum-creatinine
+#| fig-cap: |
+#|   Histogram of serum creatinine levels at 
+#|   baseline by reported units.
+all_data %>%
+  filter(
+    EL_SerumCreatinineUnits == "umol/L",
+    EL_SerumCreatinineBlood <= 1.5
+  ) %>%
+  select(
+    EligibilityCode, 
+    StudyPatientID, 
+    starts_with("EL_Serum")) %>%
+  write_csv(file.path(ASCOT_DATA, "derived", "low_creatinine_values.csv"))
+ggplot(all_data %>% 
+         filter(!is.na(EL_SerumCreatinineUnits)), 
+       aes(EL_SerumCreatinine_umolL)) +
+  geom_histogram(bins = 50, boundary = 0) +
+  facet_wrap( ~ EL_SerumCreatinineUnits) +
+  xlim(0, 500)
 ```
