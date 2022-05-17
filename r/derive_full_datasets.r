@@ -1,5 +1,4 @@
-# These are intended to be the "full" data with all relevant
-# fields from all relevant data tables.
+# Functions to derive "full" datasets.
 # Analysis scripts will filter/select on these for specific summaries/analyses.
 # This should only be run "once" and then other scripts to use
 # the full derived datasets.
@@ -15,9 +14,39 @@ library(labelled)
 
 # FUNCTIONS ----
 
+findfirst <- function(x, v = NA) {
+  j <- which(x)
+  if(length(j)) min(j) else v
+}
+
 ## CREATED DERIVED DATA ----
 
 ### FORMAT RAW DATA ----
+
+
+#' @title add_database_corrections
+#' @description
+#' Some corrections to the data base are required, but cannot be made
+#' to the database directly. These corrections are listed in
+#' "ASCOT_ADAPT_DatabaseCorrectionsErrors.xlsx" and are here applied
+#' manually to the data extracts.
+#' @param dat Dataset containing relevant variables
+#' @return `dat` but with fields corrected
+add_database_corrections <- function(dat) {
+  platID <- paste0("LUD000", formatC(1:22, width = 2, flag = "0"))
+  creaID <- c(paste0("PUN000", formatC(1:32, width = 2, flag = "0")), paste0("PUN000", c(34, 55, 60, 66)))
+  dat %>%
+    mutate(
+      D28_OutcomeDaysFreeOfVentilation = if_else(StudyPatientID == "MID00006", 28, D28_OutcomeDaysFreeOfVentilation),
+      # Fix platelet units
+      EL_BloodPlateletTestValueUnits = if_else(StudyPatientID %in% platID, "x 10<sup>9</sup>/L", EL_BloodPlateletTestValueUnits),
+      EL_BloodPlateletTestAs_x10_9_L = if_else(StudyPatientID %in% platID, EL_BloodPlateletTestValue, EL_BloodPlateletTestAs_x10_9_L),
+      # Fix wrong units for Creatinine units, note 1 mg/dL -> 88.42 umol/L
+      EL_SerumCreatinineUnits = if_else(StudyPatientID %in% creaID, "mg/dL", EL_SerumCreatinineUnits),
+      EL_SerumCreatinine_umolL = if_else(StudyPatientID %in% creaID, EL_SerumCreatinineBlood * 88.42, EL_SerumCreatinine_umolL)
+    )
+}
+
 
 #' @title add_withdrawn_followup
 #'
@@ -31,9 +60,9 @@ add_withdrawn_followup <- function(dat) {
     mutate(WTH_FU = if_else(
       WTH_rec == 0, 0L, as.integer(
         CON_WithdrawnContact28 == "Yes" |
-        CON_WithdrawnDailyCollection == "Withdrawn" |
-        # Covers withdrawal due to ineligibility
-        is.na(CON_WithdrawnContact28)
+          CON_WithdrawnDailyCollection == "Withdrawn" |
+          # Covers withdrawal due to ineligibility
+          is.na(CON_WithdrawnContact28)
       )
     ))
 }
@@ -48,9 +77,10 @@ add_primary_outcome <- function(dat, daily_dat) {
 
 }
 
+
 format_eligibility_data <- function(el) {
   el %>%
-    select(-EligibilityID, -EligibilityCode) %>%
+    select(-EligibilityID) %>%
     mutate(
 
       # Ineligible for Nafamostat
@@ -117,7 +147,6 @@ format_enrolled_data <- function(enr) {
 format_baseline_data <- function(bas) {
   bas %>%
     select(-SDV, -FormLock, -BAS_PatientInitials) %>%
-
     # Summarise ethnicity data
     relocate(BAS_EthnicityUnknown, .before = "BAS_EthnicityAboriginal") %>%
     rowwise() %>%
@@ -131,7 +160,6 @@ format_baseline_data <- function(bas) {
       # Replace NA with "No"
       across(BAS_EthnicityUnknown:BAS_EthnicityOther, ~ if_else(is.na(.x), "No", .x))
     ) %>%
-
     # Summarise co-morbidities data
     relocate(BAS_Comorbidities_None, .before = "BAS_ChonicCardiacDisease") %>%
     rowwise() %>%
@@ -140,10 +168,10 @@ format_baseline_data <- function(bas) {
       BAS_com_all_but_none_na = all(is.na(c_across(BAS_ChonicCardiacDisease:BAS_IatrogenicImmuno))),
       BAS_com_count = sum(c_across(BAS_ChonicCardiacDisease:BAS_IatrogenicImmuno) == "Yes", na.rm = T)
     ) %>%
-      ungroup() %>%
-      mutate(
-        across(BAS_Comorbidities_None:BAS_IatrogenicImmuno, ~ if_else(is.na(.x), "No", .x))
-      )
+    ungroup() %>%
+    mutate(
+      across(BAS_Comorbidities_None:BAS_IatrogenicImmuno, ~ if_else(is.na(.x), "No", .x))
+    )
 }
 
 
@@ -179,7 +207,6 @@ format_discharge_data <- function(dis) {
         is.na(DIS_DAMA) | DIS_DAMA == 1 & (is.na(DIS_LikelyToDie28) | DIS_LikelyToDie28 == "Unknown") ~ NA_integer_
       )
     ) %>%
-
     # Check antiviral and immouno use
     relocate(DIS_ReceivedNone, .before = "DIS_CamostatReceived") %>%
     relocate(Dis_ImmunoNone, .before = "DIS_ImmunoAnakinra") %>%
@@ -209,11 +236,55 @@ format_d28_data <- function(d28) {
         D28_who < 6 ~ 0L,
         D28_who == 7 | (D28_who == 6 & D28_who2 %in% c(2, 4)) ~ 1L,
         is.na(D28_who) ~ NA_integer_,
-        TRUE ~ NA_integer_),
+        TRUE ~ NA_integer_
+      ),
       # Days free of ventilation up to day 28
       D28_dfv = pmin(28, D28_OutcomeDaysFreeOfVentilation),
       # Days free of hospital up to day 28
       D28_dfh = pmax(0, 28 - D28_OutcomeTotalDaysHospitalised)
+    )
+}
+
+
+#' @title format_daily_data
+#' @description
+#' Apply formatting to the raw daily data extract.
+#' @param dd Raw daily data extract
+format_daily_data <- function(dd) {
+  dd %>%
+    mutate(
+      DD_who = as.integer(substr(DD_ParticipantDailyStatus, 1, 1)),
+      DD_who2 = as.integer(substr(DD_O2, 1, 1))
+    )
+}
+
+
+#' @title summarise_daily_data
+#' @description
+#' Summarise the daily data.
+#' Requires fields from other baseline extracts, so
+#' assumes all necessary variables are included in `dd`.
+#' @param dd Daily data extract with additional variables as required.
+summarise_daily_data <- function(dd) {
+  dd %>%
+    filter(DD_StudyDay <= 28 | is.na(DD_StudyDay)) %>%
+    group_by(StudyPatientID) %>%
+    summarise(
+      DD_total_rec = n(),
+      DD_total_days = max(DD_StudyDay),
+      DD_who_missing = sum(is.na(DD_who)),
+      DD_who_worst = max(DD_who, na.rm = TRUE),
+      DD_who_best = min(DD_who, na.rm = TRUE),
+      DD_resp = as.integer(any(DD_who2 %in% 1:2)),
+      DD_vaso = as.integer(any(DD_O2VasopressorsInotropes == "Yes")),
+      DD_death = as.integer(any(DD_who == 8)),
+      DD_rec = as.integer(any(DD_who <= 3) | (DD_total_days < 28 & DD_who_worst < 8)),
+      DD_ttr = if_else(DD_rec == 1, min(DD_total_days, findfirst(DD_who <= 3, v = 29)), NA_real_),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      DD_missing = pmin(28, DD_total_days) - DD_total_rec,
+      DD_any_missing = if_else(is.na(DD_total_days) | DD_missing > 0, 1, 0),
     )
 }
 
@@ -242,6 +313,7 @@ create_fulldata_no_daily <- function() {
     left_join(sub_withdrawal, by = "StudyPatientID") %>%
     left_join(sub_discharge, by = "StudyPatientID") %>%
     left_join(sub_d28, by = "StudyPatientID") %>%
+    add_database_corrections() %>%
     mutate(
       ENR_rec = if_else(is.na(ENR_rec), 0, ENR_rec),
       CON_rec = if_else(is.na(CON_rec), 0, CON_rec),
@@ -255,7 +327,8 @@ create_fulldata_no_daily <- function() {
       DIS_dday = as.numeric(DIS_DateOfDeath - RandDate + 1),
       DIS_deathlt28 = labelled(
         as.integer(DIS_Death == 1 & DIS_day <= 28),
-        label = "Discharge: death within 28 days"),
+        label = "Discharge: death within 28 days"
+      ),
       D28_death = labelled(
         case_when(
           D28_PatientStatusDay28 == "Alive" ~ 0L,
@@ -264,21 +337,27 @@ create_fulldata_no_daily <- function() {
           DIS_deathlt28 == 1 ~ 1L,
           TRUE ~ NA_integer_
         ),
-        label = "All cause mortality at 28 days")
+        label = "All cause mortality at 28 days"
+      )
     )
 }
 
 
 create_fulldata_add_daily <- function(dat) {
   dat %>%
-    full_join(daily, by = "StudyPatientID") %>%
+    full_join(
+      daily %>%
+        format_daily_data(),
+      by = "StudyPatientID"
+    ) %>%
     mutate(
       ENR_rec = if_else(is.na(ENR_rec), 0, ENR_rec),
       CON_rec = if_else(is.na(CON_rec), 0, CON_rec),
       BAS_rec = if_else(is.na(BAS_rec), 0, BAS_rec),
       WTH_rec = if_else(is.na(WTH_rec), 0, WTH_rec),
       DIS_rec = if_else(is.na(DIS_rec), 0, DIS_rec),
-      D28_rec = if_else(is.na(D28_rec), 0, D28_rec)
+      D28_rec = if_else(is.na(D28_rec), 0, D28_rec),
+      DD_rec = if_else(is.na(DD_rec), 0, DD_rec)
     )
 }
 
@@ -302,4 +381,3 @@ read_all_no_daily <- function() {
 read_all_daily <- function() {
   readRDS(file.path(ANTICOAG_DATA, "all_daily_data.rds"))
 }
-

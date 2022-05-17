@@ -60,7 +60,7 @@ summarise_completeness_data <- function(cp_dat) {
       `Withdrew` = sum(WTH_FU == 1),
       `Expect follow-up` = n() - sum(WTH_FU == 1),
       # Ignore participants who withdrew consent for follow-up
-      `Expected daily` = if_else(is.na(sum(DD_expect[WTH_FU == 0])), "Unknown", as.character(sum(DD_expect[WTH_FU == 0]))),
+      `Expected daily` = if_else(is.na(sum(DD_expect[WTH_FU == 0])), "?", as.character(sum(DD_expect[WTH_FU == 0]))),
       `Baseline` = sprintf("%i (%.2f)", sum(BAS_rec), mean(BAS_rec)),
       `Daily` = sprintf("%i (%.2f)", sum(DD_n[WTH_FU == 0], na.rm = T), mean(if_else(is.na(DD_complete[WTH_FU == 0]), 0L, DD_complete[WTH_FU == 0]))),
       `Discharge` = sprintf("%i (%.2f)", sum(DIS_rec[WTH_FU == 0]), mean(DIS_rec[WTH_FU == 0])),
@@ -75,7 +75,7 @@ summarise_completeness_data <- function(cp_dat) {
       `Withdrew` = sum(WTH_FU == 1),
       `Expect follow-up` = n() - sum(WTH_FU == 1),
       # Ignore participants who withdrew consent for follow-up
-      `Expected daily` = if_else(is.na(sum(DD_expect[WTH_FU == 0])), "Unknown", as.character(sum(DD_expect[WTH_FU == 0]))),
+      `Expected daily` = if_else(is.na(sum(DD_expect[WTH_FU == 0])), "?", as.character(sum(DD_expect[WTH_FU == 0]))),
       `Baseline` = sprintf("%i (%.2f)", sum(BAS_rec), mean(BAS_rec)),
       `Daily` = sprintf("%i (%.2f)", sum(DD_n[WTH_FU == 0], na.rm = T), mean(if_else(is.na(DD_complete[WTH_FU == 0]), 0L, DD_complete[WTH_FU == 0]))),
       `Discharge` = sprintf("%i (%.2f)", sum(DIS_rec[WTH_FU == 0]), mean(DIS_rec[WTH_FU == 0])),

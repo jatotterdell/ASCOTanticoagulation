@@ -38,8 +38,13 @@ get_interim_dates <- function() {
 }
 
 
+# read_dictionary <- function() {
+#   read_csv(file.path(ASCOT_DATA, "dictionary", "2021-11-23", "ASCOT Dictionary Fields.csv"))
+# }
+
+
 read_dictionary <- function() {
-  read_csv(file.path(ASCOT_DATA, "dictionary", "2021-11-23", "ASCOT Dictionary Fields.csv"))
+  read_csv(list.files(file.path(ASCOT_DATA, "dictionary", "2022-05-17"), full.names = T)[-9])
 }
 
 
@@ -103,7 +108,6 @@ read_enrolled_file <- function(fn) {
       DOB = parse_date(str_replace_all(DOB, c(" 12:00:00 a.m." = "", " 12:00:00 p.m." = "")), "%d/%m/%Y"),
       RandDate = as.Date(RandomisedLocal)
     ) %>%
-    filter(PT_ProtocolVersion != "1.0") %>%
     rename(StudyPatientID = StudyID) %>%
     mutate(ENR_rec = 1)
   return(enrolled)
