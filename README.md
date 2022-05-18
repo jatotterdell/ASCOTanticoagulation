@@ -28,6 +28,8 @@ quarto preview <filename>.qmd --execute-dir .
 Planned structure
 
 ```
+.
+├── analyses
 ├── docs
 ├── eda
 ├── outputs
