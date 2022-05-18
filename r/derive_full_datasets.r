@@ -16,7 +16,7 @@ library(labelled)
 
 findfirst <- function(x, v = NA) {
   j <- which(x)
-  if(length(j)) min(j) else v
+  if (length(j)) min(j) else v
 }
 
 ## CREATED DERIVED DATA ----
@@ -33,17 +33,39 @@ findfirst <- function(x, v = NA) {
 #' @param dat Dataset containing relevant variables
 #' @return `dat` but with fields corrected
 add_database_corrections <- function(dat) {
-  platID <- paste0("LUD000", formatC(1:22, width = 2, flag = "0"))
-  creaID <- c(paste0("PUN000", formatC(1:32, width = 2, flag = "0")), paste0("PUN000", c(34, 55, 60, 66)))
+  platID <- c(
+    paste0("LUD000", formatC(1:22, width = 2, flag = "0")),
+    paste0("PUN000", formatC(1:51, width = 2, flag = "0"))
+  )
+  creaID <- c(
+    paste0("PUN000", formatC(1:32, width = 2, flag = "0")),
+    paste0("PUN000", c(34, 55, 60, 66))
+  )
   dat %>%
     mutate(
-      D28_OutcomeDaysFreeOfVentilation = if_else(StudyPatientID == "MID00006", 28, D28_OutcomeDaysFreeOfVentilation),
+      D28_OutcomeDaysFreeOfVentilation =
+        if_else(StudyPatientID == "MID00006", 28, D28_OutcomeDaysFreeOfVentilation),
       # Fix platelet units
-      EL_BloodPlateletTestValueUnits = if_else(StudyPatientID %in% platID, "x 10<sup>9</sup>/L", EL_BloodPlateletTestValueUnits),
-      EL_BloodPlateletTestAs_x10_9_L = if_else(StudyPatientID %in% platID, EL_BloodPlateletTestValue, EL_BloodPlateletTestAs_x10_9_L),
+      EL_BloodPlateletTestValueUnits =
+        if_else(StudyPatientID %in% platID, "x 10<sup>9</sup>/L", EL_BloodPlateletTestValueUnits),
+      EL_BloodPlateletTestAs_x10_9_L =
+        if_else(StudyPatientID %in% platID, EL_BloodPlateletTestValue, EL_BloodPlateletTestAs_x10_9_L),
       # Fix wrong units for Creatinine units, note 1 mg/dL -> 88.42 umol/L
-      EL_SerumCreatinineUnits = if_else(StudyPatientID %in% creaID, "mg/dL", EL_SerumCreatinineUnits),
-      EL_SerumCreatinine_umolL = if_else(StudyPatientID %in% creaID, EL_SerumCreatinineBlood * 88.42, EL_SerumCreatinine_umolL)
+      EL_SerumCreatinineUnits =
+        if_else(StudyPatientID %in% creaID, "mg/dL", EL_SerumCreatinineUnits),
+      EL_SerumCreatinine_umolL =
+        if_else(StudyPatientID %in% creaID, EL_SerumCreatinineBlood * 88.42, EL_SerumCreatinine_umolL),
+      # Wrong platelet value entered for PUN00004
+      EL_BloodPlateletTestAs_x10_9_L =
+        case_when(
+          StudyPatientID == "PUN00004" ~ 276,
+          TRUE ~ EL_BloodPlateletTestAs_x10_9_L
+        ),
+      EL_BloodPlateletTestValue =
+        case_when(
+          StudyPatientID == "PUN00004" ~ 276,
+          TRUE ~ EL_BloodPlateletTestValue
+        )
     )
 }
 
@@ -104,7 +126,12 @@ format_eligibility_data <- function(el) {
           EL_ContraHeparinReact == "Yes" |
           EL_IntracranialHaemorrhage == "Yes" |
           EL_BleedingConditionThrombo == "Yes" |
-          as.numeric(EL_BloodPlateletTestAs_x10_9_L) < 30
+          (
+            # Note that this criteria changed between version 3.0 and 5.0 of protocol
+            (EL_ProtocolVersion == "3.0" & as.numeric(EL_BloodPlateletTestAs_x10_9_L) < 30) |
+            (EL_ProtocolVersion == "5.0" & as.numeric(EL_BloodPlateletTestAs_x10_9_L) < 50)
+          ) |
+          as.numeric(EL_eGFR < 15)
       ), label = "Ineligible for domain C"),
 
       # Ineligible for the intervention C3
@@ -119,15 +146,7 @@ format_eligibility_data <- function(el) {
 
 
 format_consent_data <- function(con) {
-  con %>%
-    select(
-      StudyPatientID,
-      CON_Consent,
-      CON_DomainA,
-      CON_DomainB,
-      CON_DomainC,
-      CON_rec
-    )
+  con
 }
 
 
@@ -265,12 +284,13 @@ format_daily_data <- function(dd) {
 #' Requires fields from other baseline extracts, so
 #' assumes all necessary variables are included in `dd`.
 #' @param dd Daily data extract with additional variables as required.
+#' @return Dataset with one row per patient summarising their daily data.
 summarise_daily_data <- function(dd) {
   dd %>%
     filter(DD_StudyDay <= 28 | is.na(DD_StudyDay)) %>%
     group_by(StudyPatientID) %>%
     summarise(
-      DD_total_rec = n(),
+      DD_total_records = n(),
       DD_total_days = max(DD_StudyDay),
       DD_who_missing = sum(is.na(DD_who)),
       DD_who_worst = max(DD_who, na.rm = TRUE),
@@ -278,12 +298,12 @@ summarise_daily_data <- function(dd) {
       DD_resp = as.integer(any(DD_who2 %in% 1:2)),
       DD_vaso = as.integer(any(DD_O2VasopressorsInotropes == "Yes")),
       DD_death = as.integer(any(DD_who == 8)),
-      DD_rec = as.integer(any(DD_who <= 3) | (DD_total_days < 28 & DD_who_worst < 8)),
-      DD_ttr = if_else(DD_rec == 1, min(DD_total_days, findfirst(DD_who <= 3, v = 29)), NA_real_),
+      DD_recover = as.integer(any(DD_who <= 3) | (DD_total_days < 28 & DD_who_worst < 8)),
+      DD_ttr = if_else(DD_recover == 1, min(DD_total_days, findfirst(DD_who <= 3, v = 29)), NA_real_),
       .groups = "drop"
     ) %>%
     mutate(
-      DD_missing = pmin(28, DD_total_days) - DD_total_rec,
+      DD_missing = pmin(28, DD_total_days) - DD_total_records,
       DD_any_missing = if_else(is.na(DD_total_days) | DD_missing > 0, 1, 0),
     )
 }
@@ -298,22 +318,27 @@ summarise_daily_data <- function(dd) {
 #' Assumes all raw data extracts are in the global environment, e.g.
 #' via `read_all_raw_extracts()`.
 create_fulldata_no_daily <- function() {
-  sub_eligibility <- format_eligibility_data(eligibility)
-  sub_consent <- format_consent_data(consent)
-  sub_enrolled <- format_enrolled_data(enrolled)
-  sub_baseline <- format_baseline_data(baseline)
-  sub_withdrawal <- format_withdrawal_data(withdrawal)
-  sub_discharge <- format_discharge_data(discharge)
-  sub_d28 <- format_d28_data(d28)
 
-  sub_eligibility %>%
-    left_join(sub_enrolled, by = "StudyPatientID") %>%
-    left_join(sub_consent, by = "StudyPatientID") %>%
-    left_join(sub_baseline, by = "StudyPatientID") %>%
-    left_join(sub_withdrawal, by = "StudyPatientID") %>%
-    left_join(sub_discharge, by = "StudyPatientID") %>%
-    left_join(sub_d28, by = "StudyPatientID") %>%
+  eligibility %>%
+    left_join(enrolled, by = "StudyPatientID") %>%
+    left_join(consent, by = "StudyPatientID") %>%
+    left_join(baseline, by = "StudyPatientID") %>%
+    left_join(withdrawal, by = "StudyPatientID") %>%
+    left_join(discharge, by = "StudyPatientID") %>%
+    left_join(d28, by = "StudyPatientID") %>%
+    left_join(
+      summarise_daily_data(format_daily_data(daily)),
+      by = "StudyPatientID") %>%
+    # Need database corrections for some formatting, so apply first
     add_database_corrections() %>%
+    format_eligibility_data() %>%
+    format_enrolled_data() %>%
+    format_consent_data() %>%
+    format_baseline_data() %>%
+    format_withdrawal_data() %>%
+    format_discharge_data() %>%
+    format_d28_data() %>%
+    # Additional derivations requiring full data
     mutate(
       ENR_rec = if_else(is.na(ENR_rec), 0, ENR_rec),
       CON_rec = if_else(is.na(CON_rec), 0, CON_rec),
@@ -321,6 +346,7 @@ create_fulldata_no_daily <- function() {
       WTH_rec = if_else(is.na(WTH_rec), 0, WTH_rec),
       DIS_rec = if_else(is.na(DIS_rec), 0, DIS_rec),
       D28_rec = if_else(is.na(D28_rec), 0, D28_rec),
+      DD_total_records = if_else(is.na(DD_total_records), 0L, DD_total_records),
       WTH_FU = if_else(is.na(WTH_FU), 0L, WTH_FU),
       WTH_day = as.integer(CON_WithdrawnDate - RandDate + 1),
       DIS_day = as.numeric(DIS_DateOfDischarge - RandDate + 1),
@@ -346,9 +372,7 @@ create_fulldata_no_daily <- function() {
 create_fulldata_add_daily <- function(dat) {
   dat %>%
     full_join(
-      daily %>%
-        format_daily_data(),
-      by = "StudyPatientID"
+      daily %>% format_daily_data(), by = "StudyPatientID"
     ) %>%
     mutate(
       ENR_rec = if_else(is.na(ENR_rec), 0, ENR_rec),
