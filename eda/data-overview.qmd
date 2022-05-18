@@ -10,7 +10,7 @@ format:
     toc-depth: 3
     toc-location: left
     captions: true
-    fig-cap-location: margin
+    cap-location: margin
     table-captions: true
     tbl-cap-location: margin
     reference-location: margin
@@ -19,10 +19,14 @@ format:
     self-contained: true
     standalone: true
     code-tools: true
-    code-fold: false
+    code-fold: true
     code-link: false
-warning: false
-echo: false
+
+execute:
+  warning: false
+  message: false
+  echo: true
+
 engine: knitr
 ---
 
@@ -36,12 +40,15 @@ library(knitr)
 library(kableExtra)
 
 theme_set(theme_minimal(base_size = 12))
+
+source("r/summary_functions.r")
 ```
 
 ```{r}
 #| label: load-data
-all_data <- readRDS(file.path(ANTICOAG_DATA, "all_data.rds"))
-all_daily_data <- readRDS(file.path(ANTICOAG_DATA, "all_daily_data.rds"))
+source("r/derive_full_datasets.r")
+all_data <- read_all_no_daily()
+all_daily_data <- read_all_daily()
 ```
 
 ## Dictionary
@@ -76,13 +83,14 @@ completeness$combined %>%
 all_data %>%
   count(EL_rec, ENR_rec, BAS_rec, DIS_rec, D28_rec, WTH_rec) %>%
   kable("html") %>%
-  kable_styling("striped")
+  kable_styling("striped", font_size = 14)
 ```
 
 ## Enrolment
 
 ```{r}
 #| label: fig-enrolment
+#| code-summary: Study enrolment
 #| fig-cap-location: margin
 #| fig-cap: |
 #|   Cumulative enrolments to the platform, 
@@ -123,6 +131,7 @@ p1 / p2
 
 ```{r}
 #| label: fig-enrolment-country
+#| code-summary: Study enrolment by country
 #| fig-cap-location: margin
 #| fig-cap: |
 #|   Cumulative enrolments to the platform by country, 
@@ -150,6 +159,7 @@ p1 <- all_data %>%
 
 ```{r}
 #| label: enrolment-site
+#| code-summary: Study enrolment by site
 #| column: screen
 #| layout-nrow: 1
 #| fig-align: center
@@ -180,13 +190,23 @@ p1
 ## Intervention Assignments
 
 ```{r}
-#| label: tbl-intervention-assignments
-#| tbl-cap: Counts of intervention assignments
+#| label: tbl-intervention-assignments-anticoagulation
+#| tbl-cap: Counts of intervention assignments to anticoagulation
+#| tbl-cap-location: margin
+all_data %>%
+  count(FAS_ITT, ACS_ITT, CAssignment) %>%
+  kable() %>%
+  kable_styling("striped", font_size = 14)
+```
+
+```{r}
+#| label: tbl-intervention-assignments-both
+#| tbl-cap: Counts of intervention assignments to regimen
 #| tbl-cap-location: margin
 all_data %>%
   count(FAS_ITT, ACS_ITT, AVS_ITT, AAssignment, CAssignment) %>%
   kable() %>%
-  kable_styling("striped")
+  kable_styling("striped", font_size = 14)
 ```
 
 ## Baseline Factors
@@ -216,4 +236,43 @@ ggplot(all_data %>%
   geom_histogram(bins = 50, boundary = 0) +
   facet_wrap( ~ EL_SerumCreatinineUnits) +
   xlim(0, 500)
+```
+
+### Demographics
+
+```{r}
+#| label: tbl-demographics-table
+#| code-summary: Demographics table
+#| tbl-cap: |
+#|   Baseline demographics for participants randomised into
+#|   the anticoagulation domain.
+sdat <- all_data %>%
+    filter(ENR_rec == 1, CAssignment != "C0")
+generate_baseline_demographics_table(sdat, format = "html")
+```
+
+### Co-morbidities
+
+```{r}
+#| label: tbl-comorbidities-table
+#| code-summary: Co-morbidities table
+#| tbl-cap: |
+#|   Baseline co-morbidities for participants randomised into
+#|   then anticoagulation domain.
+sdat <- all_data %>%
+    filter(ENR_rec == 1, CAssignment != "C0")
+generate_baseline_comorbidities_table(sdat, format = "html")
+```
+
+### Prognostics
+
+```{r}
+#| label: tbl-prognostics-table
+#| code-summary: Prognostics table
+#| tbl-cap: |
+#|   Baseline prognostic variables for 
+#|   participants randomised into anticoagulation domain.
+sdat <- all_data %>%
+    filter(ENR_rec == 1, CAssignment != "C0")
+generate_baseline_prognostics_table(sdat, format = "html")
 ```
