@@ -245,8 +245,8 @@ format_discharge_data <- function(dis) {
 }
 
 
-format_d28_data <- function(d28) {
-  d28 %>%
+format_d28_data <- function(dat) {
+  dat %>%
     mutate(
       D28_who = as.integer(substr(D28_Status, 1, 1)),
       D28_who2 = as.integer(substr(D28_StatusVentilation, 1, 1)),
@@ -364,6 +364,13 @@ create_fulldata_no_daily <- function() {
           TRUE ~ NA_integer_
         ),
         label = "All cause mortality at 28 days"
+      ),
+      D28_who = labelled(
+        case_when(
+          D28_death == 1L ~ 8L,
+          !is.na(D28_who) ~ D28_who,
+          TRUE ~ NA_integer_
+        )
       )
     )
 }
