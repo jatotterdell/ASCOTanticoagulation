@@ -1,0 +1,287 @@
+---
+title: "All Cause Mortality Day 28"
+description: |
+  Undertake the analysis of the all-cause mortality 
+  secondary outcome in ASCOT.
+author: "James Totterdell"
+date: last-modified
+format: 
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    captions: true
+    cap-location: margin
+    table-captions: true
+    tbl-cap-location: margin
+    reference-location: margin
+    theme: journal
+    fontsize: 1em
+    self-contained: true
+    standalone: true
+    code-tools: true
+    code-fold: true
+    code-link: false
+
+execute:
+  warning: false
+  message: false
+  echo: true
+
+engine: knitr
+---
+
+# Preamble
+
+```{r}
+#| label: pkgs
+#| code-summary: Load packages
+library(tidyverse)
+library(labelled)
+library(kableExtra)
+library(cmdstanr)
+library(posterior)
+library(bayestestR)
+library(bayesplot)
+library(matrixStats)
+```
+
+```{r}
+#| label: functions
+#| code-summary: Define helper functions
+
+summarise_cat_var <- function(dat, var) {
+  dat %>%
+    dplyr::count(D28_death_fac, {{ var }}) %>%
+    group_by({{var}}) %>%
+    mutate(denom1 = sum(n),
+           denom2 = sum(n * (D28_death_fac != "Missing"))) %>%
+    ungroup() %>%
+    mutate(label = sprintf(
+      "%i (%.2f)", 
+      n, 
+      ifelse(D28_death_fac == "Missing", 
+             n / denom1, 
+             n / denom2)
+    )) %>%
+    ungroup() %>%
+    dplyr::select(-n, -denom1, -denom2) %>%
+    spread(D28_death_fac, label, fill = "0 (0.00)") %>%
+    rowwise() %>%
+    mutate(Total = sum(across(2:4, ~ as.integer(sub(" \\(.*", "", .)))))
+}
+
+summarise_2cat_var <- function(dat, var1, var2) {
+  dat %>%
+    dplyr::count(D28_death_fac, {{ var1 }}, {{ var2 }}) %>%
+    group_by( {{ var1 }}, {{ var2 }}) %>%
+    mutate(denom1 = sum(n),
+           denom2 = sum(n * (D28_death_fac != "Missing"))) %>%
+    ungroup() %>%
+    mutate(label = sprintf(
+      "%i (%.2f)", 
+      n, 
+      ifelse(D28_death_fac == "Missing", 
+             n / denom1, 
+             n / denom2)
+    )) %>%
+    ungroup() %>%
+    dplyr::select(-n, -denom1, -denom2) %>%
+    spread(D28_death_fac, label, fill = "0 (0.00)") %>%
+    rowwise() %>%
+    mutate(Total = sum(across(3:5, ~ as.integer(sub(" \\(.*", "", .)))))
+}
+```
+
+```{r}
+#| label: data
+#| code-summary: Prepare dataset
+source("r/derive_full_datasets.r")
+all_dat <- read_all_no_daily()
+
+# Subset the data
+analysis_dat <- all_dat %>%
+  filter(ENR_rec == 1, ACS_ITT == 1, WTH_FU == 0) %>%
+  select(
+    StudyPatientID,
+    RandDate,
+    CAssignment,
+    Country,
+    PT_CountryName,
+    Location,
+    PT_LocationName,
+    agegte60,
+    EL_inelg_c3,
+    D28_death
+  ) %>%
+  mutate(
+    D28_death_fac = fct_explicit_na(
+      factor(D28_death, labels = c("No", "Yes")), "Missing"),
+    D28_death_impbc = if_else(
+      is.na(D28_death), 0L, as.integer(D28_death)),
+    D28_death_impwc = if_else(
+      is.na(D28_death), 1L, as.integer(D28_death)),
+    rel_randdate = as.numeric(max(RandDate) - RandDate),
+    epoch = floor(rel_randdate / 28),
+    # Merge epoch with count < 10
+    epoch = if_else(epoch == 14, 13, epoch),
+    epoch = if_else(epoch %in% 0:1, 2, epoch),
+    epoch = epoch - min(epoch),
+    Country = fct_infreq(Country),
+    Location = factor(Location),
+    Location = fct_relevel(
+      fct_collapse(Location, "NZ other" = c("CHR", "DUN")),
+      "NZ other", after = Inf
+    ),
+    Location = fct_relevel(
+      fct_collapse(Location, "AU other" = c("JHH", "PRC", "STG", "WOL")),
+      "AU other", after = Inf),
+    facC = relevel(factor(CAssignment, levels = c("C1", "C2", "C3", "C4")), ref = "C1"),
+    agegte60_c = agegte60 - mean(agegte60)
+  )
+
+region_site <- analysis_dat %>%
+  dplyr::count(Country, Location) %>%
+  mutate(region = as.numeric(Country), site = as.numeric(fct_inorder(Location)))
+analysis_dat <- analysis_dat %>% left_join(region_site %>% select(-n), by = c("Country", "Location"))
+
+epoch_labs <- analysis_dat %>% 
+  group_by(epoch) %>% 
+  summarise(start = format(min(RandDate), "%d%b%y"), 
+            end = format(max(RandDate), "%d%b%y")) %>%
+  mutate(label = paste(start, end, sep = "-")) %>%
+  pull(label)
+
+analysis_dat <- analysis_dat %>%
+  mutate(epoch_lab = epoch_labs[epoch + 1])
+```
+
+# Descriptive
+
+```{r}
+#| label: outcome-by-treatment
+#| echo: true
+#| code-summary: Deaths to day 28 by treatment group
+#| tbl-cap: Count and proportion of deaths by day 28 by intervention.
+#| tbl-cap-location: margin
+summarise_cat_var(analysis_dat, CAssignment) %>%
+  kbl(align = "r") %>%
+  kable_styling(bootstrap_options = "condensed")
+```
+
+```{r}
+#| label: outcome-by-country
+#| echo: true
+#| code-summary: Deaths to day 28 by country
+#| tbl-cap: Count and proportion of deaths by day 28 by country
+#| tbl-cap-location: margin
+country_tab <- summarise_cat_var(analysis_dat, Country)
+country_tab %>%
+  kbl(align = "r") %>%
+  kable_styling(bootstrap_options = "condensed")
+```
+
+```{r}
+#| label: outcome-by-epoch
+#| echo: true
+#| code-summary: Deaths to day 28 by epoch
+#| tbl-cap: Count and proportion of deaths by day 28 by epoch
+#| tbl-cap-location: margin
+epoch_tab <- summarise_cat_var(analysis_dat, epoch_lab)
+epoch_tab %>%
+  kbl(align = "r") %>%
+  kable_styling(bootstrap_options = "condensed")
+```
+
+```{r}
+#| label: outcome-by-age
+#| code-summary: Deaths to day 28 by age
+#| tbl-cap: Count and proportion of deaths by day 28 by age
+#| tbl-cap-location: margin
+age_tab <- summarise_cat_var(analysis_dat, agegte60)
+age_tab %>%
+  kbl(align = "r") %>%
+  kable_styling(bootstrap_options = "condensed")
+```
+
+# Modelling
+
+## Primary Analysis
+
+The primary analysis for all cause mortality is specified equivalently to that for the primary outcome. It includes intervention as randomised, age category, country, site nested within country, epoch, and intervention eligibility.
+
+The main analysis restricts the population to only those participants randomised to the anticoagulation domain.
+
+```{r}
+#| label: primary-model-sampling
+#| code-summary: Primary analysis sampling
+seed <- 49729
+
+make_stan_data <- function(dat) {
+  
+}
+```
+
+## Reduced Model (treatment assignment only)
+
+```{r}
+#| label: model1-sampling
+#| code-summary: Data and sampling
+seed <- 59579
+logistic_mod <- cmdstan_model("stan/logistic_bernoulli.stan")
+
+make_model1_standata <- function(dat) {
+  X <- model.matrix(
+     ~ CAssignment,
+    data = analysis_dat[!is.na(analysis_dat$D28_death), ],
+    contrast = list(CAssignment = contr.orthonorm)
+  )
+  y <- as.integer(analysis_dat$D28_death)
+  y <- y[!is.na(y)]
+  N <- dim(X)[1]
+  K <- dim(X)[2]  
+  list(N = N, K = K, X = X, y = y, beta_sd = c(2.5, 1, 1, 1))
+}
+mod_dat <- make_model1_standata(analysis_dat)
+
+snk <- capture.output(
+  logistic_fit <- logistic_mod$sample(
+    data = mod_dat,
+    seed = seed,
+    refresh = 0,
+    iter_sampling = 2500,
+    chains = 8,
+    parallel_chains = 8
+))
+```
+
+```{r}
+#| label: model1-diagnostics
+#| code-summary: Diagnostics
+logistic_fit$cmdstan_diagnose()
+```
+
+```{r}
+#| label: model1-summary
+#| code-summary: Summaries
+logistic_fit$summary("beta")
+```
+
+```{r}
+#| label: model1-trace
+#| code-summary: Trace plots
+mcmc_trace(logistic_fit$draws("beta_raw", format = "matrix"))
+```
+
+```{r}
+#| label: model1-posteriors
+#| code-summary: Posterior draws
+C <- cbind(1, contr.orthonorm(4))
+beta_drws <- logistic_fit$draws("beta", format = "matrix")
+beta_rvar <- as_draws_rvars(logistic_fit$draws("beta"))$beta
+eta_rvar <- C %**% beta_rvar
+prob_rvar <- 1 / (1 + exp(-eta_rvar))
+beta_trt_rvar <- transform_coding(C, cbind(1, contr.treatment(4))) %**% beta_rvar
+beta_uncon_rvar <- C[, -1] %**% beta_rvar[-1]
+or_rvar <- exp(beta_trt_rvar[-1,1])
+```
