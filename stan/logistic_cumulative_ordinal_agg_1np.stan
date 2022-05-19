@@ -84,7 +84,8 @@ transformed parameters {
 
 model {
   // Prior model
-  target += normal_lpdf(beta_raw | 0, 1);
+  target += normal_lpdf(beta_raw | 0, 1) +
+            normal_lpdf(beta1_raw | 0, 1);
   target += dirichlet_lpdf(p0 | p_par);
   // Observational model
   target += loglik;
