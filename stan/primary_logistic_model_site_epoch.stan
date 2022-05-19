@@ -1,6 +1,6 @@
 data {
   int N;          // number of participants
-  int K;          // number of treatment parameters
+  int K;          // number of design parameters
   int M_region;   // number of regions
   int M_site;     // total number of sites across all regions
   int M_epoch;    // number of epochs
@@ -11,7 +11,7 @@ data {
   array[N] int<lower=1> region;              // region indicator for individual
   array[M_site] int<lower=1> region_by_site; // region indicator for each site
   array[N] int<lower=1> site;                // site indicator
-  array[N] int<lower=1> epoch;               // epochepoch indicator
+  array[N] int<lower=1> epoch;               // epoch indicator
 }
 
 parameters {
@@ -34,9 +34,9 @@ transformed parameters {
   for(m in 1:M_site) {
     gamma_site[m] = tau_site[region_by_site[m]] * epsilon_site[m];
   }
-
   beta_region[1] = 0.0;
   beta_region[2:M_region] = beta_region_raw;
+  // define random-walk(1) prior
   gamma_epoch[1] = 0.0;
   gamma_epoch[2:M_epoch] = tau_epoch * cumulative_sum(epsilon_epoch);
 }
