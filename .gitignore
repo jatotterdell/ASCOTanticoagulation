@@ -34,3 +34,5 @@ renv/*
 
 # Custom
 outputs/*
+
+/.quarto/

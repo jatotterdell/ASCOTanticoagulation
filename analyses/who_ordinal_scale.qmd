@@ -240,7 +240,7 @@ There is evidence of non-proportional odds with respect to the first logit. This
 #|   non-proportional odds at the first logit only.
 seed <- 81350
 modagg <- cmdstan_model("stan/logistic_cumulative_ordinal_agg.stan")
-modagg1nprop <- cmdstan_model("stan/logistic_cumulative_ordinal_1nonprop.stan")
+modagg1nprop <- cmdstan_model("stan/logistic_cumulative_ordinal_agg_1np.stan")
 
 mdatagg <- mdat %>%
   dplyr::count(CAssignment, D28_who) %>%
