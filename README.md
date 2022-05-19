@@ -32,10 +32,6 @@ quarto preview analyses/<filename>.qmd
 
 to render/preview a specific file only.
 
-Alternatively, use 
-
-Alternatively can render 
-
 ### Directories
 
 Planned structure
