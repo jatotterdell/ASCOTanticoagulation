@@ -32,6 +32,8 @@ quarto preview analyses/<filename>.qmd
 
 to render/preview a specific file only.
 
+Rendered documents are output to `docs/`.
+
 ### Directories
 
 Planned structure
