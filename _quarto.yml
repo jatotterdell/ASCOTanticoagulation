@@ -4,3 +4,4 @@ project:
   execute-dir: project
   render:
     - "analyses/*.qmd"
+    - "eda/*.qmd"
