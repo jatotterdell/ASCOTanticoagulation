@@ -17,11 +17,24 @@ Both are automatically loaded when opening `ASCOTanticoagulation.Rproj`.
 ### Quarto
 
 Interactive notebooks are written using [Quarto](https://quarto.org/docs/get-started/).
-To render/preview the notebooks, run them from the root project directory via
+To render the notebooks, either use `Build` in RStudio or use the CLI by running
 
 ```
-quarto preview <filename>.qmd --execute-dir .
+quarto render .
 ```
+
+to render all documents, or
+
+```
+quarto render analyses/<filename>.qmd
+quarto preview analyses/<filename>.qmd
+```
+
+to render/preview a specific file only.
+
+Alternatively, use 
+
+Alternatively can render 
 
 ### Directories
 
