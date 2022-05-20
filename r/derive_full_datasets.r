@@ -43,18 +43,80 @@ add_database_corrections <- function(dat) {
   )
   dat %>%
     mutate(
+
+      # StudyID SAM00117 was not previously screened
+      EL_PrevScreened = case_when(
+        StudyPatientID == "SAM00117" ~ "No",
+        TRUE ~ EL_PrevScreened
+      ),
+
+      # Wrong potassium value entered 4.4 instead of 4.0
+      EL_SerumPotassium = case_when(
+        StudyPatientID == "WES00023" ~ 4.0,
+        TRUE ~ EL_SerumPotassium
+      ),
+
+      # Date of symptom onset and first positive test incorrect
+      EL_FirstSymptoms = case_when(
+        StudyPatientID == "MID00014" ~ as.Date("2021-10-07"),
+        TRUE ~ EL_FirstSymptoms
+      ),
+      EL_FirstPositiveTest = case_when(
+        StudyPatientID == "MID00014" ~ as.Date("2021-10-08"),
+        TRUE ~ EL_FirstPositiveTest
+      ),
+
+      # Date of positive test incorrect
+      EL_FirstPositiveTest = case_when(
+        StudyPatientID == "SYM00002" ~ as.Date("2021-06-05"),
+        StudyPatientID == "SYM00003" ~ as.Date("2021-06-14"),
+        TRUE ~ EL_FirstPositiveTest
+      ),
+
+      # Creatinine units wrongly recorded
+      EL_SerumCreatinineUnits = if_else(StudyPatientID == "SYM00001", "mg/dL", EL_SerumCreatinineUnits),
+      EL_SerumCreatinine_umolL = if_else(StudyPatientID == "SYM00001", EL_SerumCreatinineBlood*88.42, EL_SerumCreatinine_umolL),
+      EL_SerumCreatinineUnits = if_else(StudyPatientID == "JIV00001", "mg/dL", EL_SerumCreatinineUnits),
+      EL_SerumCreatinine_umolL = if_else(StudyPatientID == "JIV00001", EL_SerumCreatinineBlood*88.42, EL_SerumCreatinine_umolL),
+
+      # Days recorded as 27 but should be 28
       D28_OutcomeDaysFreeOfVentilation =
         if_else(StudyPatientID == "MID00006", 28, D28_OutcomeDaysFreeOfVentilation),
+
       # Fix platelet units
       EL_BloodPlateletTestValueUnits =
         if_else(StudyPatientID %in% platID, "x 10<sup>9</sup>/L", EL_BloodPlateletTestValueUnits),
       EL_BloodPlateletTestAs_x10_9_L =
         if_else(StudyPatientID %in% platID, EL_BloodPlateletTestValue, EL_BloodPlateletTestAs_x10_9_L),
+
       # Fix wrong units for Creatinine units, note 1 mg/dL -> 88.42 umol/L
       EL_SerumCreatinineUnits =
         if_else(StudyPatientID %in% creaID, "mg/dL", EL_SerumCreatinineUnits),
       EL_SerumCreatinine_umolL =
         if_else(StudyPatientID %in% creaID, EL_SerumCreatinineBlood * 88.42, EL_SerumCreatinine_umolL),
+
+      # Wrong values entered for screened but not-randomised ID UHPZWK
+      EL_BloodPlateletTestAs_x10_9_L =
+        case_when(
+          EligibilityCode == "UHPZWK" ~ 228,
+          TRUE ~ EL_BloodPlateletTestAs_x10_9_L
+        ),
+      EL_BloodPlateletTestValue =
+        case_when(
+          EligibilityCode == "UHPZWK" ~ 228,
+          TRUE ~ EL_BloodPlateletTestValue
+        ),
+      EL_SerumCreatinineBlood =
+        case_when(
+          EligibilityCode == "UHPZWK" ~ 1.1,
+          TRUE ~ EL_SerumCreatinineBlood
+        ),
+      EL_Con_ConsentDate =
+        case_when(
+          EligibilityCode == "UHPZWK" ~ EL_Con_ConsentDate + 5400,
+          TRUE ~ EL_Con_ConsentDate
+        ),
+
       # Wrong platelet value entered for PUN00004
       EL_BloodPlateletTestAs_x10_9_L =
         case_when(
