@@ -211,9 +211,14 @@ add_primary_outcome_components <- function(dat) {
         TRUE ~ 0
       ),
       DAILY_missing = if_else(is.na(DD_total_records) | DD_total_records < pmin(28, DIS_day), 1, 0),
+      ANY_DD_vasop = case_when(
+        DD_vasop == 1 ~ 1,
+        DAILY_missing == 1 | is.na(DAILY_missing) ~ NA_real_,
+        TRUE ~ 0
+      ),
       # Any vasopressor (pre or post discharge)
       ANY_vasop = case_when(
-        DD_vasop == 1 | D28_vasop == 1 ~ 1,
+        ANY_DD_vasop == 1 | D28_vasop == 1 ~ 1,
         is.na(D28_vasop) | DAILY_missing == 1 | is.na(DAILY_missing) ~ NA_real_,
         TRUE ~ 0
       ),
