@@ -11,6 +11,7 @@
 .RData
 .Ruserdata
 renv/*
+.Renviron
 
 # Data files
 *.xlsx
