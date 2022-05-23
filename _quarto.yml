@@ -11,6 +11,7 @@ format:
     toc: true
     toc-depth: 3
     toc-location: left
+    fig-align: center
     captions: true
     cap-location: margin
     table-captions: true
