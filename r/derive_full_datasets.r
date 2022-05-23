@@ -157,8 +157,87 @@ add_withdrawn_followup <- function(dat) {
 #' @param dat Dataset with one record per participant with their outcomes
 #' @param daily_dat Daily data set with multiple records per participant
 #' @return Returns `dat` but with primary outcome fields appended.
-add_primary_outcome <- function(dat, daily_dat) {
-
+add_primary_outcome_components <- function(dat) {
+  outcome_components_d28 <- dat %>%
+    mutate(
+      # DAMA and likely to die
+      DIS_DAMAlikelytodie = case_when(
+        DIS_DAMA == 1 & DIS_LikelyToDie28 == "Yes" ~ 1L,
+        DIS_DAMA == 1 & DIS_LikelyToDie28 == "No" ~ 0L,
+        DIS_DAMA == 0 ~ 0L,
+        is.na(DIS_DAMA) | DIS_DAMA == 1 & (is.na(DIS_LikelyToDie28) | DIS_LikelyToDie28 == "Unknown") ~ NA_integer_
+      ),
+      # Study day of discharge
+      DIS_day = as.numeric(DIS_DateOfDischarge - RandDate + 1),
+      # Study day of death (discharge)
+      DIS_dday = as.numeric(DIS_DateOfDeath - RandDate + 1),
+      # Discharge death lt 28 days
+      DIS_deathlt28 = as.integer(DIS_death == 1 & DIS_day <= 28),
+      # Any death by day 28 (discharge/d28)
+      D28_death = case_when(
+          D28_PatientStatusDay28 == "Alive" ~ 0L,
+          D28_PatientStatusDay28 == "Dead" ~ 1L,
+          D28_PatientStatusDay28 == "Unknown" ~ NA_integer_,
+          DIS_deathlt28 == 1 ~ 1L,
+          TRUE ~ NA_integer_
+        ),
+      # WHO status at day 28 fill in deaths
+      D28_who = case_when(
+          D28_death == 1L ~ 8L,
+          !is.na(D28_who) ~ D28_who,
+          TRUE ~ NA_integer_
+        ),
+      # Any vasopressor use between discharge and day 28
+      D28_vasop = case_when(
+        D28_OutcomeVasopressors == "Yes" ~ 1,
+        # If death or no discharge then no "Vasopressor use between discharge and day 28"
+        DIS_death == 1 | DIS_day > 28 ~ 0,
+        is.na(D28_OutcomeVasopressors) | D28_OutcomeVasopressors == "Unknown" ~ NA_real_,
+        TRUE ~ 0
+      ),
+      # On ventilation at day 28,
+      # note no information on ventilation between discharge and day 28
+      D28_vent = case_when(
+        D28_StatusVentilation %in% c(
+          "2. Non-invasive ventilation with no previous history of home BiPAP/CPAP",
+          "4. Non-invasive ventilation with previous history of home BiPAP/CPAP that HAS graduated from CPAP only"
+        ) ~ 1,
+        DIS_death == 1 ~ 0,
+        is.na(D28_Status) ~ NA_real_,
+        TRUE ~ 0
+      ),
+      PO_dama = case_when(
+        DIS_DAMAlikelytodie == 1 & (is.na(D28_PatientStatusDay28) | D28_PatientStatusDay28 == "Unknown") ~ 1,
+        TRUE ~ 0
+      ),
+      DAILY_missing = if_else(is.na(DD_total_records) | DD_total_records < pmin(28, DIS_day), 1, 0),
+      # Any vasopressor (pre or post discharge)
+      ANY_vasop = case_when(
+        DD_vasop == 1 | D28_vasop == 1 ~ 1,
+        is.na(D28_vasop) | DAILY_missing == 1 | is.na(DAILY_missing) ~ NA_real_,
+        TRUE ~ 0
+      ),
+      # Any daily ventilation, accounting for missing daily data records
+      ANY_DD_vent = case_when(
+        DD_vent == 1 ~ 1,
+        DAILY_missing == 1 | is.na(DAILY_missing) ~ NA_real_,
+        TRUE ~ 0
+      ),
+      # Any ventilation, daily or at day 28
+      ANY_vent = case_when(
+        D28_vent == 1 | ANY_DD_vent == 1 ~ 1,
+        is.na(ANY_DD_vent) | is.na(D28_vent) ~ NA_real_,
+        TRUE ~ 0
+      ),
+      # Primary outcome known, or missing
+      PO = case_when(
+        # If died, required vany vaso, required any new vent, or met DAMA criteria then satisfy primary outcome.
+        D28_death == 1 | ANY_vasop == 1 | PO_dama == 1 | ANY_vent == 1 ~ 1,
+        # If day 28 status unknown, or missing any daily records, or missing vasop/vent
+        is.na(D28_death) | DAILY_missing == 1 | is.na(DAILY_missing) | is.na(D28_vasop) | is.na(ANY_vent) ~ NA_real_,
+        TRUE ~ 0
+      ))
+  return(outcome_components_d28)
 }
 
 
@@ -271,7 +350,7 @@ format_discharge_data <- function(dis) {
         "Discharged alive but against medical advice",
         "Unknown"
       )),
-      DIS_Death = case_when(
+      DIS_death = case_when(
         DIS_Outcome == "Death" ~ 1L,
         is.na(DIS_Outcome) | DIS_Outcome == "Unknown" ~ NA_integer_,
         TRUE ~ 0L
@@ -280,12 +359,6 @@ format_discharge_data <- function(dis) {
         DIS_Outcome == "Discharged alive but against medical advice" ~ 1L,
         is.na(DIS_Outcome) | DIS_Outcome == "Unknown" ~ NA_integer_,
         TRUE ~ 0L
-      ),
-      DIS_DAMAlikelytodie = case_when(
-        DIS_DAMA == 1 & DIS_LikelyToDie28 == "Yes" ~ 1L,
-        DIS_DAMA == 1 & DIS_LikelyToDie28 == "No" ~ 0L,
-        DIS_DAMA == 0 ~ 0L,
-        is.na(DIS_DAMA) | DIS_DAMA == 1 & (is.na(DIS_LikelyToDie28) | DIS_LikelyToDie28 == "Unknown") ~ NA_integer_
       )
     ) %>%
     # Check antiviral and immouno use
@@ -357,8 +430,13 @@ summarise_daily_data <- function(dd) {
       DD_who_missing = sum(is.na(DD_who)),
       DD_who_worst = max(DD_who, na.rm = TRUE),
       DD_who_best = min(DD_who, na.rm = TRUE),
-      DD_resp = as.integer(any(DD_who2 %in% 1:2)),
-      DD_vaso = as.integer(any(DD_O2VasopressorsInotropes == "Yes")),
+      # Pre-derived variable for meeting primary outcome
+      DD_po = as.integer(any(DD_PrimaryEndpointReachedToday == "Yes", na.rm = TRUE)),
+      # Daily ventilation status (new ventlation meeting po outcome)
+      DD_vent = as.integer(any(DD_who2 %in% c(2, 4) | DD_who == 7)),
+      # Daily ventilation status (ECMO/mechanical)
+      DD_mechecmo = as.integer(any(DD_who == 7, na.rm = T)),
+      DD_vasop = as.integer(any(DD_O2VasopressorsInotropes == "Yes")),
       DD_death = as.integer(any(DD_who == 8)),
       DD_recover = as.integer(any(DD_who <= 3) | (DD_total_days < 28 & DD_who_worst < 8)),
       DD_ttr = if_else(DD_recover == 1, min(DD_total_days, findfirst(DD_who <= 3, v = 29)), NA_real_),
@@ -410,31 +488,9 @@ create_fulldata_no_daily <- function() {
       D28_rec = if_else(is.na(D28_rec), 0, D28_rec),
       DD_total_records = if_else(is.na(DD_total_records), 0L, DD_total_records),
       WTH_FU = if_else(is.na(WTH_FU), 0L, WTH_FU),
-      WTH_day = as.integer(CON_WithdrawnDate - RandDate + 1),
-      DIS_day = as.numeric(DIS_DateOfDischarge - RandDate + 1),
-      DIS_dday = as.numeric(DIS_DateOfDeath - RandDate + 1),
-      DIS_deathlt28 = labelled(
-        as.integer(DIS_Death == 1 & DIS_day <= 28),
-        label = "Discharge: death within 28 days"
-      ),
-      D28_death = labelled(
-        case_when(
-          D28_PatientStatusDay28 == "Alive" ~ 0L,
-          D28_PatientStatusDay28 == "Dead" ~ 1L,
-          D28_PatientStatusDay28 == "Unknown" ~ NA_integer_,
-          DIS_deathlt28 == 1 ~ 1L,
-          TRUE ~ NA_integer_
-        ),
-        label = "All cause mortality at 28 days"
-      ),
-      D28_who = labelled(
-        case_when(
-          D28_death == 1L ~ 8L,
-          !is.na(D28_who) ~ D28_who,
-          TRUE ~ NA_integer_
-        )
-      )
-    )
+      WTH_day = as.integer(CON_WithdrawnDate - RandDate + 1)
+    ) %>%
+    add_primary_outcome_components()
 }
 
 
