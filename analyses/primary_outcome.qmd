@@ -1,0 +1,302 @@
+---
+title: Primary Outcome
+subtitle: |
+  Death from any cause or requirement of new intensive respiratory 
+  support (invasive or non-invasive ventilation) or vasopressor/inotropic 
+  support in the 28 days after randomisation.
+description: |
+  *Undertake the analysis of the primary outcome for ASCOT.*
+author: "James Totterdell"
+date: last-modified
+---
+
+## Preamble
+
+```{r}
+#| label: pkgs
+#| code-summary: Load packages
+library(tidyverse)
+library(labelled)
+library(kableExtra)
+library(cmdstanr)
+library(posterior)
+library(bayestestR)
+library(bayesplot)
+library(matrixStats)
+library(plotly)
+library(lubridate)
+
+theme_set(theme_minimal(base_size = 12))
+```
+
+```{r}
+#| label: data
+#| code-summary: Prepare dataset
+source("r/derive_full_datasets.r")
+all_dat <- read_all_no_daily()
+```
+
+## Primary Outcome Definition
+
+The primary outcome is a composite if death, need for new respiratory support, or vasopressor/inotropic support. From the protocol:
+
+> Death from any cause or requirement of new intensive respiratory support (invasive or non-invasive ventilation) or vasopressor/inotropic support in the 28 days after randomisation. This includes any participant who receives non-invasive mechanical ventilation (either CPAP or BIPAP, apart from the below considerations) any time after enrolment even if not transferred to ICU. It does NOT include the use of humidified high-flow nasal prong oxygen.
+>
+> Participants on pre-existing home BiPAP or CPAP will not be considered to have met the primary outcome unless they have either:
+>
+> -   required invasive mechanical ventilation (i.e. intubation), or
+> -   graduated from CPAP only whilst asleep to BiPAP at any time, or
+> -   graduated from BiPAP only whilst asleep to BiPAP for \>12 hours/day, or
+> -   died by day 28
+>
+> There may be cases where a patient has been assessed as requiring intensive respiratory support (invasive or non-invasive ventilation) or vasopressor/inotropic support, but the patient or family declined treatment and the patient was discharged home. If attempts to obtain 28-day data are unsuccessful or not possible, and the investigator had deemed at the time of discharge that the patient would be highly likely to die within 28 days from randomisation, these participants will be deemed to have met the primary outcome.
+
+## Derivation of the Outcome
+
+Derivation of the outcome requires checking of the daily, discharge, and day 28 data extracts. On the daily data, there is a variable `DD_PrimaryEndpointReachedToday` however this was coded incorrectly in the original database and therefore fails to capture some participants. Additionally, given the composite nature of the outcome it is useful to check all components individually as well as the composite outcome. Therefore, this variable is not used in the derivation, but is included as a cross-check.
+
+Below, each component is summarised in aggregate.
+
+### Day 28 mortality
+
+There were 50 participants who had died by day 28, 40 were are reported as a discharge status of death and 10 were reported as a death post-discharge. Day 28 mortality was missing or unknown for 30 participants.
+
+```{r}
+#| label: po-component-death
+#| code-summary: Summarise the death component
+all_dat %>%
+  filter(ENR_rec == 1, WTH_FU == 0) %>%
+  select(DIS_death, DIS_day, D28_death) %>%
+  dplyr::count(DIS_death, DIS_day <= 28, D28_death) %>%
+  spread(D28_death, n, fill = 0)
+```
+
+### Vasopressor/inotropic requirement
+
+Vasopressor/inotropic support is reported on both the daily (from day 1 to discharge) and the day 28 (from discharge to day 28) extracts. There were 39 participants who required vasopressor/inotropic support. Of these, 19 were reported between discharge and day 28, 18 were reported prior to discharge, and 2 were reported for both. The component was missing for 35 participants. Either due to missing information at day 28 (33) or due to missing daily information (2).
+
+```{r}
+#| label: po-component-vasopressor
+#| code-summary: Summarise the vasopressor/inotropes component
+all_dat %>%
+  filter(ENR_rec == 1, WTH_FU == 0) %>%
+  select(DAILY_missing, ANY_vasop, ANY_DD_vasop, D28_vasop) %>%
+  dplyr::count(DAILY_missing, ANY_DD_vasop, D28_vasop, ANY_vasop) %>%
+  spread(ANY_vasop, n, fill = 0)
+```
+
+### New intensive respiratory support
+
+Respiratory support is reported on both the daily (from day 1 to discharge) and the day 28 (at day 28) extracts. There were 70 participants who required new intensive respiratory support. Of these, 60 were prior to discharge, 6 were reported at day 28, and 4 were both. The outcome was unknown for 36 participants due to either missing day 28 information (34) or missing daily information (2).
+
+```{r}
+#| label: po-component-respiratory
+#| code-summary: Summarise the ventilation component
+all_dat %>%
+  filter(ENR_rec == 1, WTH_FU == 0) %>%
+  select(DAILY_missing, ANY_vent, ANY_DD_vent, D28_vent) %>%
+  dplyr::count(DAILY_missing, ANY_DD_vent, D28_vent, ANY_vent) %>%
+  spread(ANY_vent, n, fill = 0)
+```
+
+### DAMA and Likely to Die
+
+There were 3 participants who were DAMA and identified as likely to die. However, the day 28 status was observed for all 3 participants, therefore, no-one met the primary endpoint due to DAMA and unknown day 28 status.
+
+```{r}
+#| label: po-components-dama
+#| code-summary: Summarise the DAMA component
+all_dat %>%
+  filter(ENR_rec == 1, WTH_FU == 0) %>%
+  select(DIS_DAMA, DIS_DAMAlikelytodie, D28_death) %>%
+  dplyr::count(DIS_DAMA, DIS_DAMAlikelytodie, D28_death) %>%
+  spread(D28_death, n)
+```
+
+### Composite
+
+There were 107 (7% of observed outcomes) participants who met the composite outcome and 36 (2% of all outcomes) participants whose outcome was unknown. Of the 107 who met the outcome, 12 met all three criteria (death, vasopressor, ventilation) and the remaining met some subset of them. Of the 36 with missing outcome, 26 were missing all three components.
+
+```{r}
+#| label: po-composite
+#| code-summary: Summarise the composite
+all_dat %>%
+  filter(ENR_rec == 1, WTH_FU == 0) %>%
+  dplyr::count(PO)
+all_dat %>%
+  filter(ENR_rec == 1, WTH_FU == 0) %>%
+  select(PO, D28_death, ANY_vasop, ANY_vent) %>%
+  dplyr::count(D28_death, ANY_vasop, ANY_vent, PO) %>%
+  spread(PO, n, fill = 0)
+```
+
+## Descriptive Analyses
+
+### Age
+
+```{r}
+#| label: fig-age-po
+#| code-summary: Relationship age to outcome
+#| fig-cap: |
+#|   Relationship (logistic regression linear in age) 
+#|   between age at entry and the primary outcome.
+agedat <- all_dat %>% 
+  filter(ENR_rec == 1, WTH_FU == 0) %>%
+  dplyr::count(PO, AgeAtEntry) %>% 
+  spread(PO, n, fill = 0) %>% 
+  mutate(p = `1` / (`1` + `0`))
+agemod <- glm(
+  cbind(`1`, `0`) ~ AgeAtEntry, 
+  data = agedat, 
+  family = binomial())
+agedat <- agedat %>%
+  mutate(
+    ypred = predict(agemod, newdata = agedat, type = "response")
+  )
+p <- ggplot(agedat, aes(AgeAtEntry, p)) +
+    geom_point() +
+    geom_line(aes(y = ypred)) +
+    labs(y = "Proportion with outcome", x = "Age at entry")
+ggplotly(p)
+```
+
+```{r}
+#| label: tbl-age
+#| code-summary: Relationship age 60+ to outcome
+#| tbl-cap: |
+#|   Relationship between age >= 60 and the primary outcome.
+all_dat %>%
+  filter(ENR_rec == 1, WTH_FU == 0) %>%
+  dplyr::count(`Age 60+` = agegte60, PO) %>%
+  group_by(`Age 60+`) %>%
+  spread(PO, n, fill = 0) %>%
+  mutate(
+    p_1 = `1` / (`1` + `0`),
+    p_miss = `<NA>` / (`1` + `0` + `<NA>`)
+  ) %>%
+  kable(digits = 2) %>%
+  kable_styling(bootstrap_options = "striped")
+```
+
+### Country
+
+```{r}
+#| label: tbl-country-po
+#| code-summary: Relationship country to outcome
+#| tbl-cap: Primary outcome by country.
+all_dat %>%
+  filter(ENR_rec == 1, WTH_FU == 0) %>%
+  dplyr::count(Country = PT_CountryName, PO) %>%
+  group_by(Country) %>%
+  spread(PO, n, fill = 0) %>%
+  mutate(
+    p_1 = `1` / (`1` + `0`),
+    p_miss = `<NA>` / (`1` + `0` + `<NA>`)
+  ) %>%
+  kable(digits = 2) %>%
+  kable_styling(bootstrap_options = "striped")
+```
+
+### Site
+
+```{r}
+#| label: tbl-site-po
+#| code-summary: Relationship site to outcome
+#| tbl-cap: Primary outcome by site within country.
+tabdat <- all_dat %>%
+  filter(ENR_rec == 1, WTH_FU == 0) %>%
+  dplyr::count(
+    Country = PT_CountryName, 
+    Site = PT_LocationName, 
+    PO) %>%
+  group_by(Country, Site) %>%
+  spread(PO, n, fill = 0) %>%
+  mutate(
+    p_1 = `1` / (`1` + `0`),
+    p_miss = `<NA>` / (`1` + `0` + `<NA>`)
+  ) %>%
+  ungroup()
+n_country <- tabdat %>% 
+  dplyr::count(Country) %>%
+  pull(n)
+cn <- cumsum(n_country)
+tabdat %>%
+  select(-Country) %>%
+  kable(digits = 2) %>%
+  kable_styling(bootstrap_options = "striped") %>%
+  pack_rows("Australia", 1, cn[1]) %>%
+  pack_rows("India", cn[1] + 1, cn[2]) %>%
+  pack_rows("Nepal", cn[2] + 1, cn[3]) %>%
+  pack_rows("New Zealand", cn[3] + 1, cn[4])
+```
+
+### Calendar Time
+
+```{r}
+#| label: fig-cal-po
+#| code-summary: Relationship calendar date to outcome
+#| fig-cap: |
+#|   Relationship between calendar date and the primary outcome.
+caldat <- all_dat %>% 
+  filter(ENR_rec == 1, WTH_FU == 0) %>%
+  dplyr::count(PO, yr = year(RandDate), mth = month(RandDate)) %>% 
+  spread(PO, n, fill = 0) %>% 
+  mutate(p = `1` / (`1` + `0`))
+p <- ggplot(caldat, aes(mth, p)) +
+  facet_wrap( ~ yr) +
+    geom_point() +
+    labs(
+      y = "Proportion with outcome", 
+      x = "Calendar date (year and month)") +
+  scale_x_continuous(breaks = 1:12)
+ggplotly(p)
+```
+
+### Anti-coagulation Domain
+
+```{r}
+#| label: tbl-domainC-po
+#| code-summary: Relationship anti-coagulation to outcome
+#| tbl-cap: Primary outcome by anti-coagulation intervention.
+all_dat %>%
+  filter(ENR_rec == 1, WTH_FU == 0) %>%
+  dplyr::count(`Anti-coagulation` = CAssignment, PO) %>%
+  group_by(`Anti-coagulation`) %>%
+  spread(PO, n, fill = 0) %>%
+  mutate(
+    p_1 = `1` / (`1` + `0`),
+    p_miss = `<NA>` / (`1` + `0` + `<NA>`)
+  ) %>%
+  kable(digits = 2) %>%
+  kable_styling(bootstrap_options = "striped")
+```
+
+```{r}
+#| label: tbl-domainC-country-po
+#| code-summary: Relationship anti-coagulation to outcome by country
+#| tbl-cap: Primary outcome by anti-coagulation intervention by country.
+all_dat %>%
+  filter(ENR_rec == 1, WTH_FU == 0) %>%
+  dplyr::count(
+    Country = PT_CountryName, 
+    `Anti-coagulation` = CAssignment, 
+    PO) %>%
+  complete(Country, `Anti-coagulation`, PO, fill = list(n = 0)) %>%
+  group_by(Country, `Anti-coagulation`) %>%
+  spread(PO, n, fill = 0) %>%
+  ungroup() %>%
+  mutate(
+    p_1 = `1` / (`1` + `0`),
+    p_miss = `<NA>` / (`1` + `0` + `<NA>`)
+  ) %>%
+  select(-Country) %>%
+  kable(digits = 2) %>%
+  kable_styling(bootstrap_options = "striped") %>%
+  pack_rows("Australia", 1, 5) %>%
+  pack_rows("India", 6, 10) %>%
+  pack_rows("Nepal", 11, 15) %>%
+  pack_rows("New Zealand", 16, 20)
+```
+
+## Primary Model
+
