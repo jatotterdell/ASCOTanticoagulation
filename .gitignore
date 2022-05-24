@@ -35,5 +35,6 @@ renv/*
 
 # Custom
 outputs/*
-
 /.quarto/
+_freeze
+docs

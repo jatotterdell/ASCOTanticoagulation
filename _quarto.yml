@@ -1,16 +1,35 @@
 project:
-  type: default
+  type: website
   output-dir: docs
   execute-dir: project
   render:
+    - "index.qmd"
     - "analyses/*.qmd"
     - "eda/*.qmd"
+
+website:
+  sidebar:
+    style: "floating"
+    search: true
+    align: left
+    contents:
+      - text: "ASCOT Anticoagulation"
+        file: index.qmd
+      - section: "EDA"
+        contents:
+          - eda/data-overview.qmd
+          - analyses/patient_disposition.qmd
+      - section: "Outcomes"
+        contents:
+          - analyses/primary_outcome.qmd
+          - analyses/all_cause_mortality.qmd
+          - analyses/who_ordinal_scale.qmd
 
 format:
   html:
     toc: true
     toc-depth: 3
-    toc-location: left
+    toc-location: right
     fig-align: center
     captions: true
     cap-location: margin
@@ -29,5 +48,6 @@ execute:
   warning: false
   message: false
   echo: true
+  freeze: auto
 
 engine: knitr

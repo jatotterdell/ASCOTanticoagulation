@@ -4,30 +4,6 @@ description: |
   Working analyses of the WHO 8-point outcome scale outcome.
 author: "James Totterdell"
 date: last-modified
-format: 
-  html:
-    toc: true
-    toc-depth: 3
-    toc-location: left
-    captions: true
-    cap-location: margin
-    table-captions: true
-    tbl-cap-location: margin
-    reference-location: margin
-    theme: journal
-    fontsize: 1em
-    self-contained: true
-    standalone: true
-    code-tools: true
-    code-fold: true
-    code-link: false
-
-execute:
-  warning: false
-  message: false
-  echo: true
-
-engine: knitr
 ---
 
 # Preamble {#preamble}
