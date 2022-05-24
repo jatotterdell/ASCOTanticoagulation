@@ -121,48 +121,4 @@ dat %>%
 
 ## CONSORT Flowchart
 
-# Baseline Summaries
-
-## Age
-
-```{r}
-#| label: fig-age-hist
-#| code-summary: Histogram of age
-#| fig-cap: |
-#|   Distribution of age
-dat %>%
-  filter(ENR_rec == 1) %>%
-  ggplot(., aes(AgeAtEntry)) + 
-  geom_histogram(
-    breaks = c(18, seq(20, 100, 5)), 
-    colour = "white", 
-    closed="left") +
-  labs(
-    x = "Age at randomisation (5-year bins, 30 to 34, 35 to 39, etc.)", 
-    y = "Count") +
-  scale_x_continuous(breaks = seq(20, 95, 5))
-```
-
-```{r}
-#| label: fig-age-by-cassignment
-#| code-summary: Histogram of age by anti-coagulation intervention
-#| fig-cap: |
-#|   Distribution of age by anti-coagulation intervention
-#| fig-cap-location: bottom
-#| column: screen-inset-shaded
-#| layout-nrow: 1
-
-p <- dat %>%
-  filter(ENR_rec == 1) %>%
-  ggplot(., aes(AgeAtEntry)) + 
-  facet_wrap( ~ CAssignment, scales = "free_y", ncol = 5) +
-  geom_histogram(
-    breaks = c(18, seq(20, 100, 5)), 
-    colour = "white", 
-    closed="left") +
-  labs(
-    x = "Age at randomisation (5-year bins, 30 to 34, 35 to 39, etc.)", 
-    y = "Count") +
-  scale_x_continuous(breaks = seq(20, 95, 5))
-ggplotly(p, width = 1700, height = 400)
-```
+## 

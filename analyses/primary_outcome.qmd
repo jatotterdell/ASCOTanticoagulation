@@ -27,6 +27,9 @@ library(plotly)
 library(lubridate)
 
 theme_set(theme_minimal(base_size = 12))
+bayesplot_theme_set(theme_minimal(base_size = 12))
+color_scheme_set("red")
+options(digits = 4)
 ```
 
 ```{r}
@@ -38,7 +41,7 @@ all_dat <- read_all_no_daily()
 
 ## Primary Outcome Definition
 
-The primary outcome is a composite if death, need for new respiratory support, or vasopressor/inotropic support. From the protocol:
+The primary outcome is a composite of death, need for new respiratory support, or vasopressor/inotropic support. From the protocol:
 
 > Death from any cause or requirement of new intensive respiratory support (invasive or non-invasive ventilation) or vasopressor/inotropic support in the 28 days after randomisation. This includes any participant who receives non-invasive mechanical ventilation (either CPAP or BIPAP, apart from the below considerations) any time after enrolment even if not transferred to ICU. It does NOT include the use of humidified high-flow nasal prong oxygen.
 >
@@ -298,5 +301,399 @@ all_dat %>%
   pack_rows("New Zealand", 16, 20)
 ```
 
-## Primary Model
+# Analyses
 
+In what follows, the model is built up from the simplest (treatment-only) to the most complex (primary model).
+
+## ACS-ITT
+
+### Treatment only
+
+```{r}
+#| label: model-treatment-only-sampling
+#| code-summary: Data and sampling treatment only model
+seed <- 17250
+logistic_mod <- cmdstan_model("stan/logistic_bernoulli.stan")
+
+make_model_data_trt_only <- function(dat) {
+  X <- model.matrix(
+     ~ CAssignment,
+    data = dat[!is.na(dat$PO), ],
+    contrast = list(CAssignment = contr.orthonorm)
+  )
+  y <- as.integer(dat$PO)
+  y <- y[!is.na(y)]
+  N <- dim(X)[1]
+  K <- dim(X)[2]  
+  list(N = N, K = K, X = X, y = y, beta_sd = c(2.5, 1, 1, 1))
+}
+mod_dat <- make_model_data_trt_only(
+  all_dat %>%
+    filter(ENR_rec == 1, ACS_ITT == 1, WTH_FU == 0)
+)
+
+snk <- capture.output(
+  trt_only_fit <- logistic_mod$sample(
+    data = mod_dat,
+    seed = seed,
+    refresh = 0,
+    iter_sampling = 2500,
+    chains = 8,
+    parallel_chains = 8
+))
+```
+
+::: column-margin
+**Diagnostics**
+
+```{r}
+#| label: trt-only-diagnostics
+#| echo: false
+do.call(cbind, trt_only_fit$diagnostic_summary())
+```
+:::
+
+```{r}
+#| label: trt-only-summary
+#| code-summary: Summaries
+trt_only_fit$summary("beta")
+```
+
+```{r}
+#| label: fig-trt-only-trace
+#| fig-cap: "Trace plots"
+#| fig-height: 3
+#| code-summary: Trace plots
+mcmc_trace(trt_only_fit$draws("beta_raw", format = "matrix"))
+```
+
+```{r}
+#| label: trt-only-posteriors
+#| code-summary: Posterior draws
+C <- cbind(1, contr.orthonorm(4))
+modrv <- as_draws_rvars(trt_only_fit$draws("beta"))
+modrv$eta <- as.vector(C %**% modrv$beta[1:4])
+modrv$beta_uncon <- as.vector(C[, -1] %**% modrv$beta[2:4])
+modrv$prob <- 1 / (1 + exp(-modrv$eta))
+modrv$beta_trt <- as.vector(
+  transform_coding(C, cbind(1, contr.treatment(4))) %**% 
+  modrv$beta[1:4])
+modrv$OR <- setNames(exp(modrv$beta_trt[-1]), c("C2", "C3", "C4"))
+```
+
+```{r}
+#| label: fig-trt-only-posterior-density
+#| code-summary: Posterior density
+#| fig-cap: Posterior densities for treatment odds ratios.
+#| fig-height: 3
+mcmc_hist(modrv["OR"], binwidth = 0.02) +
+  labs(x = "Odds ratio (vs C1)") +
+  geom_vline(xintercept = 1, linetype = 2) +
+  scale_x_log10()
+```
+
+### Treatment plus covariates (no site or epoch)
+
+Under this model a component is added for country (region), $\mathbb{I}[\text{age}\geq 60]$ (sample-mean centred), and intervention specific ineligibility (C3 only)
+
+::: column-margin
+New terms:
+
+$$
+\begin{aligned}
+\rho_1 &= 0 \\
+\rho_r &\overset{\text{iid}}{\sim} \text{Normal}(0, 1), r=2,...,R,\\
+\beta_{\text{age}\geq 60} &\sim \text{Normal}(0, 2.5^2) \\
+\beta_{\text{inelgC3}} &\sim \text{Normal}(0, 10)
+\end{aligned}
+$$
+:::
+
+```{r}
+#| label: model-no-site-epoch-sampling
+#| code-summary: Data and sampling no site or epoch model
+seed <- 71236
+logistic_mod <- cmdstan_model("stan/logistic_bernoulli.stan")
+
+make_model_data_noepochsite <- function(dat) {
+  X <- model.matrix(
+     ~ CAssignment + agegte60_c + country + inelgc3,
+    data = dat[!is.na(dat$PO), ],
+    contrast = list(CAssignment = contr.orthonorm)
+  )
+  y <- as.integer(dat$PO[!is.na(dat$PO)])
+  N <- dim(X)[1]
+  K <- dim(X)[2]  
+  list(N = N, K = K, X = X, y = y, 
+       beta_sd = c(2.5, 1, 1, 1, 2.5, 1, 1, 1, 10))
+}
+mod_dat <- make_model_data_noepochsite(
+  all_dat %>%
+    filter(ENR_rec == 1, ACS_ITT == 1, WTH_FU == 0) %>%
+    mutate(
+      age_c = AgeAtEntry - mean(AgeAtEntry),
+      agegte60_c = agegte60 - mean(agegte60),
+      country = factor(Country, levels = c("IN", "AU", "NP", "NZ")),
+      inelgc3 = if_else(EL_inelg_c3 == 1 | is.na(EL_inelg_c3), 1, 0)
+    )
+)
+
+snk <- capture.output(
+  no_epoch_site_fit <- logistic_mod$sample(
+    data = mod_dat,
+    seed = seed,
+    refresh = 0,
+    iter_sampling = 2500,
+    chains = 8,
+    parallel_chains = 8
+))
+```
+
+```{r}
+#| label: noepoch-site-summary
+#| code-summary: Summaries
+no_epoch_site_fit$summary("beta")
+```
+
+::: column-margin
+**Diagnostics**
+
+```{r}
+#| echo: false
+do.call(cbind, no_epoch_site_fit$diagnostic_summary())
+```
+:::
+
+```{r}
+#| label: fig-no-epoch-site-trace
+#| fig-cap: "Trace plots"
+#| fig-height: 4
+#| code-summary: Trace plots
+mcmc_trace(no_epoch_site_fit$draws("beta_raw", format = "matrix"))
+```
+
+```{r}
+#| label: no-epoch-site-posteriors
+#| code-summary: Posterior draws
+C <- cbind(1, contr.orthonorm(4))
+modrv <- as_draws_rvars(no_epoch_site_fit$draws("beta"))
+modrv$eta <- as.vector(C %**% modrv$beta[1:4])
+modrv$beta_uncon <- as.vector(C[, -1] %**% modrv$beta[2:4])
+modrv$prob <- 1 / (1 + exp(-modrv$eta))
+modrv$beta_trt <- as.vector(
+  transform_coding(C, cbind(1, contr.treatment(4))) %**% 
+  modrv$beta[1:4])
+modrv$OR <- setNames(exp(modrv$beta_trt[-1]), c("C2", "C3", "C4"))
+```
+
+```{r}
+#| label: fig-posterior-density-no-epoch-site
+#| code-summary: Posterior density
+#| fig-cap: Posterior densities for treatment odds ratios.
+#| fig-height: 3
+mcmc_hist(modrv["OR"], binwidth = 0.02) +
+  labs(x = "Odds ratio (vs C1)") +
+  geom_vline(xintercept = 1, linetype = 2) +
+  scale_x_log10()
+```
+
+```{r}
+#| label: tbl-posterior-summaries-no-epoch-site
+#| code-summary: Posterior summaries
+#| tbl-cap: Posterior summaries
+tibble(
+    Parameter = c("OR[C2]", "OR[C3]", "OR[C4]"),
+    `Pr(OR < 1)` = Pr(modrv$OR < 1),
+    Median = median(modrv$OR),
+    Mean = E(modrv$OR),
+    `95% CrI` = apply(
+      quantile(modrv$OR, c(0.025, 0.975)), 2, 
+      function(x) sprintf("(%.2f, %.2f)", x[1], x[2]))
+  ) %>%
+  kable(digits = 2, align = "lrrrr") %>%
+  kable_styling(bootstrap_options = "striped")
+```
+
+### Treatment plus covariates plus site (no epoch)
+
+Under this model a component is added for site nested within country.
+
+::: column-margin
+New terms
+
+$$
+\begin{aligned}
+\xi_{rs} &\overset{\text{iid}}{\sim}\text{Normal}(0,\sigma^2_{r}), s=1,...,S_r, r=1,...,R \\
+\sigma_r &\overset{\text{iid}}{\sim} \text{Half-}t(3, 1).
+\end{aligned}
+$$
+:::
+
+```{r}
+#| label: model-no-epoch-sampling
+#| code-summary: Data and sampling no site or epoch model
+seed <- 71236
+noepoch_mod <- cmdstan_model("stan/primary_logistic_model_site.stan")
+make_model_data_noepoch <- function(dat) {
+  
+  site_counts <- dat %>% 
+    dplyr::count(
+      Country = factor(Country, levels = c("IN", "AU", "NP", "NZ")), 
+      Location)
+  merge_aus <- site_counts %>% 
+    filter(Country == "AU", n < 5) %>%
+    pull(Location)
+  merge_nz <- site_counts %>% 
+    filter(Country == "NZ", n < 5) %>%
+    pull(Location)
+  dat <- dat %>%
+    mutate(
+      ctry = factor(Country, levels = c("IN", "AU", "NP", "NZ")),
+      # group sites with < 5 counts
+      site = fct_collapse(
+        factor(Location, levels = site_counts$Location),
+        `AU other` = merge_aus,
+        `NZ other` = merge_nz
+        )
+    )
+  region_site <- dat %>%
+      dplyr::count(ctry, site) %>%
+      mutate(
+        ctry_num = as.numeric(ctry), 
+        site_num = as.numeric(fct_inorder(site))
+      )
+  dat <- dat %>% 
+    left_join(region_site %>% select(-n), by = c("ctry", "site"))
+  region <- dat$ctry_num
+  M_region <- max(region)
+  site <- dat$site_num
+  M_site <- max(site)
+  region_by_site <- region_site$ctry_num
+  
+  X <- model.matrix(
+     ~ CAssignment + agegte60_c + inelgc3,
+    data = dat,
+    contrast = list(CAssignment = contr.orthonorm)
+  )
+  y <- as.integer(dat$PO)
+  N <- dim(X)[1]
+  K <- dim(X)[2]  
+  list(N = N, K = K, X = X, y = y,
+       M_region = M_region, region = region,
+       M_site = M_site, site = site,
+       region_by_site = region_by_site,
+       beta_sd = c(2.5, 1, 1, 1, 2.5, 10))
+}
+
+sub_dat <- all_dat %>%
+    filter(
+      ENR_rec == 1, 
+      ACS_ITT == 1, 
+      WTH_FU == 0,
+      !is.na(PO)) %>%
+    mutate(
+      age_c = AgeAtEntry - mean(AgeAtEntry),
+      agegte60_c = agegte60 - mean(agegte60),
+      country = factor(Country, levels = c("IN", "AU", "NP", "NZ")),
+      inelgc3 = if_else(EL_inelg_c3 == 1 | is.na(EL_inelg_c3), 1, 0)
+    )
+
+mod_dat <- make_model_data_noepoch(sub_dat)
+
+snk <- capture.output(
+  no_epoch_fit <- noepoch_mod$sample(
+    data = mod_dat,
+    seed = seed,
+    refresh = 0,
+    iter_sampling = 2500,
+    chains = 8,
+    parallel_chains = 8,
+    adapt_delta = 0.9
+))
+```
+
+::: column-margin
+**Diagnostics**
+
+```{r}
+#| echo: false
+do.call(cbind, no_epoch_fit$diagnostic_summary())
+```
+:::
+
+```{r}
+#| label: noepoch-summary
+#| code-summary: Summaries
+no_epoch_fit$summary("beta")
+```
+
+```{r}
+#| label: fig-no-epoch-trace-beta
+#| fig-cap: "Trace plots"
+#| fig-height: 4
+#| code-summary: Trace plots
+mcmc_trace(no_epoch_fit$draws(
+  c("beta_raw", "beta_region_raw"), 
+  format = "matrix"))
+```
+
+```{r}
+#| label: fig-no-epoch-trace-site
+#| fig-cap: "Trace plots"
+#| fig-cap-location: bottom
+#| caption-location: bottom
+#| fig-height: 8
+#| fig-width: 10
+#| code-summary: Trace plots site terms
+#| column: page
+mcmc_trace(no_epoch_fit$draws(
+  c("epsilon_site", "tau_site"), 
+  format = "matrix"))
+```
+
+```{r}
+#| label: no-epoch-posteriors
+#| code-summary: Posterior draws
+C <- cbind(1, contr.orthonorm(4))
+modrv <- as_draws_rvars(
+  no_epoch_fit$draws(c("beta", "beta_region", "gamma_site", "tau_site")))
+modrv$eta <- as.vector(C %**% modrv$beta[1:4])
+modrv$beta_uncon <- as.vector(C[, -1] %**% modrv$beta[2:4])
+modrv$prob <- 1 / (1 + exp(-modrv$eta))
+modrv$beta_trt <- as.vector(
+  transform_coding(C, cbind(1, contr.treatment(4))) %**% 
+  modrv$beta[1:4])
+modrv$OR <- setNames(exp(modrv$beta_trt[-1]), c("C2", "C3", "C4"))
+```
+
+```{r}
+#| label: fig-posterior-density-no-epoch
+#| code-summary: Posterior density
+#| fig-cap: Posterior densities for treatment odds ratios.
+#| fig-height: 3
+mcmc_hist(modrv["OR"], binwidth = 0.02, freq = F) +
+  labs(x = "Odds ratio (vs C1)") +
+  geom_vline(xintercept = 1, linetype = 2) +
+  scale_x_log10()
+```
+
+```{r}
+#| label: tbl-posterior-summaries-no-epoch
+#| code-summary: Posterior summaries
+#| tbl-cap: Posterior summaries
+tibble(
+    Parameter = c("OR[C2]", "OR[C3]", "OR[C4]"),
+    `Pr(OR < 1)` = Pr(modrv$OR < 1),
+    Median = median(modrv$OR),
+    Mean = E(modrv$OR),
+    `95% CrI` = apply(
+      quantile(modrv$OR, c(0.025, 0.975)), 2, 
+      function(x) sprintf("(%.2f, %.2f)", x[1], x[2]))
+  ) %>%
+  kable(digits = 2, align = "lrrrr") %>%
+  kable_styling(bootstrap_options = "striped")
+```
+
+### Primary Model
+
+## FAS-ITT

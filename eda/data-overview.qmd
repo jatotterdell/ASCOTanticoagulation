@@ -4,30 +4,6 @@ description: |
   Exploratory overview of ASCOT anticoagulation data.
 author: "James Totterdell"
 date: last-modified
-format: 
-  html:
-    toc: true
-    toc-depth: 3
-    toc-location: left
-    captions: true
-    cap-location: margin
-    table-captions: true
-    tbl-cap-location: margin
-    reference-location: margin
-    theme: journal
-    fontsize: 1em
-    self-contained: true
-    standalone: true
-    code-tools: true
-    code-fold: true
-    code-link: false
-
-execute:
-  warning: false
-  message: false
-  echo: true
-
-engine: knitr
 ---
 
 ```{r}
@@ -95,12 +71,16 @@ all_data %>%
 #| fig-cap: |
 #|   Cumulative enrolments to the platform, 
 #|   vertical lines indicate timing of interim analyses
+#| fig-height: 7
 md <- get_interim_dates()
 id <- get_intervention_dates()
 p1 <- all_data %>%
   filter(ENR_rec == 1) %>%
   count(RandDate) %>%
-  complete(RandDate = seq.Date(min(RandDate), max(RandDate), by = "1 day"),
+  complete(RandDate = 
+             seq.Date(min(RandDate, na.rm = TRUE), 
+                      Sys.Date(), 
+                      by = "1 day"),
            fill = list(n = 0)) %>%
   mutate(`Cumulative enrolments` = cumsum(n)) %>%
   rename(`Randomisation date` = RandDate) %>%
@@ -113,12 +93,13 @@ p1 <- all_data %>%
 
 p2 <- id %>%
   mutate(
-    CAssignment = fct_inorder(val_labels(CAssignment))
+    Intervention = fct_inorder(val_labels(Intervention))
   ) %>%
   ggplot(.) +
-  geom_point(aes(x = CAssignment, y = endate), shape = 4) +
+  facet_grid(Domain ~ ., drop = TRUE, scales = "free_y") +
+  geom_point(aes(x = Intervention, y = endate), shape = 4) +
   geom_segment(
-    aes(x = CAssignment, xend = CAssignment, 
+    aes(x = Intervention, xend = Intervention, 
         y = stdate, yend = endate))  +
   geom_hline(data = md,
              aes(yintercept = as.numeric(meet_date)),
@@ -136,13 +117,13 @@ p1 / p2
 #| fig-cap: |
 #|   Cumulative enrolments to the platform by country, 
 #|   vertical lines indicate timing of interim analyses
-#| fig-height: 8
+#| fig-height: 10
 p1 <- all_data %>%
   filter(ENR_rec == 1) %>%
   count(Country = PT_CountryName, RandDate) %>%
   complete(
     Country, 
-    RandDate = seq.Date(min(RandDate), max(RandDate), by = "1 day"),
+    RandDate = seq.Date(min(RandDate, na.rm = T), Sys.Date(), by = "1 day"),
     fill = list(n = 0)) %>%
   group_by(Country) %>%
   mutate(`Cumulative enrolments` = cumsum(n)) %>%
@@ -154,17 +135,14 @@ p1 <- all_data %>%
              aes(xintercept = as.numeric(meet_date)),
              linetype = 2) +
   labs(x = "")
-(p1 / p2) + plot_layout(heights = c(4, 1))
+(p1 / p2) + plot_layout(heights = c(5, 2))
 ```
 
 ```{r}
 #| label: enrolment-site
 #| code-summary: Study enrolment by site
-#| column: screen
+#| column: screen-inset-shaded
 #| layout-nrow: 1
-#| fig-align: center
-#| fig-width: 20
-#| fig-height: 8
 p1 <- all_data %>%
   filter(ENR_rec == 1) %>%
   count(Country = PT_CountryName, Site = PT_LocationName, RandDate) %>%
@@ -184,7 +162,7 @@ p1 <- all_data %>%
              linetype = 2) +
   scale_y_continuous(breaks = function(x) 
     unique(floor(pretty(seq(0, (max(x) + 1) * 1.1)))))
-p1
+ggplotly(p1, height = 1000)
 ```
 
 ## Intervention Assignments
@@ -207,6 +185,77 @@ all_data %>%
   count(FAS_ITT, ACS_ITT, AVS_ITT, AAssignment, CAssignment) %>%
   kable() %>%
   kable_styling("striped", font_size = 14)
+```
+
+```{r}
+#| label: fig-intervention-assignment-overtime
+#| code-summary: Intervention allocations overtime
+#| fig-cap: |
+#|   Allocation to interventions by calendar date.
+p1 <- all_data %>%
+  filter(ENR_rec == 1) %>%
+  count(Intervention = CAssignment, RandDate) %>%
+  complete(Intervention,
+           RandDate = seq.Date(min(RandDate, na.rm = T),
+                               max(Sys.Date(), na.rm = T),
+                               by = "1 day"),
+           fill = list(n = 0)) %>%
+  group_by(Intervention) %>%
+  mutate(cn = cumsum(n)) %>%
+  ungroup() %>%
+  ggplot(., aes(RandDate, cn)) +
+  geom_step(aes(colour = Intervention)) +
+  scale_color_viridis_d(option = "D") +
+  labs(x = "", y = "Cumulative allocation")
+p1 / p2
+```
+
+### Country
+
+Allocations to interventions by country of enrolment.
+
+```{r}
+#| label: tbl-allocation-country
+#| code-summary: Allocations by site
+#| tbl-cap: |
+#|   Allocation to anti-coagulation interventions by country
+all_data %>%
+  filter(ENR_rec == 1) %>%
+  count(Country = PT_CountryName, Intervention = CAssignment) %>%
+  group_by(Country) %>%
+  mutate(p = n / sum(n)) %>%
+  mutate(lab = sprintf("%i (%.2f)", n, p)) %>%
+  select(-n, -p) %>%
+  ungroup() %>%
+  spread(Intervention, lab, fill = "0 (0.00)") %>%
+  kable(align = "lrrrrr") %>%
+  kable_styling(bootstrap_options = "striped", font_size = 12)
+```
+
+### Site
+
+Allocations to interventions by site of enrolment.
+
+```{r}
+#| label: fig-allocation-site
+#| code-summary: Allocations by site
+#| fig-cap: |
+#|   Allocation to anti-coagulation interventions by site
+#| fig-height: 8
+p <- all_data %>%
+  filter(ENR_rec == 1) %>%
+  count(Country = Country, 
+        Site = Location,
+        Intervention = CAssignment) %>%
+  group_by(Site = paste(Country, Site, sep = ": ")) %>%
+  mutate(p = n / sum(n)) %>%
+  ggplot(., aes(Intervention, n)) +
+  facet_wrap( ~ Site, scales = "free_y") +
+  geom_col() +
+  scale_y_continuous("Frequency",
+    breaks = function(x) 
+      unique(floor(pretty(seq(0, (max(x) + 1) * 1.1)))))
+ggplotly(p)
 ```
 
 ## Baseline Factors
@@ -240,6 +289,8 @@ ggplot(all_data %>%
 
 ### Demographics
 
+Baseline demographics are summarised by intervention in the following table.
+
 ```{r}
 #| label: tbl-demographics-table
 #| code-summary: Demographics table
@@ -252,6 +303,8 @@ generate_baseline_demographics_table(sdat, format = "html")
 ```
 
 ### Co-morbidities
+
+Baseline co-morbidities are summarised by anti-coagulation intervention in the following table.
 
 ```{r}
 #| label: tbl-comorbidities-table
@@ -266,6 +319,8 @@ generate_baseline_comorbidities_table(sdat, format = "html")
 
 ### Prognostics
 
+Baseline prognostics are summarised by anti-coagulation intervention in the following table.
+
 ```{r}
 #| label: tbl-prognostics-table
 #| code-summary: Prognostics table
@@ -276,3 +331,48 @@ sdat <- all_data %>%
     filter(ENR_rec == 1, CAssignment != "C0")
 generate_baseline_prognostics_table(sdat, format = "html")
 ```
+
+### Age
+
+```{r}
+#| label: fig-age-hist
+#| code-summary: Histogram of age
+#| fig-cap: |
+#|   Distribution of age
+all_data %>%
+  filter(ENR_rec == 1) %>%
+  ggplot(., aes(AgeAtEntry)) + 
+  geom_histogram(
+    breaks = c(18, seq(20, 100, 5)), 
+    colour = "white", 
+    closed="left") +
+  labs(
+    x = "Age at randomisation (5-year bins, 30 to 34, 35 to 39, etc.)", 
+    y = "Count") +
+  scale_x_continuous(breaks = seq(20, 95, 5))
+```
+
+```{r}
+#| label: fig-age-by-cassignment
+#| code-summary: Histogram of age by anti-coagulation intervention
+#| fig-cap: |
+#|   Distribution of age by anti-coagulation intervention
+#| fig-cap-location: bottom
+#| column: screen-inset-shaded
+#| layout-nrow: 1
+p <- all_data %>%
+  filter(ENR_rec == 1) %>%
+  ggplot(., aes(AgeAtEntry)) + 
+  facet_wrap( ~ CAssignment, scales = "free_y", ncol = 5) +
+  geom_histogram(
+    breaks = c(18, seq(20, 100, 5)), 
+    colour = "white", 
+    closed="left") +
+  labs(
+    x = "Age at randomisation (5-year bins, 30 to 34, 35 to 39, etc.)", 
+    y = "Count") +
+  scale_x_continuous(breaks = seq(20, 95, 5))
+ggplotly(p, width = 1700, height = 400)
+```
+
+### 
