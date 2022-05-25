@@ -54,3 +54,13 @@ model {
   // likehoood
   target += bernoulli_logit_lpmf(y | eta);
 }
+
+generated quantities {
+  array[N] int y_ppc;
+  vector[N] eta =
+    X * beta + beta_region[region] +
+    gamma_site[site] + gamma_epoch[epoch];
+  for(n in 1:N) {
+    y_ppc[n] = bernoulli_logit_rng(eta[n]);
+  }
+}
