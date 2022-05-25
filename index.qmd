@@ -1,5 +1,9 @@
 ---
-pagetitle: "ASCOT Anticoagulation Analyses"
+title: "ASCOT Anticoagulation Analyses"
+pagetitle: "Overview"
+code-tools: false
 ---
 
-# ASCOT Anticoagulation Analyses
+# Summary
+
+The following documents pertain to the analyses for the closure of the ASCOT anti-coagulation domain.

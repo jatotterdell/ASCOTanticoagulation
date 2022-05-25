@@ -9,16 +9,18 @@ project:
 
 website:
   sidebar:
+    title: ASCOT Anticoagulation Analyses
     style: "floating"
     search: true
     align: left
     contents:
-      - text: "ASCOT Anticoagulation"
+      - text: "Summary"
         file: index.qmd
-      - section: "EDA"
+      - section: "Overview and Baseline"
         contents:
           - eda/data-overview.qmd
-          - analyses/patient_disposition.qmd
+          - eda/patient-disposition.qmd
+          - eda/baseline-summaries.qmd
       - section: "Outcomes"
         contents:
           - analyses/primary_outcome.qmd
