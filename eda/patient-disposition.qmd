@@ -1,0 +1,122 @@
+---
+title: "Patient Disposition and Baseline"
+description: |
+  - Summarise patient disposition throughout the trial,
+  including eligibility, randomisation, and withdrawal.
+  - Summarise baseline covariates.
+author: "James Totterdell"
+date: last-modified
+---
+
+# Preamble
+
+```{r}
+#| label: pkgs
+#| code-summary: Load packages
+library(tidyverse)
+library(labelled)
+library(kableExtra)
+library(plotly)
+
+theme_set(theme_minimal(base_size = 12))
+```
+
+```{r}
+#| label: data
+#| code-summary: Prepare dataset
+source("r/derive_full_datasets.r")
+dat <- read_all_no_daily()
+```
+
+# Eligibility
+
+```{r}
+#| label: eligibility-overview
+#| code-summary: Overview Eligibility
+dat %>%
+  count(ENR_rec, EL_OutcomeReason) %>%
+  group_by(ENR_rec) %>%
+  arrange(-n, .by_group = TRUE) %>%
+  ungroup()
+```
+
+## Anti-Coagulation Domain Criteria
+
+For reference, the exclusion criteria for the anti-coagulation domain follows (derived variable `EL_inelg_c`):
+
+-   Receiving dual antiplatelet therapy (`EL_DualAntiplateletTherapy`)
+-   The treating clinician intends to continue or commence therapeutic anticoagulation (`EL_TherapeuticAnticoag`)
+-   Contraindication to receiving low molecular weight heparin or unfractionated heparin (`EL_ContraHeparinReact`)
+-   Severe thrombocytopenia (platelet count less than 30 x $10^9$/L \[protocol version 3.0\] or less than 50 x $10^9$/L \[protocol version 5.0\] (`EL_BloodPlateletTestAs_x10_9_L`)
+-   History of intracranial haemorrhage in the previous 3 months (`EL_IntracranialHaemorrhage`)
+-   Severe renal impairment, defined as estimated glomerular filtration rate less than 15ml/min/1.73m$^2$ (`EL_eGFR`)
+-   A current or recurrent condition with a high risk of major bleeding (e.g. bleeding disorder), or a baseline coagulation profile (within the previous 3 days) that indicates a high risk of bleeding, that would be considered a contraindication to receive therapeutic anticoagulation (`EL_BleedingConditionThrombo`)
+
+```{r}
+#| label: anticoagulation-consent
+#| code-summary: Consent to anticoagulation domain
+dat %>%
+  filter(ENR_rec == 1) %>%
+  count(
+    EL_inelg_c,
+    CAssignment,
+    EL_Con_DomainC
+  )
+```
+
+The one participant with blood platelet less than 50 was correctly enrolled under protocol version 3.0 (blood platelet was \> 30).
+
+```{r}
+#| label: anticoagulation-eligibility
+#| code-summary: Eligibility of those who consent
+dat %>%
+  filter(
+    ENR_rec == 1, 
+    EL_Con_DomainC == "Yes",
+    !is.na(EL_Con_DomainC)
+  ) %>%
+  summarise(
+    `Receiving therapeutic anticoag` = 
+      sum(EL_TherapeuticAnticoag == "Yes"),
+    `Dualy antiplatelet therapy` = 
+      sum(EL_DualAntiplateletTherapy == "Yes"),
+    `Blood platelet < 30` = 
+      sum(EL_BloodPlateletTestAs_x10_9_L < 30),
+    `Blood platelet < 50` = 
+      sum(EL_BloodPlateletTestAs_x10_9_L < 50),
+    `Contraindication heparin` = 
+      sum(EL_ContraHeparinReact == "Yes"),
+    `Intracranial haemorrahge` = 
+      sum(EL_IntracranialHaemorrhage == "Yes"),
+    `Bleeding condition` = 
+      sum(EL_BleedingConditionThrombo == "Yes"),
+    `eGFR < 15` = 
+      sum(EL_eGFR < 15)
+  ) %>%
+  gather()
+```
+
+### Intervention Specific Criteria
+
+Only the standard dose plus aspirin intervention had intervention specific exclusion criteria (appendix version 3.0). For reference, these criteria were (derived variable `EL_inelg_c3`):
+
+-   Receiving an antiplatelet agent will exclude a patient from receiving standard thromboprophylaxis plus aspirin (`EL_ReceivingAntiplatelet`)
+-   Hypersensitivity to aspirin will exclude a patient from receiving standard thrmoboprophylaxis plus aspirin (`EL_HyperAspirin`)
+
+After this intervention had been dropped from the platform, the eligibility criteria ceased to be assessed, so this information is not available for participants enrolled after the intervention had been removed.
+
+```{r}
+#| label: c3-eligibility
+#| code-summary: Eligibility for C3 intervention
+dat %>%
+  filter(ENR_rec == 1) %>%
+  dplyr::count(
+    EL_inelg_c3,
+    EL_ReceivingAntiplatelet,
+    EL_HyperAspirin,
+    CAssignment,
+    EL_Con_DomainC
+  )
+```
+
+## CONSORT Flowchart
