@@ -12,6 +12,7 @@
 .Ruserdata
 renv/*
 .Renviron
+!DESCRIPTION
 
 # Data files
 *.xlsx
