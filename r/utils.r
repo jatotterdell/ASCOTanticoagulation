@@ -8,7 +8,24 @@
 #' @param creatinine Serum creatinine in umol/L
 #' @return Creatinine clearance rate in mL/min.
 creatinine_clearance <- function(sex, age, weight, creatinine) {
-  out <- (140 - age) * weight / (0.814*72*creatinine)
+  out <- (140 - age) * weight / (0.814 * 72 * creatinine)
   out[sex == "Female"] <- 0.85 * out[sex == "Female"]
   return(out)
+}
+
+filter_fas_itt <- function(dat) {
+  filter(
+    dat,
+    ENR_rec == 1,
+    WTH_FU == 0
+  )
+}
+
+filter_acs_itt <- function(dat) {
+  filter(
+    dat,
+    ENR_rec == 1,
+    ACS_ITT == 1,
+    WTH_FU == 0
+  )
 }

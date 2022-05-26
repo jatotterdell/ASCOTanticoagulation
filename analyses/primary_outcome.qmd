@@ -25,6 +25,8 @@ library(bayesplot)
 library(matrixStats)
 library(plotly)
 library(lubridate)
+library(ggdist)
+library(patchwork)
 
 theme_set(theme_minimal(base_size = 12))
 bayesplot_theme_set(theme_minimal(base_size = 12))
@@ -316,7 +318,7 @@ In what follows, the model is built up from the simplest (treatment-only) to the
 In these analyses, the population is restricted to participants who were randomised to the anti-coagulation domain.
 
 ```{r}
-#| code-summary: Setup ACS-ITT dataset
+#| code-summary: Setup ACS-ITT datasets and functions
 acs_itt_dat <- all_dat %>%
     filter(
       ENR_rec == 1, 
@@ -373,15 +375,6 @@ acs_itt_dat <- acs_itt_dat %>%
         TRUE ~ epoch
       ) - 1
     )
-```
-
-### Treatment only
-
-```{r}
-#| label: model-treatment-only-sampling
-#| code-summary: Data and sampling treatment only model
-seed <- 17250
-logistic_mod <- cmdstan_model("stan/logistic_bernoulli.stan")
 
 make_model_data_trt_only <- function(dat) {
   X <- model.matrix(
@@ -397,8 +390,92 @@ make_model_data_trt_only <- function(dat) {
   list(N = N, K = K, X = X, y = y, beta_sd = c(2.5, 1, 1, 1, 1, 1))
 }
 
-mod_dat <- make_model_data_trt_only(acs_itt_dat)
+make_model_data_noepochsite <- function(dat) {
+  X <- model.matrix(
+     ~ CAssignment + AAssignment + agegte60_c + country + inelgc3,
+    data = dat,
+    contrast = list(
+      CAssignment = contr.orthonorm,
+      CAssignment = contr.orthonorm
+    )
+  )
+  y <- as.integer(dat$PO)
+  N <- dim(X)[1]
+  K <- dim(X)[2]  
+  list(N = N, K = K, X = X, y = y, 
+       beta_sd = c(2.5, 1, 1, 1, 1, 1, 2.5, 1, 1, 1, 10))
+}
 
+make_model_data_noepoch <- function(dat) {
+
+  region <- dat$ctry_num
+  M_region <- max(region)
+  site <- dat$site_num
+  M_site <- max(site)
+  region_by_site <-   region_by_site <- dat %>% 
+    dplyr::count(ctry_num, site_num) %>% 
+    pull(ctry_num)
+  
+  X <- model.matrix(
+     ~ CAssignment + AAssignment + agegte60_c + inelgc3,
+    data = dat,
+    contrast = list(
+      AAssignment = contr.orthonorm,
+      CAssignment = contr.orthonorm
+    )
+  )
+  y <- as.integer(dat$PO)
+  N <- dim(X)[1]
+  K <- dim(X)[2]  
+  list(N = N, K = K, X = X, y = y,
+       M_region = M_region, region = region,
+       M_site = M_site, site = site,
+       region_by_site = region_by_site,
+       beta_sd = c(2.5, 1, 1, 1, 1, 1, 2.5, 10))
+}
+
+make_model_data_primary <- function(dat) {
+
+  epoch <- dat$epoch
+  M_epoch <- max(dat$epoch)
+  region <- dat$ctry_num
+  M_region <- max(region)
+  site <- dat$site_num
+  M_site <- max(site)
+  region_by_site <- dat %>% 
+    dplyr::count(ctry_num, site_num) %>% 
+    pull(ctry_num)
+  
+  X <- model.matrix(
+     ~ CAssignment + AAssignment + agegte60_c + inelgc3,
+    data = dat,
+    contrast = list(
+      AAssignment = contr.orthonorm,
+      CAssignment = contr.orthonorm
+    )
+  )
+  nXassign <- sum(grepl("Assignment", colnames(X)))
+  y <- as.integer(dat$PO)
+  N <- dim(X)[1]
+  K <- dim(X)[2]  
+  list(N = N, K = K, X = X, y = y,
+       M_region = M_region, region = region,
+       M_site = M_site, site = site,
+       M_epoch = M_epoch, epoch = epoch,
+       region_by_site = region_by_site,
+       beta_sd = c(2.5, rep(1, nXassign), 2.5, 10))
+  
+}
+```
+
+### Treatment only
+
+```{r}
+#| label: model-treatment-only-sampling
+#| code-summary: Data and sampling treatment only model
+seed <- 17250
+logistic_mod <- cmdstan_model("stan/logistic_bernoulli.stan")
+mod_dat <- make_model_data_trt_only(acs_itt_dat)
 snk <- capture.output(
   trt_only_fit <- logistic_mod$sample(
     data = mod_dat,
@@ -499,24 +576,7 @@ $$
 #| code-summary: Data and sampling no site or epoch model
 seed <- 71236
 logistic_mod <- cmdstan_model("stan/logistic_bernoulli.stan")
-
-make_model_data_noepochsite <- function(dat) {
-  X <- model.matrix(
-     ~ CAssignment + AAssignment + agegte60_c + country + inelgc3,
-    data = dat,
-    contrast = list(
-      CAssignment = contr.orthonorm,
-      CAssignment = contr.orthonorm
-    )
-  )
-  y <- as.integer(dat$PO)
-  N <- dim(X)[1]
-  K <- dim(X)[2]  
-  list(N = N, K = K, X = X, y = y, 
-       beta_sd = c(2.5, 1, 1, 1, 1, 1, 2.5, 1, 1, 1, 10))
-}
 mod_dat <- make_model_data_noepochsite(acs_itt_dat)
-
 snk <- capture.output(
   no_epoch_site_fit <- logistic_mod$sample(
     data = mod_dat,
@@ -614,36 +674,7 @@ $$
 #| code-summary: Data and sampling no site or epoch model
 seed <- 71236
 noepoch_mod <- cmdstan_model("stan/primary_logistic_model_site.stan")
-make_model_data_noepoch <- function(dat) {
-
-  region <- dat$ctry_num
-  M_region <- max(region)
-  site <- dat$site_num
-  M_site <- max(site)
-  region_by_site <-   region_by_site <- dat %>% 
-    dplyr::count(ctry_num, site_num) %>% 
-    pull(ctry_num)
-  
-  X <- model.matrix(
-     ~ CAssignment + AAssignment + agegte60_c + inelgc3,
-    data = dat,
-    contrast = list(
-      AAssignment = contr.orthonorm,
-      CAssignment = contr.orthonorm
-    )
-  )
-  y <- as.integer(dat$PO)
-  N <- dim(X)[1]
-  K <- dim(X)[2]  
-  list(N = N, K = K, X = X, y = y,
-       M_region = M_region, region = region,
-       M_site = M_site, site = site,
-       region_by_site = region_by_site,
-       beta_sd = c(2.5, 1, 1, 1, 1, 1, 2.5, 10))
-}
-
 mod_dat <- make_model_data_noepoch(acs_itt_dat)
-
 snk <- capture.output(
   no_epoch_fit <- noepoch_mod$sample(
     data = mod_dat,
@@ -762,57 +793,32 @@ $$
 seed <- 32915
 primary_mod <- cmdstan_model(
   "stan/primary_logistic_model_site_epoch.stan")
-
-make_model_data_primary <- function(dat) {
-
-  epoch <- dat$epoch
-  M_epoch <- max(dat$epoch)
-  region <- dat$ctry_num
-  M_region <- max(region)
-  site <- dat$site_num
-  M_site <- max(site)
-  region_by_site <- dat %>% 
-    dplyr::count(ctry_num, site_num) %>% 
-    pull(ctry_num)
-  
-  X <- model.matrix(
-     ~ CAssignment + AAssignment + agegte60_c + inelgc3,
-    data = dat,
-    contrast = list(
-      AAssignment = contr.orthonorm,
-      CAssignment = contr.orthonorm
-    )
-  )
-  y <- as.integer(dat$PO)
-  N <- dim(X)[1]
-  K <- dim(X)[2]  
-  list(N = N, K = K, X = X, y = y,
-       M_region = M_region, region = region,
-       M_site = M_site, site = site,
-       M_epoch = M_epoch, epoch = epoch,
-       region_by_site = region_by_site,
-       beta_sd = c(2.5, 1, 1, 1, 1, 1, 2.5, 10))
-  
-}
-
 mod_dat <- make_model_data_primary(acs_itt_dat)
-
 snk <- capture.output(
-  primary_mod <- primary_mod$sample(
+  primary_fit <- primary_mod$sample(
     data = mod_dat,
     seed = seed,
     refresh = 0,
     iter_sampling = 5000,
     chains = 8,
     parallel_chains = 8,
-    adapt_delta = 0.95
+    adapt_delta = 0.98
 ))
 ```
+
+::: column-margin
+**Diagnostics**
+
+```{r}
+#| echo: false
+do.call(cbind, primary_fit$diagnostic_summary())
+```
+:::
 
 ```{r}
 #| label: primary-summary
 #| code-summary: Summaries
-primary_mod$summary(c("beta", "beta_region"))
+primary_fit$summary(c("beta", "beta_region"))
 ```
 
 ```{r}
@@ -824,7 +830,7 @@ primary_mod$summary(c("beta", "beta_region"))
 #| fig-width: 10
 #| code-summary: Trace plots site terms
 #| column: page
-mcmc_trace(primary_mod$draws(
+mcmc_trace(primary_fit$draws(
   c("epsilon_site", "tau_site"), 
   format = "matrix"))
 ```
@@ -838,7 +844,7 @@ mcmc_trace(primary_mod$draws(
 #| fig-width: 10
 #| code-summary: Trace plots epoch terms
 #| column: page
-mcmc_trace(primary_mod$draws(
+mcmc_trace(primary_fit$draws(
   c("epsilon_epoch", "tau_epoch"), 
   format = "matrix"))
 ```
@@ -849,7 +855,7 @@ mcmc_trace(primary_mod$draws(
 Ca <- cbind(1, attr(mod_dat$X, "contrasts")$AAssignment)
 Cc <- cbind(1, attr(mod_dat$X, "contrasts")$CAssignment)
 modrv <- as_draws_rvars(
-  primary_mod$draws(
+  primary_fit$draws(
     c("beta", "beta_region", "gamma_site", "tau_site", "gamma_epoch", "tau_epoch")))
 modrv$eta <- as.vector(Cc %**% modrv$beta[1:4])
 modrv$beta_uncon <- as.vector(Cc[, -1] %**% modrv$beta[2:4])
@@ -864,11 +870,30 @@ modrv$OR <- setNames(exp(modrv$beta_trt[-1]), c("C2", "C3", "C4"))
 #| label: fig-posterior-density-primary
 #| code-summary: Posterior density
 #| fig-cap: Posterior densities for treatment odds ratios.
-#| fig-height: 3
-mcmc_hist(modrv["OR"], binwidth = 0.02, freq = F) +
-  labs(x = "Odds ratio (vs C1)") +
-  geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_log10()
+#| fig-height: 4
+tibble(
+  Contrast = fct_inorder(
+    c("C2 v C1", "C3 v C1", "C4 v C1", "C2 vs C4")), 
+  RV = c(modrv$OR, modrv$OR[1] / modrv$OR[3])) %>% 
+  ggplot(., aes(y = Contrast, xdist = RV)) + 
+  stat_halfeye(
+    aes(fill = 
+          stat(cut_cdf_qi(
+            cdf, 
+            .width = c(.5, .8, .95, 0.99), 
+            labels = scales::percent_format()))),
+    adjust = 1, n = 1001, .width = c(0.5, 0.8, 0.95)
+    ) + 
+  scale_fill_brewer(
+    palette = "Reds",
+    direction = -1, 
+    na.translate = FALSE) + 
+  labs(
+    x = "Odds ratio contrast",
+    fill = "Interval"
+  ) +
+  scale_x_log10(breaks = c(0.1, 0.25, 0.5, 1, 2, 4, 10)) + 
+  geom_vline(xintercept = 1)
 ```
 
 ```{r}
@@ -888,10 +913,227 @@ tibble(
   kable_styling(bootstrap_options = "striped")
 ```
 
+#### Posterior Predictive Checks
+
+```{r}
+y_ppc <- as_draws_rvars(primary_fit$draws("y_ppc"))$y_ppc
+ppc_dat <- bind_cols(acs_itt_dat, tibble(y_ppc = y_ppc)) %>%
+  select(
+    StudyPatientID,
+    AAssignment,
+    CAssignment, 
+    AgeAtEntry,
+    inelgc3,
+    ctry, 
+    site, 
+    epoch,
+    PO,
+    y_ppc) %>%
+  mutate(
+    mean_y_ppc = mean(y_ppc))
+
+plot_grp_ppc <- function(dat, lab = "") {
+  dat %>%
+    ggplot(aes(y = grp, xdist = rvar_mean_y_ppc)) +
+    stat_ccdfinterval(
+      normalize = "groups", 
+      slab_colour = "grey50",
+      slab_size = 1,
+      slab_fill = NA) +
+    geom_segment(aes(x = mean_y, 
+                     xend = mean_y,
+                     y = 1:nrow(dat)-0.5,
+                     yend = 2:(nrow(dat)+1)-0.5)) +
+    labs(
+      x = "Average predicted y", 
+      y = lab)  
+}
+
+ppc_C <- ppc_dat %>%
+  group_by(grp = CAssignment) %>%
+  summarise(
+    mean_y = mean(PO),
+    rvar_mean_y_ppc = rvar_mean(y_ppc)
+  )
+ppc_ctry <- ppc_dat %>%
+  group_by(grp = ctry) %>%
+  summarise(
+    mean_y = mean(PO),
+    rvar_mean_y_ppc = rvar_mean(y_ppc)
+  )
+ppc_epoch <- ppc_dat %>%
+  group_by(grp = epoch) %>%
+  summarise(
+    mean_y = mean(PO),
+    rvar_mean_y_ppc = rvar_mean(y_ppc)
+  )
+ppc_site <- ppc_dat %>%
+  group_by(Country = ctry, grp = site) %>%
+  summarise(
+    mean_y = mean(PO),
+    rvar_mean_y_ppc = rvar_mean(y_ppc)
+  )
+
+p1 <- plot_grp_ppc(ppc_C, "Anti-coagulation intervention")
+p2 <- plot_grp_ppc(ppc_ctry, "Country")
+p3 <- plot_grp_ppc(ppc_epoch, "Epoch")
+p4 <- plot_grp_ppc(ppc_site %>% filter(Country == "IN"))
+p5 <- plot_grp_ppc(ppc_site %>% filter(Country == "AU"))
+p6 <- plot_grp_ppc(ppc_site %>% filter(Country == "NP"))
+p7 <- plot_grp_ppc(ppc_site %>% filter(Country == "NZ"))
+
+p1 | p2
+```
+
 ## FAS-ITT
 
 In these analyses, the population is includes all participants who were randomised to the platform, even if not randomised into the anticoagulation domain.
 
+```{r}
+#| code-summary: Setup ACS-ITT dataset
+fas_itt_dat <- all_dat %>%
+    filter(
+      ENR_rec == 1, 
+      WTH_FU == 0,
+      !is.na(PO))
+site_counts <- fas_itt_dat %>% 
+  dplyr::count(
+    Country = factor(Country, levels = c("IN", "AU", "NP", "NZ")), 
+    Location)
+merge_aus <- site_counts %>% 
+  filter(Country == "AU", n < 5) %>%
+  pull(Location)
+merge_nz <- site_counts %>% 
+  filter(Country == "NZ", n < 5) %>%
+  pull(Location)
+fas_itt_dat <- fas_itt_dat %>%
+  mutate(
+    ctry = factor(Country, levels = c("IN", "AU", "NP", "NZ")),
+    # group sites with < 5 counts
+    site = fct_collapse(
+      factor(Location, levels = site_counts$Location),
+      `AU other` = merge_aus,
+      `NZ other` = merge_nz
+      )
+  )
+region_site <- fas_itt_dat %>%
+  dplyr::count(ctry, site) %>%
+  mutate(
+    ctry_num = as.numeric(ctry), 
+    site_num = as.numeric(fct_inorder(site))
+  )
+fas_itt_dat <- fas_itt_dat %>% 
+    left_join(region_site %>% select(-n), by = c("ctry", "site"))
+fas_itt_dat <- fas_itt_dat %>%
+    transmute(
+      StudyPatientID,
+      AAssignment= factor(
+        AAssignment, levels = c("A1", "A0", "A2")),
+      CAssignment = factor(
+        CAssignment, levels = c("C1", "C0", "C2", "C3", "C4")),
+      RandDate,
+      PO,
+      age_c = AgeAtEntry - mean(AgeAtEntry),
+      agegte60_c = agegte60 - mean(agegte60),
+      country = factor(Country, levels = c("IN", "AU", "NP", "NZ")),
+      inelgc3 = if_else(EL_inelg_c3 == 1 | is.na(EL_inelg_c3), 1, 0),
+      ctry = factor(Country, levels = c("IN", "AU", "NP", "NZ")),
+      # group sites with < 5 counts
+      site = fct_collapse(
+        factor(Location, levels = site_counts$Location),
+        `AU other` = merge_aus,
+        `NZ other` = merge_nz
+        ),
+      ctry_num,
+      site_num,
+      relRandDate = as.numeric(max(RandDate) - RandDate),
+      epoch = floor(relRandDate / 28),
+      # Manual merge after check of count(epoch)
+      epoch = case_when(
+        epoch %in% 0:1 ~ 2,
+        epoch == 14 ~ 13,
+        TRUE ~ epoch
+      ) - 1
+    )
+```
+
 ### Treatment only
 
 ### Treatment plus covariates (no site or epoch)
+
+### Primary Model
+
+```{r}
+mod_dat <- make_model_data_primary(fas_itt_dat)
+
+snk <- capture.output(
+  primary_fit <- primary_mod$sample(
+    data = mod_dat,
+    seed = seed,
+    refresh = 0,
+    iter_sampling = 5000,
+    chains = 8,
+    parallel_chains = 8,
+    adapt_delta = 0.95
+))
+```
+
+```{r}
+#| label: primary-posteriors-fas
+#| code-summary: Posterior draws FAS
+Ca <- cbind(1, attr(mod_dat$X, "contrasts")$AAssignment)
+Cc <- cbind(1, attr(mod_dat$X, "contrasts")$CAssignment)
+modrv <- as_draws_rvars(
+  primary_fit$draws(
+    c("beta", "beta_region", "gamma_site", "tau_site", "gamma_epoch", "tau_epoch")))
+modrv$eta <- as.vector(Cc %**% modrv$beta[1:5])
+modrv$beta_uncon <- as.vector(Cc[, -1] %**% modrv$beta[2:5])
+modrv$prob <- 1 / (1 + exp(-modrv$eta))
+modrv$beta_trt <- as.vector(
+  transform_coding(Cc, cbind(1, contr.treatment(5))) %**% 
+  modrv$beta[1:5])
+modrv$OR <- setNames(exp(modrv$beta_trt[-(1:2)]), c("C2", "C3", "C4"))
+```
+
+```{r}
+tibble(
+  Contrast = fct_inorder(
+    c("C2 v C1", "C3 v C1", "C4 v C1", "C2 vs C4")), 
+  RV = c(modrv$OR, modrv$OR[1] / modrv$OR[3])) %>% 
+  ggplot(., aes(y = Contrast, xdist = RV)) + 
+  stat_halfeye(
+    aes(fill = 
+          stat(cut_cdf_qi(
+            cdf, 
+            .width = c(.5, .8, .95, 0.99), 
+            labels = scales::percent_format()))),
+    adjust = 1, n = 1001, .width = c(0.5, 0.8, 0.95)
+    ) + 
+  scale_fill_brewer(
+    palette = "Reds",
+    direction = -1, 
+    na.translate = FALSE) + 
+  labs(
+    x = "Odds ratio contrast",
+    fill = "Interval"
+  ) +
+  scale_x_log10(breaks = c(0.1, 0.25, 0.5, 1, 2, 4, 10)) + 
+  geom_vline(xintercept = 1)
+```
+
+```{r}
+#| label: tbl-posterior-summaries-primary-fas
+#| code-summary: Posterior summaries FAS
+#| tbl-cap: Posterior summaries FAS
+tibble(
+    Parameter = c("OR[C2]", "OR[C3]", "OR[C4]"),
+    `Pr(OR < 1)` = Pr(modrv$OR < 1),
+    Median = median(modrv$OR),
+    Mean = E(modrv$OR),
+    `95% CrI` = apply(
+      quantile(modrv$OR, c(0.025, 0.975)), 2, 
+      function(x) sprintf("(%.2f, %.2f)", x[1], x[2]))
+  ) %>%
+  kable(digits = 2, align = "lrrrr") %>%
+  kable_styling(bootstrap_options = "striped")
+```
