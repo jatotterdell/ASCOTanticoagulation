@@ -316,6 +316,23 @@ p <- all_data %>%
 p
 ```
 
+## Weight
+
+```{r}
+#| label: fig-weight-hist
+#| code-summary: Histogram of weight
+#| fig-cap: |
+#|   Distribution of weight
+p <- all_data %>%
+  filter(ENR_rec == 1, !is.na(BAS_WeightMeasurement)) %>%
+  # 2 with weight reported as 0, make NA
+  mutate(BAS_Weight = if_else(BAS_Weight == 0, NA_real_, BAS_Weight)) %>%
+  ggplot(., aes(BAS_Weight)) +
+  facet_wrap( ~ BAS_WeightMeasurement, scales = "free_y") +
+  geom_histogram()
+p
+```
+
 ## Date since first symptoms
 
 ```{r}
