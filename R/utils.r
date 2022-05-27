@@ -32,6 +32,12 @@ creatinine_clearance <- function(sex, age, weight, creatinine) {
 }
 
 
+#' @title transform_coding
+#' @description
+#' Convert from one contrast coding to another
+#' @param cod_from The coding to transform from
+#' @param cod_to The coding to transform to
+#' @return The transformation matrix
 transform_coding <- function(cod_from, cod_to) {
   MASS::ginv(cod_to) %*% cod_from
 }
@@ -70,6 +76,13 @@ filter_fas_itt <- function(dat) {
 }
 
 
+#' @title filter_acs_itt
+#' @description
+#' Filter the full dataset down to the ACS-ITT,
+#' that is, those who were enrolled and did not
+#' withdraw from follow-up and were randomised to
+#' intervention in domain C.
+#' @param dat Data from `read_all_no_daily`
 filter_acs_itt <- function(dat) {
   filter(
     dat,
@@ -109,13 +122,21 @@ transmute_model_cols <- function(dat) {
     left_join(region_site %>% select(-n), by = c("ctry", "site")) %>%
     transmute(
       StudyPatientID,
+      Sex,
       AAssignment= droplevels(factor(
         AAssignment, levels = c("A1", "A0", "A2"))),
       CAssignment = droplevels(factor(
         CAssignment, levels = c("C1", "C0", "C2", "C3", "C4"))),
       RandDate,
       PO,
+      AgeAtEntry,
+      weight = BAS_Weight,
+      weightgt120 = as.numeric(weight > 120),
+      oxygen_sat = if_else(BAS_PeripheralOxygen < 10, NA_real_, BAS_PeripheralOxygen),
+      dsfs = as.numeric(RandDate - EL_FirstSymptoms),
+      dsfsgt7 = as.numeric(dsfs > 7),
       age_c = AgeAtEntry - mean(AgeAtEntry),
+      agegte60,
       agegte60_c = agegte60 - mean(agegte60),
       country = factor(Country, levels = c("IN", "AU", "NP", "NZ")),
       inelgc3 = if_else(EL_inelg_c3 == 1 | is.na(EL_inelg_c3), 1, 0),
@@ -142,9 +163,18 @@ transmute_model_cols <- function(dat) {
 
 # Save outputs ----
 
+
+#' @title save_tex_table
+#' @description
+#' Save a latex table
+#' @param tab The latex table
+#' @param fn The file name (without .tex extension)
+#' @return Nothing, but writes the table to outputs/tables/<fn>.tex
 save_tex_table <- function(tab, fn) {
   writeLines(tab, con = file.path("outputs", "tables", paste0(fn, ".tex")))
 }
+
+
 
 save_cmdstanr_model <- function(mod, fn) {
   sf <- paste0(fn, ".rds")
