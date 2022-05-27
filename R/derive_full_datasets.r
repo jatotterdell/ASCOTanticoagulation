@@ -495,7 +495,9 @@ create_fulldata_no_daily <- function() {
       WTH_FU = if_else(is.na(WTH_FU), 0L, WTH_FU),
       WTH_day = as.integer(CON_WithdrawnDate - RandDate + 1)
     ) %>%
-    add_primary_outcome_components()
+    add_primary_outcome_components() %>%
+    # restrict to randomisations prior to closure of anticoagulation
+    filter(RandDate <= as.Date("2022-04-08") | is.na(RandDate))
 }
 
 
