@@ -59,6 +59,105 @@ acs_itt_nona_dat <- acs_itt_dat %>%
 logistic_mod <- cmdstan_model("stan/logistic_bernoulli.stan")
 noepoch_mod <- cmdstan_model("stan/primary_logistic_model_site.stan")
 primary_mod <- cmdstan_model("stan/primary_logistic_model_site_epoch.stan")
+logistic_subgrp_mod <- cmdstan_model("stan/logistic_subgroup.stan")
+```
+
+```{r}
+#| label: model-data-for-acs-itt
+#| code-summary: Setup ACS-ITT datasets and functions
+make_model_data_trt_only <- function(dat) {
+  X <- model.matrix(
+     ~ CAssignment + AAssignment,
+    data = dat,
+    contrast = list(
+      AAssignment = contr.orthonorm,
+      CAssignment = contr.orthonorm)
+  )
+  y <- as.integer(dat$PO)
+  N <- dim(X)[1]
+  K <- dim(X)[2]  
+  list(N = N, K = K, X = X, y = y, beta_sd = c(2.5, rep(1, ncol(X) - 1)))
+}
+
+
+make_model_data_noepochsite <- function(dat) {
+  X <- model.matrix(
+     ~ CAssignment + AAssignment + agegte60_c + country + inelgc3,
+    data = dat,
+    contrast = list(
+      CAssignment = contr.orthonorm,
+      CAssignment = contr.orthonorm
+    )
+  )
+  nXassign <- sum(grepl("Assignment", colnames(X)))
+  y <- as.integer(dat$PO)
+  N <- dim(X)[1]
+  K <- dim(X)[2]  
+  list(N = N, K = K, X = X, y = y, 
+       beta_sd = c(2.5, rep(1, nXassign), 2.5, 1, 1, 1, 10))
+}
+
+make_model_data_noepoch <- function(dat) {
+
+  region <- dat$ctry_num
+  M_region <- max(region)
+  site <- dat$site_num
+  M_site <- max(site)
+  region_by_site <-   region_by_site <- dat %>% 
+    dplyr::count(ctry_num, site_num) %>% 
+    pull(ctry_num)
+  
+  X <- model.matrix(
+     ~ CAssignment + AAssignment + agegte60_c + inelgc3,
+    data = dat,
+    contrast = list(
+      AAssignment = contr.orthonorm,
+      CAssignment = contr.orthonorm
+    )
+  )
+  nXassign <- sum(grepl("Assignment", colnames(X)))
+  y <- as.integer(dat$PO)
+  N <- dim(X)[1]
+  K <- dim(X)[2]  
+  list(N = N, K = K, X = X, y = y,
+       M_region = M_region, region = region,
+       M_site = M_site, site = site,
+       region_by_site = region_by_site,
+       beta_sd = c(2.5,  rep(1, nXassign), 2.5, 10))
+}
+
+make_model_data_primary <- function(dat) {
+
+  epoch <- dat$epoch
+  M_epoch <- max(dat$epoch)
+  region <- dat$ctry_num
+  M_region <- max(region)
+  site <- dat$site_num
+  M_site <- max(site)
+  region_by_site <- dat %>% 
+    dplyr::count(ctry_num, site_num) %>% 
+    pull(ctry_num)
+  
+  X <- model.matrix(
+     ~ CAssignment + AAssignment + agegte60_c + inelgc3,
+    data = dat,
+    contrast = list(
+      AAssignment = contr.orthonorm,
+      CAssignment = contr.orthonorm
+    )
+  )
+  nXassign <- sum(grepl("Assignment", colnames(X)))
+  y <- as.integer(dat$PO)
+  N <- dim(X)[1]
+  K <- dim(X)[2]  
+  list(N = N, K = K, X = X, y = y,
+       M_region = M_region, region = region,
+       M_site = M_site, site = site,
+       M_epoch = M_epoch, epoch = epoch,
+       region_by_site = region_by_site,
+       beta_sd = c(2.5, rep(1, nXassign), 2.5, 10))
+  
+}
 ```
 
 ```{r}
@@ -460,13 +559,149 @@ caldat <- all_dat %>%
   spread(PO, n, fill = 0) %>% 
   mutate(p = `1` / (`1` + `0`))
 p <- ggplot(caldat, aes(mth, p)) +
-  facet_wrap( ~ yr) +
+  facet_wrap( ~ yr, drop = T) +
     geom_point() +
     labs(
       y = "Proportion with outcome", 
       x = "Calendar date (year and month)") +
-  scale_x_continuous(breaks = 1:12)
+  scale_x_continuous(breaks = 1:12) +
+  ylim(0, 0.25)
 ggplotly(p)
+```
+
+## Days since symptom onset
+
+```{r}
+#| label: fig-dsfs-po
+#| code-summary: Relationship days since sympton onset to outcome
+#| fig-cap: |
+#|   Relationship (logistic regression linear) 
+#|   between days since symptom onset at entry and the primary outcome.
+dsfsdat <- fas_itt_dat %>%
+  dplyr::count(PO, dsfs) %>% 
+  spread(PO, n, fill = 0) %>% 
+  mutate(p = `1` / (`1` + `0`))
+dsfsmod <- glm(
+  cbind(`1`, `0`) ~ dsfs, 
+  data = dsfsdat, 
+  family = binomial())
+dsfsdat <- dsfsdat %>%
+  mutate(
+    ypred = predict(dsfsmod, newdata = dsfsdat, type = "response")
+  )
+p <- ggplot(dsfsdat, aes(dsfs, p)) +
+    geom_point() +
+    geom_line(aes(y = ypred)) +
+    labs(y = "Proportion with outcome", x = "Days since onset")
+ggplotly(p)
+```
+
+```{r}
+#| label: tbl-dsfs
+#| code-summary: Relationship days since sympton onset > 7 to outcome
+#| tbl-cap: |
+#|   Relationship between days since sympton onset > 7 and the primary outcome.
+fas_itt_dat %>%
+  dplyr::count(`DSFS > 7` = dsfsgt7, PO) %>%
+  group_by(`DSFS > 7`) %>%
+  spread(PO, n, fill = 0) %>%
+  mutate(
+    p_1 = `1` / (`1` + `0`),
+    p_miss = `<NA>` / (`1` + `0` + `<NA>`)
+  ) %>%
+  kable(digits = 2) %>%
+  kable_styling(bootstrap_options = "striped")
+```
+
+## Oxygen
+
+```{r}
+#| label: tbl-on-room-air
+#| code-summary: Relationship of on room air at baseline to outcome
+#| tbl-cap: |
+#|   Relationship between on room air and the primary outcome.
+all_dat %>%
+  filter_fas_itt() %>%
+  dplyr::count(BAS_OnRoomAir24hrsUnknown, BAS_OnRoomAir24hrs, PO) %>%
+  spread(PO, n, fill = 0) %>%
+  mutate(
+    p_1 = `1` / (`1` + `0`),
+    p_miss = `<NA>` / (`1` + `0` + `<NA>`)
+  ) %>%
+  kable(digits = 2) %>%
+  kable_styling(bootstrap_options = "striped")
+```
+
+```{r}
+#| label: fig-oxygen-sat
+#| code-summary: Relationship oxygen saturation to outcome
+#| fig-cap: |
+#|   Relationship (logistic regression linear) 
+#|   between oxygen saturation at entry and the primary outcome.
+podat <- fas_itt_dat %>%
+  dplyr::count(PO, oxygen_sat) %>% 
+  spread(PO, n, fill = 0) %>% 
+  mutate(p = `1` / (`1` + `0`))
+pomod <- glm(
+  cbind(`1`, `0`) ~ I(oxygen_sat - 94), 
+  data = podat, 
+  family = binomial())
+podat <- podat %>%
+  mutate(
+    ypred = predict(pomod, newdata = podat, type = "response")
+  )
+p <- ggplot(podat, aes(oxygen_sat, p)) +
+    geom_point() +
+    geom_line(aes(y = ypred)) +
+    labs(y = "Proportion with outcome", x = "Days since onset")
+ggplotly(p)
+```
+
+## Weight
+
+```{r}
+#| label: fig-weight
+#| code-summary: Relationship weight to outcome
+#| fig-cap: |
+#|   Relationship (logistic regression linear) 
+#|   between weight at entry and the primary outcome.
+weightdat <- fas_itt_dat %>%
+  filter(!is.na(weight), !is.na(PO)) %>%
+  select(Sex, weight, PO)
+weightdatprop <- weightdat %>%
+  group_by(Sex, weight) %>%
+  summarise(p = mean(PO))
+weightmod <- glm(
+  PO ~ Sex * I(weight - mean(weight, na.rm = T)), 
+  data = weightdat, 
+  family = binomial())
+weightdat <- weightdat %>%
+  mutate(
+    ypred = predict(weightmod, newdata = weightdat, type = "response")
+  )
+p <- ggplot(weightdat, aes(weight, p)) +
+  facet_wrap( ~ Sex) +
+    geom_point(data = weightdatprop) +
+    geom_line(aes(y = ypred)) +
+    labs(y = "Proportion with outcome", x = "Days since onset")
+ggplotly(p)
+```
+
+```{r}
+#| label: tbl-weight
+#| code-summary: Relationship weight > 120 kg to outcome
+#| tbl-cap: |
+#|   Relationship between weight > 120 kg and the primary outcome.
+fas_itt_dat %>%
+  dplyr::count(`Weight > 120 kg` = weightgt120, PO) %>%
+  group_by(`Weight > 120 kg`) %>%
+  spread(PO, n, fill = 0) %>%
+  mutate(
+    p_1 = `1` / (`1` + `0`),
+    p_miss = `<NA>` / (`1` + `0` + `<NA>`)
+  ) %>%
+  kable(digits = 2) %>%
+  kable_styling(bootstrap_options = "striped")
 ```
 
 ## Anti-coagulation Domain
@@ -557,108 +792,26 @@ all_dat %>%
 
 The following analyses are planned:
 
+- primary model using the ACS-ITT
+  - reduced model with only treatment covariates
+  - reduced model with no epoch or site terms
+  - reduced model with no epoch terms
+- primary model using the FAS-ITT
+  - reduced model with only treatment covariates
+  - reduced model with no epoch or site terms
+  - reduced model with no epoch terms
+- subgroup analyses using both datasets and the primary model for:
+  - country
+  - age $\geq$ 60
+  - symptom onset > 7 days
+
+Subgroup effects will be explored in two ways, first by fitting the model to the subgroup itself, and secondly by introducing treatment by covariate interaction terms into the model.
+
 In what follows, the model is built up from the simplest (treatment-only) to the most complex (primary model).
 
 ## ACS-ITT
 
 In these analyses, the population is restricted to participants who were randomised to the anti-coagulation domain.
-
-```{r}
-#| label: model-data-for-acs-itt
-#| code-summary: Setup ACS-ITT datasets and functions
-make_model_data_trt_only <- function(dat) {
-  X <- model.matrix(
-     ~ CAssignment + AAssignment,
-    data = dat,
-    contrast = list(
-      AAssignment = contr.orthonorm,
-      CAssignment = contr.orthonorm)
-  )
-  y <- as.integer(dat$PO)
-  N <- dim(X)[1]
-  K <- dim(X)[2]  
-  list(N = N, K = K, X = X, y = y, beta_sd = c(2.5, rep(1, ncol(X) - 1)))
-}
-
-make_model_data_noepochsite <- function(dat) {
-  X <- model.matrix(
-     ~ CAssignment + AAssignment + agegte60_c + country + inelgc3,
-    data = dat,
-    contrast = list(
-      CAssignment = contr.orthonorm,
-      CAssignment = contr.orthonorm
-    )
-  )
-  nXassign <- sum(grepl("Assignment", colnames(X)))
-  y <- as.integer(dat$PO)
-  N <- dim(X)[1]
-  K <- dim(X)[2]  
-  list(N = N, K = K, X = X, y = y, 
-       beta_sd = c(2.5, rep(1, nXassign), 2.5, 1, 1, 1, 10))
-}
-
-make_model_data_noepoch <- function(dat) {
-
-  region <- dat$ctry_num
-  M_region <- max(region)
-  site <- dat$site_num
-  M_site <- max(site)
-  region_by_site <-   region_by_site <- dat %>% 
-    dplyr::count(ctry_num, site_num) %>% 
-    pull(ctry_num)
-  
-  X <- model.matrix(
-     ~ CAssignment + AAssignment + agegte60_c + inelgc3,
-    data = dat,
-    contrast = list(
-      AAssignment = contr.orthonorm,
-      CAssignment = contr.orthonorm
-    )
-  )
-  nXassign <- sum(grepl("Assignment", colnames(X)))
-  y <- as.integer(dat$PO)
-  N <- dim(X)[1]
-  K <- dim(X)[2]  
-  list(N = N, K = K, X = X, y = y,
-       M_region = M_region, region = region,
-       M_site = M_site, site = site,
-       region_by_site = region_by_site,
-       beta_sd = c(2.5,  rep(1, nXassign), 2.5, 10))
-}
-
-make_model_data_primary <- function(dat) {
-
-  epoch <- dat$epoch
-  M_epoch <- max(dat$epoch)
-  region <- dat$ctry_num
-  M_region <- max(region)
-  site <- dat$site_num
-  M_site <- max(site)
-  region_by_site <- dat %>% 
-    dplyr::count(ctry_num, site_num) %>% 
-    pull(ctry_num)
-  
-  X <- model.matrix(
-     ~ CAssignment + AAssignment + agegte60_c + inelgc3,
-    data = dat,
-    contrast = list(
-      AAssignment = contr.orthonorm,
-      CAssignment = contr.orthonorm
-    )
-  )
-  nXassign <- sum(grepl("Assignment", colnames(X)))
-  y <- as.integer(dat$PO)
-  N <- dim(X)[1]
-  K <- dim(X)[2]  
-  list(N = N, K = K, X = X, y = y,
-       M_region = M_region, region = region,
-       M_site = M_site, site = site,
-       M_epoch = M_epoch, epoch = epoch,
-       region_by_site = region_by_site,
-       beta_sd = c(2.5, rep(1, nXassign), 2.5, 10))
-  
-}
-```
 
 ### Treatment only
 
@@ -676,59 +829,85 @@ snk <- capture.output(
     chains = 8,
     parallel_chains = 8
 ))
-```
-
-```{r}
-#| label: load-trtonly-acs-itt-model
 mod_rvs <- as_draws_rvars(trtonly_acs_itt_fit$draws(c("beta")))
 mod_rvs <- add_treatment_rvs(mod_rvs, mod_dat)
+trt_only_freq <- glm(PO ~ CAssignment + AAssignment, data = acs_itt_nona_dat, family = binomial())
 ```
 
 ```{r}
-#| label: fig-or-densities-trtonly-fas-itt-model
+#| label: fig-or-densities-trtonly-acs-itt-model
 #| fig-cap: Posterior densities for odds ratio contrasts.
 plot_or_densities(mod_rvs$OR)
 ```
 
 ```{r}
-#| label: tbl-or-densities-trtonly-fas-itt-model
+#| label: tbl-or-densities-trtonly-acs-itt-model
 #| tbl-cap: Posterior summaries for odds ratio contrasts.
 odds_ratio_summary_table(mod_rvs$OR)
+```
+
+```{r}
+#| label: summary-trtonly-acs-itt-model
+#| code-summary: Summaries
+trtonly_acs_itt_fit$summary("beta")
 ```
 
 ::: column-margin
 **Diagnostics**
 
 ```{r}
-#| label: trt-only-diagnostics
+#| label: diagnostics-trtonly-acs-itt-model
 #| echo: false
 do.call(cbind, trtonly_acs_itt_fit$diagnostic_summary())
 ```
 :::
 
 ```{r}
-#| label: trt-only-summary
-#| code-summary: Summaries
-trtonly_acs_itt_fit$summary("beta")
-```
-
-```{r}
-#| label: fig-trt-only-trace
+#| label: fig-trace-trtonly-acs-itt-model
 #| fig-cap: "Trace plots"
 #| fig-height: 3
 #| code-summary: Trace plots
 mcmc_trace(trtonly_acs_itt_fit$draws("beta_raw", format = "matrix"))
+rm(trtonly_acs_itt_fit)
 ```
 
 #### Subgroups
 
+##### Country
+
 ```{r}
+#| eval: false
+fit1 <- glm(
+  PO ~ CAssignment + ctry, 
+  data = acs_itt_dat %>% filter(CAssignment %in% c("C1", "C2")), 
+  family = binomial(),
+  contrast = list(CAssignment = contr.orthonorm))
+fit2 <- glm(
+  PO ~ CAssignment * ctry, 
+  data = acs_itt_dat %>% filter(CAssignment %in% c("C1", "C2")), 
+  family = binomial(),
+  contrast = list(CAssignment = contr.orthonorm))
+fit3 <- glm(
+  PO ~ CAssignment + ctry + agegte60 + dsfsgt7, 
+  data = acs_itt_dat %>% filter(CAssignment %in% c("C1", "C2")), 
+  family = binomial())
+fit4 <- glm(
+  PO ~ CAssignment * (ctry + agegte60 + dsfsgt7), 
+  data = acs_itt_dat %>% filter(CAssignment %in% c("C1", "C2")), 
+  family = binomial()) 
+
+XW <- model.matrix( ~ CAssignment * (ctry + agegte60 + dsfsgt), 
+                   data = acs_itt_dat %>% filter(CAssignment %in% c("C1", "C2")),
+                   )
+logistic_subgrp_mod$sample()
+
 # Fit each region subgroup independently
 ctry_vals <- as.character(unique(acs_itt_nona_dat$ctry))
 ctry_or <- vector("list", 4)
 names(ctry_or) <- ctry_vals
 for(i in 1:4) {
-  mod_dat <- make_model_data_trt_only(acs_itt_nona_dat %>% filter(ctry == ctry_vals[i]))
+  mod_dat <- make_model_data_trt_only(
+    acs_itt_nona_dat %>% filter(ctry == ctry_vals[i]))
   seed <- 713509
   snk <- capture.output(
     submod <- logistic_mod$sample(
@@ -745,11 +924,88 @@ for(i in 1:4) {
 }
 ctry_or <- as_tibble(ctry_or) %>% 
   mutate(Contrast = names(ctry_or[[1]])) %>%
-  pivot_longer(1:4, "Country")
+  pivot_longer(1:4, "Country") %>%
+  mutate(Contrast = fct_inorder(Contrast))
 ggplot(ctry_or, aes(xdist = value, y = Country)) +
-  facet_wrap( ~ Contrast) +
-  stat_slabinterval() +
+  facet_grid(Contrast ~ .) +
+  stat_pointinterval() +
+  geom_vline(xintercept = 1, linetype = 2) +
   scale_x_log10()
+```
+
+##### Days Since First Symptoms
+
+```{r}
+#| eval: false
+# Fit each region subgroup independently
+dsfs_vals <- unique(acs_itt_nona_dat$dsfsgt7)
+dsfs_or <- vector("list", length(dsfs_vals))
+names(dsfs_or) <- c("DSFS > 7", "DSFS <= 7")
+for(i in 1:length(dsfs_vals)) {
+  mod_dat <- make_model_data_trt_only(
+    acs_itt_nona_dat %>% filter(dsfsgt7 == dsfs_vals[i]))
+  seed <- 713509
+  snk <- capture.output(
+    submod <- logistic_mod$sample(
+      data = mod_dat,
+      seed = seed,
+      refresh = 0,
+      iter_sampling = 2500,
+      chains = 8,
+      parallel_chains = 8
+  ))
+  mod_rvs <- as_draws_rvars(submod$draws(c("beta")))
+  mod_rvs <- add_treatment_rvs(mod_rvs, mod_dat)
+  dsfs_or[[i]] <- mod_rvs$OR
+}
+dsfs_or <- as_tibble(dsfs_or) %>% 
+  mutate(Contrast = names(dsfs_or[[1]])) %>%
+  pivot_longer(1:2, "grp") %>%
+  mutate(Contrast = fct_inorder(Contrast))
+ggplot(dsfs_or, aes(xdist = value, y = grp)) +
+  facet_grid(Contrast ~ .) +
+  stat_pointinterval() +
+  geom_vline(xintercept = 1, linetype = 2) +
+  scale_x_log10() +
+  labs(y = "Days since symptom onset")
+```
+
+
+##### Age group
+
+```{r}
+#| eval: false
+# Fit each region subgroup independently
+age_vals <- unique(acs_itt_nona_dat$agegte60)
+age_or <- vector("list", length(dsfs_vals))
+names(age_or) <- c("Age 60+", "Age < 60")
+for(i in 1:length(age_vals)) {
+  mod_dat <- make_model_data_trt_only(
+    acs_itt_nona_dat %>% filter(agegte60 == age_vals[i]))
+  seed <- 713509
+  snk <- capture.output(
+    submod <- logistic_mod$sample(
+      data = mod_dat,
+      seed = seed,
+      refresh = 0,
+      iter_sampling = 2500,
+      chains = 8,
+      parallel_chains = 8
+  ))
+  mod_rvs <- as_draws_rvars(submod$draws(c("beta")))
+  mod_rvs <- add_treatment_rvs(mod_rvs, mod_dat)
+  age_or[[i]] <- mod_rvs$OR
+}
+age_or <- as_tibble(age_or) %>% 
+  mutate(Contrast = names(age_or[[1]])) %>%
+  pivot_longer(1:2, "grp") %>%
+  mutate(Contrast = fct_inorder(Contrast))
+ggplot(age_or, aes(xdist = value, y = grp)) +
+  facet_grid(Contrast ~ .) +
+  stat_pointinterval() +
+  geom_vline(xintercept = 1, linetype = 2) +
+  scale_x_log10() +
+  labs(y = "Age group")
 ```
 
 ### Treatment plus covariates (no site or epoch)
@@ -773,9 +1029,9 @@ $$
 #| label: model-no-site-epoch-sampling
 #| code-summary: Data and sampling no site or epoch model
 seed <- 71236
-mod_dat <- make_model_data_noepochsite(acs_itt_dat)
+mod_dat <- make_model_data_noepochsite(acs_itt_nona_dat)
 snk <- capture.output(
-  no_epoch_site_fit <- logistic_mod$sample(
+  noepochsite_acs_itt_fit <- logistic_mod$sample(
     data = mod_dat,
     seed = seed,
     refresh = 0,
@@ -783,73 +1039,48 @@ snk <- capture.output(
     chains = 8,
     parallel_chains = 8
 ))
+mod_rvs <- as_draws_rvars(noepochsite_acs_itt_fit$draws(c("beta")))
+mod_rvs <- add_treatment_rvs(mod_rvs, mod_dat)
 ```
 
 ```{r}
-#| label: noepoch-site-summary
+#| label: fig-or-densities-noepochsite-acs-itt-model
+#| fig-cap: Posterior densities for odds ratio contrasts.
+plot_or_densities(mod_rvs$OR)
+```
+
+```{r}
+#| label: tbl-or-densities-noepochsite-acs-itt-model
+#| tbl-cap: Posterior summaries for odds ratio contrasts.
+odds_ratio_summary_table(mod_rvs$OR)
+```
+
+
+```{r}
+#| label: summary-noepochsite-acs-itt-model
 #| code-summary: Summaries
-no_epoch_site_fit$summary("beta")
+noepochsite_acs_itt_fit$summary("beta")
 ```
 
 ::: column-margin
 **Diagnostics**
 
 ```{r}
+#| label: diagnostics-noepochsite-acs-itt-model
 #| echo: false
-do.call(cbind, no_epoch_site_fit$diagnostic_summary())
+do.call(cbind, noepochsite_acs_itt_fit$diagnostic_summary())
 ```
 :::
 
 ```{r}
-#| label: fig-no-epoch-site-trace
+#| label: fig-trace-noepochsite-acs-itt-model
 #| fig-cap: "Trace plots"
 #| fig-height: 4
 #| code-summary: Trace plots
-mcmc_trace(no_epoch_site_fit$draws("beta_raw", format = "matrix"))
+mcmc_trace(noepochsite_acs_itt_fit$draws("beta_raw", format = "matrix"))
+rm(noepochsite_acs_itt_fit)
 ```
 
-```{r}
-#| label: no-epoch-site-posteriors
-#| code-summary: Posterior draws
-Ca <- cbind(1, attr(mod_dat$X, "contrasts")$AAssignment)
-Cc <- cbind(1, attr(mod_dat$X, "contrasts")$CAssignment)
-modrv <- as_draws_rvars(no_epoch_site_fit$draws("beta"))
-modrv$eta <- as.vector(Cc %**% modrv$beta[1:4])
-modrv$beta_uncon <- as.vector(Cc[, -1] %**% modrv$beta[2:4])
-modrv$prob <- 1 / (1 + exp(-modrv$eta))
-modrv$beta_trt <- as.vector(
-  transform_coding(Cc, cbind(1, contr.treatment(4))) %**% 
-  modrv$beta[1:4])
-modrv$OR <- setNames(exp(modrv$beta_trt[-1]), c("C2", "C3", "C4"))
-```
-
-```{r}
-#| label: fig-posterior-density-no-epoch-site
-#| code-summary: Posterior density
-#| fig-cap: Posterior densities for treatment odds ratios.
-#| fig-height: 3
-mcmc_hist(modrv["OR"], binwidth = 0.02) +
-  labs(x = "Odds ratio (vs C1)") +
-  geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_log10()
-```
-
-```{r}
-#| label: tbl-posterior-summaries-no-epoch-site
-#| code-summary: Posterior summaries
-#| tbl-cap: Posterior summaries
-tibble(
-    Parameter = c("OR[C2]", "OR[C3]", "OR[C4]"),
-    `Pr(OR < 1)` = Pr(modrv$OR < 1),
-    Median = median(modrv$OR),
-    Mean = E(modrv$OR),
-    `95% CrI` = apply(
-      quantile(modrv$OR, c(0.025, 0.975)), 2, 
-      function(x) sprintf("(%.2f, %.2f)", x[1], x[2]))
-  ) %>%
-  kable(digits = 2, align = "lrrrr") %>%
-  kable_styling(bootstrap_options = "striped")
-```
 
 ### Treatment plus covariates plus site (no epoch)
 
@@ -867,12 +1098,12 @@ $$
 :::
 
 ```{r}
-#| label: model-no-epoch-sampling
+#| label: model-noepoch-acs-itt-fit
 #| code-summary: Data and sampling no site or epoch model
 seed <- 71236
-mod_dat <- make_model_data_noepoch(acs_itt_dat)
+mod_dat <- make_model_data_noepoch(acs_itt_nona_dat)
 snk <- capture.output(
-  no_epoch_fit <- noepoch_mod$sample(
+  noepoch_acs_itt_fit <- noepoch_mod$sample(
     data = mod_dat,
     seed = seed,
     refresh = 0,
@@ -881,35 +1112,50 @@ snk <- capture.output(
     parallel_chains = 8,
     adapt_delta = 0.9
 ))
+mod_rvs <- as_draws_rvars(noepoch_acs_itt_fit$draws(c("beta")))
+mod_rvs <- add_treatment_rvs(mod_rvs, mod_dat)
+```
+
+```{r}
+#| label: fig-or-densities-noepoch-acs-itt-model
+#| fig-cap: Posterior densities for odds ratio contrasts.
+plot_or_densities(mod_rvs$OR)
+```
+
+```{r}
+#| label: tbl-or-densities-noepoch-acs-itt-model
+#| tbl-cap: Posterior summaries for odds ratio contrasts.
+odds_ratio_summary_table(mod_rvs$OR)
+```
+
+```{r}
+#| label: summary-noepoch-acs-itt-fit
+#| code-summary: Summaries
+noepoch_acs_itt_fit$summary("beta")
 ```
 
 ::: column-margin
 **Diagnostics**
 
 ```{r}
+#| label: diagnostics-noepoch-acs-itt-fit
 #| echo: false
-do.call(cbind, no_epoch_fit$diagnostic_summary())
+do.call(cbind, noepoch_acs_itt_fit$diagnostic_summary())
 ```
 :::
 
 ```{r}
-#| label: noepoch-summary
-#| code-summary: Summaries
-no_epoch_fit$summary("beta")
-```
-
-```{r}
-#| label: fig-no-epoch-trace-beta
+#| label: fig-trace-beta-noepoch-acs-itt-fit
 #| fig-cap: "Trace plots"
 #| fig-height: 4
 #| code-summary: Trace plots
-mcmc_trace(no_epoch_fit$draws(
+mcmc_trace(noepoch_acs_itt_fit$draws(
   c("beta_raw", "beta_region_raw"), 
   format = "matrix"))
 ```
 
 ```{r}
-#| label: fig-no-epoch-trace-site
+#| label: fig-trace-site-noepoch-acs-itt-fit
 #| fig-cap: "Trace plots"
 #| fig-cap-location: bottom
 #| caption-location: bottom
@@ -917,54 +1163,11 @@ mcmc_trace(no_epoch_fit$draws(
 #| fig-width: 10
 #| code-summary: Trace plots site terms
 #| column: page
-mcmc_trace(no_epoch_fit$draws(
+mcmc_trace(noepoch_acs_itt_fit$draws(
   c("epsilon_site", "tau_site"), 
   format = "matrix"))
 ```
 
-```{r}
-#| label: no-epoch-posteriors
-#| code-summary: Posterior draws
-Ca <- cbind(1, attr(mod_dat$X, "contrasts")$AAssignment)
-Cc <- cbind(1, attr(mod_dat$X, "contrasts")$CAssignment)
-modrv <- as_draws_rvars(
-  no_epoch_fit$draws(c("beta", "beta_region", "gamma_site", "tau_site")))
-modrv$eta <- as.vector(Cc %**% modrv$beta[1:4])
-modrv$beta_uncon <- as.vector(Cc[, -1] %**% modrv$beta[2:4])
-modrv$prob <- 1 / (1 + exp(-modrv$eta))
-modrv$beta_trt <- as.vector(
-  transform_coding(Cc, cbind(1, contr.treatment(4))) %**% 
-  modrv$beta[1:4])
-modrv$OR <- setNames(exp(modrv$beta_trt[-1]), c("C2", "C3", "C4"))
-```
-
-```{r}
-#| label: fig-posterior-density-no-epoch
-#| code-summary: Posterior density
-#| fig-cap: Posterior densities for treatment odds ratios.
-#| fig-height: 3
-mcmc_hist(modrv["OR"], binwidth = 0.02, freq = F) +
-  labs(x = "Odds ratio (vs C1)") +
-  geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_log10()
-```
-
-```{r}
-#| label: tbl-posterior-summaries-no-epoch
-#| code-summary: Posterior summaries
-#| tbl-cap: Posterior summaries
-tibble(
-    Parameter = c("OR[C2]", "OR[C3]", "OR[C4]"),
-    `Pr(OR < 1)` = Pr(modrv$OR < 1),
-    Median = median(modrv$OR),
-    Mean = E(modrv$OR),
-    `95% CrI` = apply(
-      quantile(modrv$OR, c(0.025, 0.975)), 2, 
-      function(x) sprintf("(%.2f, %.2f)", x[1], x[2]))
-  ) %>%
-  kable(digits = 2, align = "lrrrr") %>%
-  kable_styling(bootstrap_options = "striped")
-```
 
 ### Primary Model
 
@@ -987,7 +1190,7 @@ $$
 #| label: model-primary-sampling
 #| code-summary: Data and sampling primary model
 seed <- 32915
-mod_dat <- make_model_data_primary(acs_itt_dat)
+mod_dat <- make_model_data_primary(acs_itt_nona_dat)
 snk <- capture.output(
   primary_fit <- primary_mod$sample(
     data = mod_dat,
@@ -1110,6 +1313,7 @@ tibble(
 #### Posterior Predictive Checks
 
 ```{r}
+#| eval: false
 y_ppc <- as_draws_rvars(primary_fit$draws("y_ppc"))$y_ppc
 ppc_dat <- bind_cols(acs_itt_dat, tibble(y_ppc = y_ppc)) %>%
   select(
