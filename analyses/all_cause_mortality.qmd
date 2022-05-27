@@ -72,7 +72,7 @@ summarise_2cat_var <- function(dat, var1, var2) {
 ```{r}
 #| label: data
 #| code-summary: Prepare dataset
-source("r/derive_full_datasets.r")
+devtools::load_all()
 all_dat <- read_all_no_daily()
 
 # Subset the data

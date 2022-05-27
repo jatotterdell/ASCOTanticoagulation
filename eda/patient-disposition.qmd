@@ -24,7 +24,7 @@ theme_set(theme_minimal(base_size = 12))
 ```{r}
 #| label: data
 #| code-summary: Prepare dataset
-source("r/derive_full_datasets.r")
+devtools::load_all()
 dat <- read_all_no_daily()
 ```
 

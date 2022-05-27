@@ -37,8 +37,99 @@ options(digits = 4)
 ```{r}
 #| label: data
 #| code-summary: Prepare dataset
-source("r/derive_full_datasets.r")
+devtools::load_all()
 all_dat <- read_all_no_daily()
+
+fas_itt_dat <- all_dat %>% 
+  filter_fas_itt() %>%
+  transmute_model_cols()
+fas_itt_nona_dat <- fas_itt_dat %>% 
+  filter(!is.na(PO))
+
+acs_itt_dat <- all_dat %>% 
+  filter_acs_itt() %>%
+  transmute_model_cols()
+acs_itt_nona_dat <- acs_itt_dat %>% 
+  filter(!is.na(PO))
+```
+
+```{r}
+#| label: models
+#| code-summary: Load models
+logistic_mod <- cmdstan_model("stan/logistic_bernoulli.stan")
+noepoch_mod <- cmdstan_model("stan/primary_logistic_model_site.stan")
+primary_mod <- cmdstan_model("stan/primary_logistic_model_site_epoch.stan")
+```
+
+```{r}
+#| label: helper-functions
+#| code-summary: Helper functions
+
+add_treatment_rvs <- function(rvs, mdat) {
+  
+  Ca <- cbind(1, attr(mdat$X, "contrasts")$AAssignment)
+  Cc <- cbind(1, attr(mdat$X, "contrasts")$CAssignment)
+  nC <- ncol(Cc)
+  Ct <-  cbind(1, contr.treatment(nC))
+  trt_rows <- which(rownames(Cc) != "C0")
+  
+  rvs$eta <- as.vector(Cc %**% rvs$beta[1:nC])
+  rvs$beta_uncon <- as.vector(Cc[, -1] %**% rvs$beta[2:nC])
+  rvs$prob <- 1 / (1 + exp(-rvs$eta))
+  rvs$beta_trt <- as.vector(
+    transform_coding(Cc, Ct) %**% rvs$beta[1:nC])
+  rvs$OR <- setNames(exp(rvs$beta_trt[trt_rows][-1]), c("C2 vs C1", "C3 vs C1", "C4 vs C1"))
+  rvs$OR <- c(rvs$OR, "C2 vs C4" = rvs$OR[1] / rvs$OR[3])
+  return(rvs)
+}
+
+
+plot_or_densities <- function(rvs) {
+  tibble(Contrast = fct_inorder(names(rvs)), RV = rvs) %>% 
+  ggplot(., aes(y = Contrast, xdist = RV)) + 
+  stat_halfeye(
+    aes(fill = 
+          stat(cut_cdf_qi(
+            cdf, 
+            .width = c(.5, .8, .95, 0.99), 
+            labels = scales::percent_format()))),
+    adjust = 1, n = 1001, .width = c(0.5, 0.8, 0.95)
+    ) + 
+  scale_fill_brewer(
+    palette = "Reds",
+    direction = -1, 
+    na.translate = FALSE) + 
+  labs(
+    x = "Odds ratio contrast",
+    fill = "Interval"
+  ) +
+  scale_x_log10(breaks = c(0.1, 0.25, 0.5, 1, 2, 4, 10)) + 
+  geom_vline(xintercept = 1)
+}
+
+
+odds_ratio_summary_table <- function(OR, format = "html", fn = NULL) {
+  out <- tibble(
+    Parameter = names(OR),
+    `Pr(OR < 1)` = Pr(OR < 1),
+    Median = median(OR),
+    Mean = E(OR),
+    `95% CrI` = apply(
+      quantile(OR, c(0.025, 0.975)), 2, 
+      function(x) sprintf("(%.2f, %.2f)", x[1], x[2]))
+  ) %>%
+  kable(
+    format = format, 
+    digits = 2, 
+    align = "lrrrr",
+    booktabs = TRUE) %>%
+  kable_styling(bootstrap_options = "striped", latex_options = "HOLD_position")
+  if (!is.null(fn) & format == "latex") {
+    save_tex_table(out, fn)
+  } else {
+    return(out)
+  }
+}
 ```
 
 # Outline
@@ -75,25 +166,56 @@ There were 50 participants who had died by day 28, 40 were are reported as a dis
 ```{r}
 #| label: po-component-death
 #| code-summary: Summarise the death component
-all_dat %>%
-  filter(ENR_rec == 1, WTH_FU == 0) %>%
-  select(DIS_death, DIS_day, D28_death) %>%
-  dplyr::count(DIS_death, DIS_day <= 28, D28_death) %>%
-  spread(D28_death, n, fill = 0)
+mort_table <- all_dat %>%
+  filter_fas_itt() %>%
+  summarise(
+    `Mortality_Alive at day 28_` = sum(1 - D28_death, na.rm = TRUE),
+    `Mortality_Death within 28 days_Total` = sum(D28_death, na.rm = TRUE),
+    `Mortality_Death within 28 days_Prior to discharge` = sum(DIS_death & DIS_day <= 28, na.rm = TRUE),
+    `Mortality_Death within 28 days_Post-discharge` = sum(D28_death == 1 & DIS_death == 0, na.rm = TRUE),
+    `Mortality_Unknown at day 28_` = sum(is.na(D28_death))
+  ) %>%
+  gather(key, Frequency) %>%
+    separate(key, into = c("Measure", "Outcome", "Breakdown"), sep = "_") %>%
+    mutate(`Percentage` = sprintf("%2.1f", 100 * Frequency / nrow(fas_itt_dat)))
+kable(
+  mort_table %>% select(-1),
+  caption = "Composite primary endpoint breakdown - mortality.",
+  align = "llrr") %>%
+  kable_styling(font_size = 11) %>%
+  collapse_rows(1, valign = "top", latex_hline = 'custom', custom_latex_hline = 1) %>%
+  group_rows("Mortality", 1, nrow(mort_table))
 ```
 
 ## Vasopressor/inotropic requirement
 
-Vasopressor/inotropic support is reported on both the daily (from day 1 to discharge) and the day 28 (from discharge to day 28) extracts. There were 39 participants who required vasopressor/inotropic support. Of these, 19 were reported between discharge and day 28, 18 were reported prior to discharge, and 2 were reported for both. The component was missing for 35 participants. Either due to missing information at day 28 (33) or due to missing daily information (2).
+Vasopressor/inotropic support is reported on both the daily (from day 1 to discharge) and the day 28 (from discharge to day 28) extracts. There were 39 participants who required vasopressor/inotropic support. Of these, 21 were reported between discharge and day 28, 20 were reported prior to discharge, and 2 were reported for both. The component was missing for 35 participants. Either due to missing information at day 28 or due to missing daily information.
 
 ```{r}
 #| label: po-component-vasopressor
 #| code-summary: Summarise the vasopressor/inotropes component
-all_dat %>%
-  filter(ENR_rec == 1, WTH_FU == 0) %>%
-  select(DAILY_missing, ANY_vasop, ANY_DD_vasop, D28_vasop) %>%
-  dplyr::count(DAILY_missing, ANY_DD_vasop, D28_vasop, ANY_vasop) %>%
-  spread(ANY_vasop, n, fill = 0)
+vaso_table <- all_dat %>%
+  filter_fas_itt() %>%
+  summarise(
+    `Vasopressor/inotropes_Not required_` = sum(1 - ANY_vasop, na.rm = TRUE),
+    `Vasopressor/inotropes_Use within 28 days_Total` = sum(ANY_vasop, na.rm = TRUE),
+    `Vasopressor/inotropes_Use within 28 days_Prior to discharge` = sum(DD_vasop, na.rm = TRUE),
+    `Vasopressor/inotropes_Use within 28 days_Post-discharge` = sum(D28_vasop, na.rm = TRUE),
+    `Vasopressor/inotropes_Unknown_Total` = sum(is.na(ANY_vasop)),
+    `Vasopressor/inotropes_Unknown_Missing day 28` = sum(is.na(D28_vasop)),
+    `Vasopressor/inotropes_Unknown_Missing daily records` = 
+      sum(is.na(DAILY_missing) | DAILY_missing == 1),
+  ) %>%
+  gather(key, Frequency) %>%
+    separate(key, into = c("Measure", "Outcome", "Breakdown"), sep = "_") %>%
+    mutate(`Percentage` = sprintf("%2.1f", 100 * Frequency / nrow(fas_itt_dat)))
+kable(
+  vaso_table %>% select(-1),
+  caption = "Composite primary endpoint breakdown - vasopressor/inotropes.",
+  align = "llrr") %>%
+  kable_styling(font_size = 11) %>%
+  collapse_rows(1, valign = "top", latex_hline = 'custom', custom_latex_hline = 1) %>%
+  group_rows("Vasopressor/inotropes", 1, nrow(vaso_table))
 ```
 
 ## New intensive respiratory support
@@ -103,11 +225,28 @@ Respiratory support is reported on both the daily (from day 1 to discharge) and 
 ```{r}
 #| label: po-component-respiratory
 #| code-summary: Summarise the ventilation component
-all_dat %>%
-  filter(ENR_rec == 1, WTH_FU == 0) %>%
-  select(DAILY_missing, ANY_vent, ANY_DD_vent, D28_vent) %>%
-  dplyr::count(DAILY_missing, ANY_DD_vent, D28_vent, ANY_vent) %>%
-  spread(ANY_vent, n, fill = 0)
+vent_table <- all_dat %>%
+  filter_fas_itt()  %>%
+  summarise(
+    `Ventilation_Not required_` = sum(1 - ANY_vent, na.rm = TRUE),
+    `Ventilation_Use within 28 days_Total` = sum(ANY_vent, na.rm = TRUE),
+    `Ventilation_Use within 28 days_Prior to discharge` = sum(ANY_DD_vent, na.rm = TRUE),
+    `Ventilation_Use within 28 days_Post-discharge` = sum(D28_vent, na.rm = TRUE),
+    `Ventilation_Unknown_Total` = sum(is.na(ANY_vent)),
+    `Ventilation_Unknown_Missing daily records` = sum(is.na(DAILY_missing) | DAILY_missing == 1),
+      `Ventilation_Unknown_Unknown status at day 28` = 
+      sum(ANY_DD_vent == 0 & is.na(D28_vent), na.rm = TRUE),
+  ) %>%
+  gather(key, Frequency) %>%
+    separate(key, into = c("Measure", "Outcome", "Breakdown"), sep = "_") %>%
+    mutate(`Percentage` = sprintf("%2.1f", 100 * Frequency / nrow(fas_itt_dat)))
+kable(
+  vent_table %>% select(-1),
+  caption = "Composite primary endpoint breakdown - respiratory support.",
+  align = "llrr") %>%
+  kable_styling(font_size = 11) %>%
+  collapse_rows(1, valign = "top", latex_hline = 'custom', custom_latex_hline = 1) %>%
+  group_rows("Ventilation", 1, nrow(vent_table))
 ```
 
 ## DAMA and Likely to Die
@@ -118,10 +257,15 @@ There were 3 participants who were DAMA and identified as likely to die. However
 #| label: po-components-dama
 #| code-summary: Summarise the DAMA component
 all_dat %>%
-  filter(ENR_rec == 1, WTH_FU == 0) %>%
+  filter_fas_itt()  %>%
   select(DIS_DAMA, DIS_DAMAlikelytodie, D28_death) %>%
   dplyr::count(DIS_DAMA, DIS_DAMAlikelytodie, D28_death) %>%
-  spread(D28_death, n)
+  spread(D28_death, n) %>%
+  kable(
+    col.names = c("DAMA", "Likely to die by day 28", "No", "Yes", "(Missing)")
+  ) %>%
+  kable_styling() %>%
+  add_header_above(c(" " = 2, "Death by day 28" = 3))
 ```
 
 ## Composite
@@ -129,16 +273,78 @@ all_dat %>%
 There were 107 (7% of observed outcomes) participants who met the composite outcome and 36 (2% of all outcomes) participants whose outcome was unknown. Of the 107 who met the outcome, 12 met all three criteria (death, vasopressor, ventilation) and the remaining met some subset of them. Of the 36 with missing outcome, 26 were missing all three components.
 
 ```{r}
-#| label: po-composite
+#| label: tbl-po-composite
 #| code-summary: Summarise the composite
+#| tbl-cap: |
+#|   Composite primary endpoint breakdown - overall.
+comp_table <- all_dat %>%
+  filter_fas_itt()  %>%
+  summarise(
+    `Total_Total_` = length(PO),
+    `Primary Outcome_Yes_` = sum(PO, na.rm = TRUE),
+    `Primary Outcome_No_`  = sum(1 - PO, na.rm = TRUE),
+    `Primary Outcome_Unknown_Total` = sum(is.na(PO)),
+    `Primary Outcome_Unknown_Unknown day 28 status` = sum(is.na(PO) & is.na(D28_death)),
+    `Primary Outcome_Unknown_Unknown vasopressor/inotrope use (known day 28 status)` = 
+      sum(is.na(PO) & !is.na(D28_death) & is.na(ANY_vasop)),
+    `Primary Outcome_Unknown_Missing any daily records` = 
+      sum((is.na(PO) & is.na(DAILY_missing)) | (!is.na(DAILY_missing) & DAILY_missing == 1))
+  ) %>%
+  gather(key, Frequency) %>%
+    separate(key, into = c("Measure", "Outcome", "Breakdown"), sep = "_") %>%
+    mutate(`Percentage` = sprintf("%2.1f", 100 * Frequency / nrow(fas_itt_dat)))
+kable(
+  comp_table %>% select(-1),
+  align = "llrr") %>%
+  kable_styling(font_size = 11) %>%
+  collapse_rows(1, valign = "top", latex_hline = 'custom', custom_latex_hline = 1) %>%
+  group_rows("Primary outcome", 1, nrow(comp_table))
+```
+
+
+```{r}
+#| label: tbl-po-composite-all
+#| code-summary: Summarise the all components
+#| tbl-cap: |
+#|   Composite primary endpoint breakdown.
+tab <- bind_rows(comp_table, mort_table, vaso_table, vent_table)
+kable(
+  tab %>% select(-1),
+  align = "llrr") %>%
+  kable_styling(font_size = 11) %>%
+  collapse_rows(1, valign = "top", latex_hline = 'custom', custom_latex_hline = 1) %>%
+  group_rows("Primary outcome", 1, 8) %>%
+  group_rows("Mortality", 8, 12) %>%
+  group_rows("Vasopressor/inotropes", 13, 19) %>%
+  group_rows("Ventilation", 20, 26)
+```
+
+
+```{r}
+#| label: tbl-po-composite-combinations
+#| code-summary: Summarise the component combinations
+#| tbl-cap: |
+#|   Observed outcome combinations.
+levs <- c("None", "Death + V/I + Vent", "Death + V/I", "Death + Vent", "V/I + Vent", 
+          "Death", "V/I", "Vent", "Unknown")
 all_dat %>%
-  filter(ENR_rec == 1, WTH_FU == 0) %>%
-  dplyr::count(PO)
-all_dat %>%
-  filter(ENR_rec == 1, WTH_FU == 0) %>%
-  select(PO, D28_death, ANY_vasop, ANY_vent) %>%
-  dplyr::count(D28_death, ANY_vasop, ANY_vent, PO) %>%
-  spread(PO, n, fill = 0)
+  filter_fas_itt()  %>%
+  summarise(
+    `Composite outcomes` = factor(case_when(
+      PO == 0 ~ 0,
+      is.na(PO) ~ 99,
+      D28_death == 1 & ANY_vasop == 1 & ANY_vent == 1 ~ 1,
+      D28_death == 1 & ANY_vasop == 1 & ANY_vent == 0 ~ 2,
+      D28_death == 1 & ANY_vasop == 0 & ANY_vent == 1 ~ 3,
+      D28_death == 0 & ANY_vasop == 1 & ANY_vent == 1 ~ 4,
+      D28_death == 1 ~ 5,
+      ANY_vasop == 1 ~ 6,
+      ANY_vent == 1 ~ 7,
+    ), labels = levs)
+  ) %>%
+  dplyr::count(`Composite outcomes`) %>%
+  kable() %>%
+  kable_styling()
 ```
 
 # Descriptive Analyses
@@ -309,7 +515,47 @@ all_dat %>%
   pack_rows("New Zealand", 16, 20)
 ```
 
+```{r}
+#| label: tbl-domainC-po-prec3drop
+#| code-summary: Relationship anti-coagulation to outcome
+#| tbl-cap: |
+#|   Primary outcome by anti-coagulation intervention for participants
+#|   randomised prior to 2021-09-10 (closure of C3 intervention).
+all_dat %>%
+  filter(ENR_rec == 1, WTH_FU == 0, RandDate < as.Date("2021-09-10")) %>%
+  dplyr::count(`Anti-coagulation` = CAssignment, PO) %>%
+  group_by(`Anti-coagulation`) %>%
+  spread(PO, n, fill = 0) %>%
+  mutate(
+    p_1 = `1` / (`1` + `0`),
+    p_miss = `<NA>` / (`1` + `0` + `<NA>`)
+  ) %>%
+  kable(digits = 2) %>%
+  kable_styling(bootstrap_options = "striped")
+```
+
+```{r}
+#| label: tbl-domainC-po-pv5
+#| code-summary: Relationship anti-coagulation to outcome
+#| tbl-cap: |
+#|   Primary outcome by anti-coagulation intervention for participants
+#|   randomised under protocol version 5.0.
+all_dat %>%
+  filter(ENR_rec == 1, WTH_FU == 0, EL_ProtocolVersion == "5.0") %>%
+  dplyr::count(`Anti-coagulation` = CAssignment, PO) %>%
+  group_by(`Anti-coagulation`) %>%
+  spread(PO, n, fill = 0) %>%
+  mutate(
+    p_1 = `1` / (`1` + `0`),
+    p_miss = `<NA>` / (`1` + `0` + `<NA>`)
+  ) %>%
+  kable(digits = 2) %>%
+  kable_styling(bootstrap_options = "striped")
+```
+
 # Analyses
+
+The following analyses are planned:
 
 In what follows, the model is built up from the simplest (treatment-only) to the most complex (primary model).
 
@@ -318,64 +564,8 @@ In what follows, the model is built up from the simplest (treatment-only) to the
 In these analyses, the population is restricted to participants who were randomised to the anti-coagulation domain.
 
 ```{r}
+#| label: model-data-for-acs-itt
 #| code-summary: Setup ACS-ITT datasets and functions
-acs_itt_dat <- all_dat %>%
-    filter(
-      ENR_rec == 1, 
-      ACS_ITT == 1, 
-      WTH_FU == 0,
-      !is.na(PO))
-site_counts <- acs_itt_dat %>% 
-  dplyr::count(
-    Country = factor(Country, levels = c("IN", "AU", "NP", "NZ")), 
-    Location)
-merge_aus <- site_counts %>% 
-  filter(Country == "AU", n < 5) %>%
-  pull(Location)
-merge_nz <- site_counts %>% 
-  filter(Country == "NZ", n < 5) %>%
-  pull(Location)
-acs_itt_dat <- acs_itt_dat %>%
-  mutate(
-    ctry = factor(Country, levels = c("IN", "AU", "NP", "NZ")),
-    # group sites with < 5 counts
-    site = fct_collapse(
-      factor(Location, levels = site_counts$Location),
-      `AU other` = merge_aus,
-      `NZ other` = merge_nz
-      )
-  )
-region_site <- acs_itt_dat %>%
-  dplyr::count(ctry, site) %>%
-  mutate(
-    ctry_num = as.numeric(ctry), 
-    site_num = as.numeric(fct_inorder(site))
-  )
-acs_itt_dat <- acs_itt_dat %>% 
-    left_join(region_site %>% select(-n), by = c("ctry", "site"))
-acs_itt_dat <- acs_itt_dat %>%
-    mutate(
-      age_c = AgeAtEntry - mean(AgeAtEntry),
-      agegte60_c = agegte60 - mean(agegte60),
-      country = factor(Country, levels = c("IN", "AU", "NP", "NZ")),
-      inelgc3 = if_else(EL_inelg_c3 == 1 | is.na(EL_inelg_c3), 1, 0),
-      ctry = factor(Country, levels = c("IN", "AU", "NP", "NZ")),
-      # group sites with < 5 counts
-      site = fct_collapse(
-        factor(Location, levels = site_counts$Location),
-        `AU other` = merge_aus,
-        `NZ other` = merge_nz
-        ),
-      relRandDate = as.numeric(max(RandDate) - RandDate),
-      epoch = floor(relRandDate / 28),
-      # Manual merge after check of count(epoch)
-      epoch = case_when(
-        epoch %in% 0:1 ~ 2,
-        epoch == 14 ~ 13,
-        TRUE ~ epoch
-      ) - 1
-    )
-
 make_model_data_trt_only <- function(dat) {
   X <- model.matrix(
      ~ CAssignment + AAssignment,
@@ -387,7 +577,7 @@ make_model_data_trt_only <- function(dat) {
   y <- as.integer(dat$PO)
   N <- dim(X)[1]
   K <- dim(X)[2]  
-  list(N = N, K = K, X = X, y = y, beta_sd = c(2.5, 1, 1, 1, 1, 1))
+  list(N = N, K = K, X = X, y = y, beta_sd = c(2.5, rep(1, ncol(X) - 1)))
 }
 
 make_model_data_noepochsite <- function(dat) {
@@ -399,11 +589,12 @@ make_model_data_noepochsite <- function(dat) {
       CAssignment = contr.orthonorm
     )
   )
+  nXassign <- sum(grepl("Assignment", colnames(X)))
   y <- as.integer(dat$PO)
   N <- dim(X)[1]
   K <- dim(X)[2]  
   list(N = N, K = K, X = X, y = y, 
-       beta_sd = c(2.5, 1, 1, 1, 1, 1, 2.5, 1, 1, 1, 10))
+       beta_sd = c(2.5, rep(1, nXassign), 2.5, 1, 1, 1, 10))
 }
 
 make_model_data_noepoch <- function(dat) {
@@ -424,6 +615,7 @@ make_model_data_noepoch <- function(dat) {
       CAssignment = contr.orthonorm
     )
   )
+  nXassign <- sum(grepl("Assignment", colnames(X)))
   y <- as.integer(dat$PO)
   N <- dim(X)[1]
   K <- dim(X)[2]  
@@ -431,7 +623,7 @@ make_model_data_noepoch <- function(dat) {
        M_region = M_region, region = region,
        M_site = M_site, site = site,
        region_by_site = region_by_site,
-       beta_sd = c(2.5, 1, 1, 1, 1, 1, 2.5, 10))
+       beta_sd = c(2.5,  rep(1, nXassign), 2.5, 10))
 }
 
 make_model_data_primary <- function(dat) {
@@ -471,13 +663,12 @@ make_model_data_primary <- function(dat) {
 ### Treatment only
 
 ```{r}
-#| label: model-treatment-only-sampling
+#| label: sample-trtonly-acs-itt-model
 #| code-summary: Data and sampling treatment only model
 seed <- 17250
-logistic_mod <- cmdstan_model("stan/logistic_bernoulli.stan")
-mod_dat <- make_model_data_trt_only(acs_itt_dat)
+mod_dat <- make_model_data_trt_only(acs_itt_nona_dat)
 snk <- capture.output(
-  trt_only_fit <- logistic_mod$sample(
+  trtonly_acs_itt_fit <- logistic_mod$sample(
     data = mod_dat,
     seed = seed,
     refresh = 0,
@@ -487,20 +678,38 @@ snk <- capture.output(
 ))
 ```
 
+```{r}
+#| label: load-trtonly-acs-itt-model
+mod_rvs <- as_draws_rvars(trtonly_acs_itt_fit$draws(c("beta")))
+mod_rvs <- add_treatment_rvs(mod_rvs, mod_dat)
+```
+
+```{r}
+#| label: fig-or-densities-trtonly-fas-itt-model
+#| fig-cap: Posterior densities for odds ratio contrasts.
+plot_or_densities(mod_rvs$OR)
+```
+
+```{r}
+#| label: tbl-or-densities-trtonly-fas-itt-model
+#| tbl-cap: Posterior summaries for odds ratio contrasts.
+odds_ratio_summary_table(mod_rvs$OR)
+```
+
 ::: column-margin
 **Diagnostics**
 
 ```{r}
 #| label: trt-only-diagnostics
 #| echo: false
-do.call(cbind, trt_only_fit$diagnostic_summary())
+do.call(cbind, trtonly_acs_itt_fit$diagnostic_summary())
 ```
 :::
 
 ```{r}
 #| label: trt-only-summary
 #| code-summary: Summaries
-trt_only_fit$summary("beta")
+trtonly_acs_itt_fit$summary("beta")
 ```
 
 ```{r}
@@ -508,50 +717,39 @@ trt_only_fit$summary("beta")
 #| fig-cap: "Trace plots"
 #| fig-height: 3
 #| code-summary: Trace plots
-mcmc_trace(trt_only_fit$draws("beta_raw", format = "matrix"))
+mcmc_trace(trtonly_acs_itt_fit$draws("beta_raw", format = "matrix"))
 ```
 
-```{r}
-#| label: trt-only-posteriors
-#| code-summary: Posterior draws
-Ca <- cbind(1, attr(mod_dat$X, "contrasts")$AAssignment)
-Cc <- cbind(1, attr(mod_dat$X, "contrasts")$CAssignment)
-modrv <- as_draws_rvars(trt_only_fit$draws("beta"))
-modrv$eta <- as.vector(Cc %**% modrv$beta[1:4])
-modrv$beta_uncon <- as.vector(Cc[, -1] %**% modrv$beta[2:4])
-modrv$prob <- 1 / (1 + exp(-modrv$eta))
-modrv$beta_trt <- as.vector(
-  transform_coding(Cc, cbind(1, contr.treatment(4))) %**% 
-  modrv$beta[1:4])
-modrv$OR <- setNames(exp(modrv$beta_trt[-1]), c("C2", "C3", "C4"))
-```
+#### Subgroups
 
 ```{r}
-#| label: fig-trt-only-posterior-density
-#| code-summary: Posterior density
-#| fig-cap: Posterior densities for treatment odds ratios.
-#| fig-height: 3
-mcmc_hist(modrv["OR"], binwidth = 0.02) +
-  labs(x = "Odds ratio (vs C1)") +
-  geom_vline(xintercept = 1, linetype = 2) +
+# Fit each region subgroup independently
+ctry_vals <- as.character(unique(acs_itt_nona_dat$ctry))
+ctry_or <- vector("list", 4)
+names(ctry_or) <- ctry_vals
+for(i in 1:4) {
+  mod_dat <- make_model_data_trt_only(acs_itt_nona_dat %>% filter(ctry == ctry_vals[i]))
+  seed <- 713509
+  snk <- capture.output(
+    submod <- logistic_mod$sample(
+      data = mod_dat,
+      seed = seed,
+      refresh = 0,
+      iter_sampling = 2500,
+      chains = 8,
+      parallel_chains = 8
+  ))
+  mod_rvs <- as_draws_rvars(submod$draws(c("beta")))
+  mod_rvs <- add_treatment_rvs(mod_rvs, mod_dat)
+  ctry_or[[i]] <- mod_rvs$OR
+}
+ctry_or <- as_tibble(ctry_or) %>% 
+  mutate(Contrast = names(ctry_or[[1]])) %>%
+  pivot_longer(1:4, "Country")
+ggplot(ctry_or, aes(xdist = value, y = Country)) +
+  facet_wrap( ~ Contrast) +
+  stat_slabinterval() +
   scale_x_log10()
-```
-
-```{r}
-#| label: tbl-posterior-summaries-trt-only
-#| code-summary: Posterior summaries
-#| tbl-cap: Posterior summaries
-tibble(
-    Parameter = c("OR[C2]", "OR[C3]", "OR[C4]"),
-    `Pr(OR < 1)` = Pr(modrv$OR < 1),
-    Median = median(modrv$OR),
-    Mean = E(modrv$OR),
-    `95% CrI` = apply(
-      quantile(modrv$OR, c(0.025, 0.975)), 2, 
-      function(x) sprintf("(%.2f, %.2f)", x[1], x[2]))
-  ) %>%
-  kable(digits = 2, align = "lrrrr") %>%
-  kable_styling(bootstrap_options = "striped")
 ```
 
 ### Treatment plus covariates (no site or epoch)
@@ -575,7 +773,6 @@ $$
 #| label: model-no-site-epoch-sampling
 #| code-summary: Data and sampling no site or epoch model
 seed <- 71236
-logistic_mod <- cmdstan_model("stan/logistic_bernoulli.stan")
 mod_dat <- make_model_data_noepochsite(acs_itt_dat)
 snk <- capture.output(
   no_epoch_site_fit <- logistic_mod$sample(
@@ -673,7 +870,6 @@ $$
 #| label: model-no-epoch-sampling
 #| code-summary: Data and sampling no site or epoch model
 seed <- 71236
-noepoch_mod <- cmdstan_model("stan/primary_logistic_model_site.stan")
 mod_dat <- make_model_data_noepoch(acs_itt_dat)
 snk <- capture.output(
   no_epoch_fit <- noepoch_mod$sample(
@@ -791,8 +987,6 @@ $$
 #| label: model-primary-sampling
 #| code-summary: Data and sampling primary model
 seed <- 32915
-primary_mod <- cmdstan_model(
-  "stan/primary_logistic_model_site_epoch.stan")
 mod_dat <- make_model_data_primary(acs_itt_dat)
 snk <- capture.output(
   primary_fit <- primary_mod$sample(
@@ -989,151 +1183,190 @@ p1 | p2
 
 In these analyses, the population is includes all participants who were randomised to the platform, even if not randomised into the anticoagulation domain.
 
-```{r}
-#| code-summary: Setup ACS-ITT dataset
-fas_itt_dat <- all_dat %>%
-    filter(
-      ENR_rec == 1, 
-      WTH_FU == 0,
-      !is.na(PO))
-site_counts <- fas_itt_dat %>% 
-  dplyr::count(
-    Country = factor(Country, levels = c("IN", "AU", "NP", "NZ")), 
-    Location)
-merge_aus <- site_counts %>% 
-  filter(Country == "AU", n < 5) %>%
-  pull(Location)
-merge_nz <- site_counts %>% 
-  filter(Country == "NZ", n < 5) %>%
-  pull(Location)
-fas_itt_dat <- fas_itt_dat %>%
-  mutate(
-    ctry = factor(Country, levels = c("IN", "AU", "NP", "NZ")),
-    # group sites with < 5 counts
-    site = fct_collapse(
-      factor(Location, levels = site_counts$Location),
-      `AU other` = merge_aus,
-      `NZ other` = merge_nz
-      )
-  )
-region_site <- fas_itt_dat %>%
-  dplyr::count(ctry, site) %>%
-  mutate(
-    ctry_num = as.numeric(ctry), 
-    site_num = as.numeric(fct_inorder(site))
-  )
-fas_itt_dat <- fas_itt_dat %>% 
-    left_join(region_site %>% select(-n), by = c("ctry", "site"))
-fas_itt_dat <- fas_itt_dat %>%
-    transmute(
-      StudyPatientID,
-      AAssignment= factor(
-        AAssignment, levels = c("A1", "A0", "A2")),
-      CAssignment = factor(
-        CAssignment, levels = c("C1", "C0", "C2", "C3", "C4")),
-      RandDate,
-      PO,
-      age_c = AgeAtEntry - mean(AgeAtEntry),
-      agegte60_c = agegte60 - mean(agegte60),
-      country = factor(Country, levels = c("IN", "AU", "NP", "NZ")),
-      inelgc3 = if_else(EL_inelg_c3 == 1 | is.na(EL_inelg_c3), 1, 0),
-      ctry = factor(Country, levels = c("IN", "AU", "NP", "NZ")),
-      # group sites with < 5 counts
-      site = fct_collapse(
-        factor(Location, levels = site_counts$Location),
-        `AU other` = merge_aus,
-        `NZ other` = merge_nz
-        ),
-      ctry_num,
-      site_num,
-      relRandDate = as.numeric(max(RandDate) - RandDate),
-      epoch = floor(relRandDate / 28),
-      # Manual merge after check of count(epoch)
-      epoch = case_when(
-        epoch %in% 0:1 ~ 2,
-        epoch == 14 ~ 13,
-        TRUE ~ epoch
-      ) - 1
-    )
-```
-
 ### Treatment only
 
+```{r}
+#| label: trtonly-fas-itt-data
+mod_dat <- make_model_data_trt_only(fas_itt_nona_dat)
+```
+
+```{r}
+#| label: sample-trtonly-fas-itt-model
+#| eval: false
+seed <- 135736
+snk <- capture.output(
+  trtonly_fit <- logistic_mod$sample(
+    data = mod_dat,
+    seed = seed,
+    refresh = 0,
+    iter_sampling = 2500,
+    chains = 8,
+    parallel_chains = 8
+))
+save_cmdstanr_model(trtonly_fit, "primary/trtonly-fas-itt")
+```
+
+```{r}
+#| label: load-trtonly-fas-itt-model
+trtonly_fas_itt_fit <- 
+  readRDS(file.path("outputs", "models", "primary", "trtonly-fas-itt.rds"))
+mod_rvs <- as_draws_rvars(trtonly_fas_itt_fit$draws(c("beta")))
+mod_rvs <- add_treatment_rvs(mod_rvs, mod_dat)
+```
+
+```{r}
+#| label: fig-or-densities-trtonly-fas-itt-model
+#| fig-cap: Posterior densities for odds ratio contrasts.
+plot_or_densities(mod_rvs$OR)
+```
+
+```{r}
+#| label: tbl-or-densities-trtonly-fas-itt-model
+#| tbl-cap: Posterior summaries for odds ratio contrasts.
+odds_ratio_summary_table(mod_rvs$OR)
+```
+
+#### Subgroups
+
+
+
+
 ### Treatment plus covariates (no site or epoch)
+
+```{r}
+#| label: noepochsite-fas-itt-data
+mod_dat <- make_model_data_noepochsite(fas_itt_nona_dat)
+```
+
+```{r}
+#| label: sample-noepochsite-fas-itt-model
+#| eval: false
+seed <- 91376
+snk <- capture.output(
+  noepochsite_fit <- logistic_mod$sample(
+    data = mod_dat,
+    seed = seed,
+    refresh = 0,
+    iter_sampling = 2500,
+    chains = 8,
+    parallel_chains = 8,
+    adapt_delta = 0.95
+))
+save_cmdstanr_model(noepochsite_fit, "primary/noepochsite-fas-itt")
+```
+
+```{r}
+#| label: load-noepochsite-fas-itt-model
+noepochsite_fas_itt_fit <- 
+  readRDS(file.path("outputs", "models", "primary", "noepochsite-fas-itt.rds"))
+mod_rvs <- as_draws_rvars(noepochsite_fas_itt_fit$draws(c("beta")))
+mod_rvs <- add_treatment_rvs(mod_rvs, mod_dat)
+```
+
+```{r}
+#| label: fig-or-densities-noepochsite-fas-itt-model
+#| fig-cap: Posterior densities for odds ratio contrasts.
+#| echo: false
+plot_or_densities(mod_rvs$OR)
+```
+
+```{r}
+#| label: tbl-or-densities-noepochsite-fas-itt-model
+#| tbl-cap: Posterior summaries for odds ratio contrasts.
+#| echo: false
+odds_ratio_summary_table(mod_rvs$OR)
+```
+
+### No epoch
+
+```{r}
+#| label: noepoch-fas-itt-data
+mod_dat <- make_model_data_noepoch(fas_itt_nona_dat)
+```
+
+```{r}
+#| label: sample-noepoch-fas-itt-model
+#| eval: false
+seed <- 76150
+snk <- capture.output(
+  noepoch_fit <- noepoch_mod$sample(
+    data = mod_dat,
+    seed = seed,
+    refresh = 0,
+    iter_sampling = 2500,
+    chains = 8,
+    parallel_chains = 8,
+    adapt_delta = 0.95
+))
+save_cmdstanr_model(noepoch_fit, "primary/noepoch-fas-itt")
+```
+
+```{r}
+#| label: load-noepoch-fas-itt-model
+noepoch_fas_itt_fit <- 
+  readRDS(file.path("outputs", "models", "primary", "noepoch-fas-itt.rds"))
+mod_rvs <- as_draws_rvars(noepoch_fas_itt_fit$draws(c("beta")))
+mod_rvs <- add_treatment_rvs(mod_rvs, mod_dat)
+```
+
+```{r}
+#| label: fig-or-densities-noepoch-fas-itt-model
+#| fig-cap: Posterior densities for odds ratio contrasts.
+#| echo: false
+plot_or_densities(mod_rvs$OR)
+```
+
+```{r}
+#| label: tbl-or-densities-noepoch-fas-itt-model
+#| tbl-cap: Posterior summaries for odds ratio contrasts.
+#| echo: false
+odds_ratio_summary_table(mod_rvs$OR)
+```
 
 ### Primary Model
 
 ```{r}
-mod_dat <- make_model_data_primary(fas_itt_dat)
+#| label: primary-fas-itt-data
+mod_dat <- make_model_data_primary(fas_itt_nona_dat)
+```
 
+```{r}
+#| label: sample-primary-fas-itt-model
+#| eval: false
+seed <- 35136
 snk <- capture.output(
   primary_fit <- primary_mod$sample(
     data = mod_dat,
     seed = seed,
     refresh = 0,
-    iter_sampling = 5000,
+    iter_sampling = 2500,
     chains = 8,
     parallel_chains = 8,
-    adapt_delta = 0.95
+    adapt_delta = 0.99
 ))
+save_cmdstanr_model(primary_fit, "primary/primary-fas-itt")
 ```
 
 ```{r}
-#| label: primary-posteriors-fas
-#| code-summary: Posterior draws FAS
-Ca <- cbind(1, attr(mod_dat$X, "contrasts")$AAssignment)
-Cc <- cbind(1, attr(mod_dat$X, "contrasts")$CAssignment)
-modrv <- as_draws_rvars(
-  primary_fit$draws(
-    c("beta", "beta_region", "gamma_site", "tau_site", "gamma_epoch", "tau_epoch")))
-modrv$eta <- as.vector(Cc %**% modrv$beta[1:5])
-modrv$beta_uncon <- as.vector(Cc[, -1] %**% modrv$beta[2:5])
-modrv$prob <- 1 / (1 + exp(-modrv$eta))
-modrv$beta_trt <- as.vector(
-  transform_coding(Cc, cbind(1, contr.treatment(5))) %**% 
-  modrv$beta[1:5])
-modrv$OR <- setNames(exp(modrv$beta_trt[-(1:2)]), c("C2", "C3", "C4"))
+#| label: load-primary-fas-itt-model
+primary_fas_itt_fit <- readRDS(
+  file.path("outputs", "models", "primary", "primary-fas-itt.rds"))
+mod_rvs <- as_draws_rvars(
+  primary_fas_itt_fit$draws(c(
+    "beta", "beta_region", "gamma_site", "tau_site", "gamma_epoch", "tau_epoch")))
+mod_rvs <- add_treatment_rvs(mod_rvs, mod_dat)
 ```
 
 ```{r}
-tibble(
-  Contrast = fct_inorder(
-    c("C2 v C1", "C3 v C1", "C4 v C1", "C2 vs C4")), 
-  RV = c(modrv$OR, modrv$OR[1] / modrv$OR[3])) %>% 
-  ggplot(., aes(y = Contrast, xdist = RV)) + 
-  stat_halfeye(
-    aes(fill = 
-          stat(cut_cdf_qi(
-            cdf, 
-            .width = c(.5, .8, .95, 0.99), 
-            labels = scales::percent_format()))),
-    adjust = 1, n = 1001, .width = c(0.5, 0.8, 0.95)
-    ) + 
-  scale_fill_brewer(
-    palette = "Reds",
-    direction = -1, 
-    na.translate = FALSE) + 
-  labs(
-    x = "Odds ratio contrast",
-    fill = "Interval"
-  ) +
-  scale_x_log10(breaks = c(0.1, 0.25, 0.5, 1, 2, 4, 10)) + 
-  geom_vline(xintercept = 1)
+#| label: fig-or-densities-primary-fas-itt-model
+#| fig-cap: Posterior densities for odds ratio contrasts.
+#| echo: false
+plot_or_densities(mod_rvs$OR)
 ```
 
 ```{r}
-#| label: tbl-posterior-summaries-primary-fas
-#| code-summary: Posterior summaries FAS
-#| tbl-cap: Posterior summaries FAS
-tibble(
-    Parameter = c("OR[C2]", "OR[C3]", "OR[C4]"),
-    `Pr(OR < 1)` = Pr(modrv$OR < 1),
-    Median = median(modrv$OR),
-    Mean = E(modrv$OR),
-    `95% CrI` = apply(
-      quantile(modrv$OR, c(0.025, 0.975)), 2, 
-      function(x) sprintf("(%.2f, %.2f)", x[1], x[2]))
-  ) %>%
-  kable(digits = 2, align = "lrrrr") %>%
-  kable_styling(bootstrap_options = "striped")
+#| label: tbl-or-densities-primary-fas-itt-model
+#| tbl-cap: Posterior summaries for odds ratio contrasts.
+#| echo: false
+odds_ratio_summary_table(mod_rvs$OR)
 ```

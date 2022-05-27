@@ -38,7 +38,7 @@ ordered_logit <- function(x) {
 ```{r}
 #| label: data
 #| code-summary: Prepare dataset
-source("r/derive_full_datasets.r")
+devtools::load_all()
 dat <- read_all_no_daily()
 ```
 

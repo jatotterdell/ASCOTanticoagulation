@@ -1,8 +1,16 @@
+#' @title read_all_no_daily
+#' @description
+#' Read in the derived dataset with everything except daily data
+#' @references The full dataset
 read_all_no_daily <- function() {
   readRDS(file.path(ANTICOAG_DATA, "all_data.rds"))
 }
 
 
+#' @title read_all_daily
+#' @description
+#' Read in the derived dataset with everything including daily data
+#' @references The full dataset with daily
 read_all_daily <- function() {
   readRDS(file.path(ANTICOAG_DATA, "all_daily_data.rds"))
 }
@@ -47,6 +55,12 @@ intervention_labels <- function() {
 }
 
 
+#' @title filter_fas_itt
+#' @description
+#' Filter the full dataset down to the FAS-ITT,
+#' that is, those who were enrolled and did not
+#' withdraw from follow-up.
+#' @param dat Data from `read_all_no_daily`
 filter_fas_itt <- function(dat) {
   filter(
     dat,
@@ -95,10 +109,10 @@ transmute_model_cols <- function(dat) {
     left_join(region_site %>% select(-n), by = c("ctry", "site")) %>%
     transmute(
       StudyPatientID,
-      AAssignment= factor(
-        AAssignment, levels = c("A1", "A0", "A2")),
-      CAssignment = factor(
-        CAssignment, levels = c("C1", "C0", "C2", "C3", "C4")),
+      AAssignment= droplevels(factor(
+        AAssignment, levels = c("A1", "A0", "A2"))),
+      CAssignment = droplevels(factor(
+        CAssignment, levels = c("C1", "C0", "C2", "C3", "C4"))),
       RandDate,
       PO,
       age_c = AgeAtEntry - mean(AgeAtEntry),
