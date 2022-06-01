@@ -118,16 +118,21 @@ generate_baseline_demographics_table <- function(dat, format = "html") {
       align = "lrrrrr") %>%
       kable_styling(
         bootstrap_options = "striped",
-        font_size = 11,
-        latex_options = "HOLD_position") %>%
+        latex_options = "HOLD_position",
+        font_size = 10) %>%
       group_rows("Sex", 2, 3) %>%
       group_rows("Weight (kg)", 4, 5) %>%
-      group_rows("Vaccinated<sup>1</sup>", 6, 7, escape = FALSE) %>%
       group_rows("Ethnicity", 8, 18) %>%
       group_rows("Smoking", 19, 22) %>%
       add_header_above(c(" " = 1, "Anticoagulation" = ncol(byCgrp) - 1, " " = 1))  %>%
       row_spec(0, align = "c") %>%
-      add_footnote("Site LUD does not have ethics approval for collection of vaccination status and accounts for most missingness", notation = "number")
+      footnote(number = "Site LUD did not have ethics approval for collection of vaccination status.",
+               fixed_small_size = TRUE)
+    if(format == "latex") {
+      outC <- outC %>% group_rows(., "Vaccinated\\\\textsuperscript{1}", 6, 7, escape = FALSE)
+    } else {
+      outC <- outC %>% group_rows("Vaccinated<sup>1</sup>", 6, 7, escape = FALSE)
+    }
     return(outC)
 }
 
