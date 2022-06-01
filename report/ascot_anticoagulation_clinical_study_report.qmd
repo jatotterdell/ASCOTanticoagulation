@@ -36,7 +36,7 @@ At the time of database lock for the anti-coagulation domain, ... participants h
 
 Platform and domain specific flow diagrams are included in ...
 
-Enrolment ...
+@fig-enrolments presents platform enrolments over time with timing of intervention availabilities.
 
 ```{r}
 #| label: fig-enrolments
