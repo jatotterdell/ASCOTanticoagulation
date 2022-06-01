@@ -61,6 +61,47 @@ intervention_labels <- function() {
 }
 
 
+get_intervention_dates <- function() {
+  tribble(
+    ~ Domain, ~ Intervention, ~ stdate, ~ endate,
+    "Anti-coagulation", "C1", as.Date("2021-02-18"), as.Date("2022-04-08"),
+    "Anti-coagulation", "C2", as.Date("2021-02-18"), as.Date("2022-04-08"),
+    "Anti-coagulation", "C3", as.Date("2021-02-18"), as.Date("2021-09-10"),
+    "Anti-coagulation", "C4", as.Date("2021-10-14"), as.Date("2022-04-08"),
+    "Anti-viral", "A1", as.Date("2021-06-10"), Sys.Date(),
+    "Anti-viral", "A2", as.Date("2021-06-10"), Sys.Date()
+  ) %>%
+    mutate(Intervention = labelled(
+      Intervention,
+      labels = c(
+        C1 = "Standard dose", C2 = "Intermediate dose", C3 = "Standard dose + aspirin", C4 = "Therapeutic dose",
+        A1 = "No specific antiviral", A2 = "Nafamostat"
+      ),
+      label = "Domain intervention"))
+}
+
+
+get_interim_dates <- function() {
+  tribble(
+    ~ meet_num, ~ meet_date,
+    1, as.Date("2021-07-21"),
+    2, as.Date("2021-09-15"),
+    3, as.Date("2021-12-01"),
+    4, as.Date("2022-02-22")
+  )
+}
+
+
+intervention_strata <- function() {
+  tribble(
+    ~ stdate, ~ endate, ~ strata_int, ~ strata_lab,
+    as.Date("2021-02-18"), as.Date("2021-06-09"), 1, "Add A",
+    as.Date("2021-06-10"), as.Date("2021-09-10"), 2, "Drop C3",
+    as.Date("2021-09-11"), as.Date("2021-10-13"), 3, "Add C4",
+    as.Date("2021-10-14"), as.Date("2022-04-08"), 4, "Drop C",
+  )
+}
+
 #' @title filter_fas_itt
 #' @description
 #' Filter the full dataset down to the FAS-ITT,
@@ -156,9 +197,30 @@ transmute_model_cols <- function(dat) {
         epoch %in% 0:1 ~ 2,
         epoch == 14 ~ 13,
         TRUE ~ epoch
-      ) - 1
-    )
+      ) - 1,
+    ) %>%
+    group_by(epoch) %>%
+    mutate(epoch_lab = paste(
+      format(min(RandDate), "%d%b%y"),
+      format(max(RandDate), "%d%b%y"),
+      sep = "-")
+    ) %>%
+    ungroup()
   return(dat)
+}
+
+# Model helpers ----
+
+logit <- function(x) log(x) - log(1 - x)
+
+expit <- function(x) 1 / (1 + exp(-x))
+
+ordered_logit <- function(x) {
+  c(
+    1 - expit(-x[1]),
+    expit(-x[1:(length(x)-1)]) - expit(-x[2:(length(x))]),
+    expit(-tail(x, 1))
+  )
 }
 
 # Save outputs ----
