@@ -59,7 +59,8 @@ acs_itt_nona_dat <- acs_itt_dat %>%
 logistic_mod <- cmdstan_model("stan/logistic_bernoulli.stan")
 noepoch_mod <- cmdstan_model("stan/primary_logistic_model_site.stan")
 primary_mod <- cmdstan_model("stan/primary_logistic_model_site_epoch.stan")
-logistic_subgrp_mod <- cmdstan_model("stan/logistic_subgroup.stan")
+# logistic_subgrp_mod <- cmdstan_model("stan/logistic_subgroup.stan")
+# logistic_subgrp_multi_mod <- cmdstan_model("stan/logistic_subgroup_multi.stan")
 ```
 
 ```{r}
