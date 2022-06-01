@@ -16,7 +16,7 @@ library(plotly)
 library(knitr)
 library(kableExtra)
 
-theme_set(theme_minimal(base_size = 12))
+theme_set(theme_minimal(base_size = 10))
 ```
 
 ```{r}
@@ -54,14 +54,14 @@ p1 <- all_data %>%
   geom_vline(data = md,
              aes(xintercept = as.numeric(meet_date)),
              linetype = 2) +
-  labs(x = "")
+  labs(x = "", subtitle = "Cumulative enrolments", y = "")
 
 p2 <- id %>%
   mutate(
     Intervention = fct_inorder(val_labels(Intervention))
   ) %>%
   ggplot(.) +
-  facet_grid(Domain ~ ., drop = TRUE, scales = "free_y") +
+  facet_grid(Domain ~ ., drop = TRUE, scales = "free_y", space = "free_y") +
   geom_point(aes(x = Intervention, y = endate), shape = 4) +
   geom_segment(
     aes(x = Intervention, xend = Intervention, 
@@ -70,10 +70,18 @@ p2 <- id %>%
              aes(yintercept = as.numeric(meet_date)),
              linetype = 2) +
   coord_flip() +
-  labs(x = "", y = "Calendar date")
+  labs(x = "", y = "Calendar date", subtitle = "Available interventions")
 
-p1 / p2
+p <- p1 / p2
+p
 ```
+
+```{r}
+#| label: save-overall-enrolment-figure
+pth <- file.path("outputs", "figures", "baseline")
+ggsave(file.path(pth, "enrolment-overall.pdf"), p, height = 4.5, width = 6)
+```
+
 
 ```{r}
 #| label: fig-enrolment-country
