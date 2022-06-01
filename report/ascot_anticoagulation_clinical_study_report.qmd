@@ -4,8 +4,8 @@ date: '2022-05-26'
 author:
   - name: James Totterdell
     affiliation: University of Sydney
-  - name: Rob Maher
-    affiliation: University of Melbournce
+  - name: Rob Mahar
+    affiliation: University of Melbourne
 format:
   pdf:
     documentclass: scrreprt
