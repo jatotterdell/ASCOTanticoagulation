@@ -246,6 +246,20 @@ add_primary_outcome_components <- function(dat) {
 }
 
 
+add_days_alive_and_free <- function(dat) {
+  out <- dat %>%
+    mutate(
+      out_dafh = case_when(
+        is.na(D28_death) ~ NA_real_,
+        is.na(D28_OutcomeTotalDaysHospitalised) & D28_death == 0 ~ NA_real_,
+        D28_death == 1 ~ 0,
+        TRUE ~ 28 - pmin(D28_OutcomeTotalDaysHospitalised, 28)
+      )
+    )
+  return(out)
+}
+
+
 format_eligibility_data <- function(el) {
   el %>%
     select(-EligibilityID) %>%
@@ -496,6 +510,7 @@ create_fulldata_no_daily <- function() {
       WTH_day = as.integer(CON_WithdrawnDate - RandDate + 1)
     ) %>%
     add_primary_outcome_components() %>%
+    add_days_alive_and_free() %>%
     # restrict to randomisations prior to closure of anticoagulation
     filter(RandDate <= as.Date("2022-04-08") | is.na(RandDate))
 }
