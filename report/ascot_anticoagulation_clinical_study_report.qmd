@@ -1,0 +1,86 @@
+---
+title: "ASCOT Anticoagulation Clinical Study Report"
+date: '2022-05-26'
+author:
+  - name: James Totterdell
+    affiliation: University of Sydney
+  - name: Rob Maher
+    affiliation: University of Melbournce
+format:
+  pdf:
+    documentclass: scrreprt
+    toc: true
+    number-sections: true
+    colorlinks: true
+    lof: true
+    lot: true
+    mainfont: TeX Gyre Pagella
+    mathfont: TeX Gyre Pagella Math
+    monofont: TeX Gyre Cursor
+    sansfont: TeX Gyre Heros
+    include-in-header:
+      - packages.tex
+execute: 
+  echo: false
+---
+
+# Synopsis
+
+# Results
+
+## Study Population
+
+At the time of database lock for the anti-coagulation domain, ... participants had been enrolled onto the study platform and ... participants had been randomised to the anticoagulation domain. The first patient was randomised on ... and the last patient enrolled into the anticoagulation domain was randomised on... .
+
+### Disposition
+
+Platform and domain specific flow diagrams are included in ...
+
+Enrolment ...
+
+```{r}
+#| label: fig-enrolments
+#| fig-cap: |
+#|   Overall enrolment to platform and intervention availability.
+knitr::include_graphics(
+  "../outputs/figures/baseline/enrolment-overall.pdf"
+)
+```
+
+
+### Deviations
+
+{{< pagebreak >}}
+
+### Baseline Characteristics
+
+Baseline demographics are stratified by the anti-coagulation interventions are reported in @tbl-baseline-demographics
+```{r}
+#| label: tbl-baseline-demographics
+#| tbl-cap: |
+#|   Baseline demographics for participants randomised to the anti-coagulation domain.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "baseline", "demographics.tex"))
+writeLines(tab[-which(grepl("caption", tab))])
+```
+
+
+### Adherence
+
+## Primary Outcome 
+
+## Secondary Outcomes
+
+### Time to clinical recovery
+
+### All-cause mortality
+
+### WHO outcome scale
+
+### Days free of hospitalisation
+
+## Domain Specific Outcomes
+
+## Safety
+
+# Appendices {.unnumbered}
