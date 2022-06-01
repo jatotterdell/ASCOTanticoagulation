@@ -242,6 +242,16 @@ sdat <- all_data %>%
 generate_baseline_demographics_table(sdat, format = "html")
 ```
 
+```{r}
+#| label: save-baseline-demographics-table
+#| code-summary: Save table to outputs
+save_tex_table(
+  generate_baseline_demographics_table(sdat, format = "latex"),
+  "baseline/demographics"
+)
+```
+
+
 ## Co-morbidities
 
 Baseline co-morbidities are summarised by anti-coagulation intervention in the following table.
