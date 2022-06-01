@@ -1,0 +1,442 @@
+---
+title: Days alive and free of hospital by day 28
+subtitle: |
+  Death from any cause or requirement of new intensive respiratory 
+  support (invasive or non-invasive ventilation) or vasopressor/inotropic 
+  support in the 28 days after randomisation.
+description: |
+  This outcome was defined as the number of days alive and free of hospital 
+  from randomisation to 28 days, calculated as 28 minus the number of days 
+  spent in hospital.  All patients dying within 28 days will be assigned zero 
+  free days.
+author: "James Totterdell"
+date: last-modified
+---
+
+# Preamble
+
+```{r}
+#| label: pkgs
+#| code-summary: Load packages
+library(tidyverse)
+library(labelled)
+library(kableExtra)
+library(cmdstanr)
+library(posterior)
+library(bayestestR)
+library(bayesplot)
+library(matrixStats)
+library(plotly)
+library(lubridate)
+library(ggdist)
+library(patchwork)
+
+theme_set(theme_minimal(base_size = 12))
+bayesplot_theme_set(theme_minimal(base_size = 12))
+color_scheme_set("red")
+options(digits = 4)
+```
+
+```{r}
+#| label: data
+#| code-summary: Prepare dataset
+devtools::load_all()
+all_dat <- read_all_no_daily()
+
+fas_itt_dat <- all_dat %>% 
+  filter_fas_itt() %>%
+  transmute_model_cols() %>%
+  left_join(
+    all_dat %>% 
+      select(
+        StudyPatientID, 
+        D28_death,
+        D28_OutcomeTotalDaysHospitalised, 
+        DIS_day,
+        out_dafh),
+    by = "StudyPatientID")
+fas_itt_nona_dat <- fas_itt_dat %>% 
+  filter(!is.na(out_dafh))
+
+acs_itt_dat <- all_dat %>% 
+  filter_acs_itt() %>%
+  transmute_model_cols() %>%
+  left_join(
+    all_dat %>% 
+      select(
+        StudyPatientID, 
+        D28_death, 
+        D28_OutcomeTotalDaysHospitalised,
+        DIS_day, 
+        out_dafh),
+    by = "StudyPatientID")
+acs_itt_nona_dat <- acs_itt_dat %>% 
+  filter(!is.na(out_dafh))
+```
+
+```{r}
+#| label: models
+#| code-summary: Load models
+ordmod0 <- cmdstan_model("stan/logistic_cumulative_ordinal.stan")
+ordmod <- cmdstan_model("stan/ordinal_site_epoch.stan")
+```
+
+```{r}
+#| label: helper-functions
+#| code-summary: Functions
+
+make_model_data <- function(dat) {
+  
+  epoch <- dat$epoch
+  M_epoch <- max(dat$epoch)
+  region <- dat$ctry_num
+  M_region <- max(region)
+  site <- dat$site_num
+  M_site <- max(site)
+  region_by_site <- dat %>% 
+    dplyr::count(ctry_num, site_num) %>% 
+    pull(ctry_num)
+  
+  X <- model.matrix(
+    ~ CAssignment + AAssignment + agegte60 + inelgc3,
+    data = dat,
+    contrast = list(
+      AAssignment = contr.orthonorm,
+      CAssignment = contr.orthonorm
+    )
+  )[, -1]
+  nCXassign <- sum(grepl("CAssignment", colnames(X)))
+  nAXassign <- sum(grepl("AAssignment", colnames(X)))
+  attr(X, "contrasts")$CAssignment = contr.orthonorm(nCXassign + 1)
+  attr(X, "contrasts")$AAssignment = contr.orthonorm(nAXassign + 1)
+  nXassign <- sum(grepl("Assignment", colnames(X)))
+  y_raw <- ordered(dat$out_dafh)
+  y_mod <- as.integer(y_raw)
+  N <- dim(X)[1]
+  K <- dim(X)[2]
+  unique_y <- length(unique(y_mod))
+  list(N = N, K = K, J = unique_y, X = X, y = y_mod, y_raw = y_raw,
+       M_region = M_region, region = region,
+       M_site = M_site, site = site,
+       M_epoch = M_epoch, epoch = epoch,
+       region_by_site = region_by_site,
+       p_par = 2 * rep(1 / unique_y, unique_y),
+       beta_sd = c(rep(1, nXassign), 2.5, 10))  
+}
+
+
+
+
+make_reduced_model_data <- function(dat) {
+  X <- model.matrix(
+    ~ CAssignment + AAssignment + agegte60_c + inelgc3 + ctry,
+    data = dat,
+    contrast = list(
+      AAssignment = contr.orthonorm,
+      CAssignment = contr.orthonorm
+    )
+  )[, -1]
+  nCXassign <- sum(grepl("CAssignment", colnames(X)))
+  nAXassign <- sum(grepl("AAssignment", colnames(X)))
+  attr(X, "contrasts")$CAssignment = contr.orthonorm(nCXassign + 1)
+  attr(X, "contrasts")$AAssignment = contr.orthonorm(nAXassign + 1)
+  nXassign <- sum(grepl("Assignment", colnames(X)))
+  y_raw <- ordered(dat$out_dafh)
+  y_mod <- as.integer(y_raw)
+  N <- dim(X)[1]
+  K <- dim(X)[2]
+  unique_y <- length(unique(y_mod))
+  list(N = N, K = K, J = unique_y, X = X, y = y_mod, y_raw = y_raw,
+       p_par = 2 * rep(1 / unique_y, unique_y),
+       beta_sd = c(rep(1, nXassign), 2.5, 10, rep(1, 3)))
+}
+
+add_treatment_rvs <- function(rvs, mdat) {
+  
+  Ca <- attr(mdat$X, "contrasts")$AAssignment
+  Cc <- attr(mdat$X, "contrasts")$CAssignment
+  nC <- ncol(Cc)
+  Ct <-  contr.treatment(nC + 1)
+  
+  rvs$beta_uncon <- as.vector(Cc %**% rvs$beta[1:nC])
+  rvs$beta_trt <- as.vector(
+    transform_coding(Cc, Ct) %**% rvs$beta[1:nC])
+  rvs$OR <- setNames(exp(rvs$beta_trt), c("C2 vs C1", "C3 vs C1", "C4 vs C1"))
+  rvs$OR <- c(rvs$OR, "C2 vs C4" = rvs$OR[1] / rvs$OR[3])
+  return(rvs)
+}
+
+odds_ratio_summary_table <- function(OR, format = "html", fn = NULL, ...) {
+  out <- tibble(
+    Parameter = names(OR),
+    Median = median(OR),
+    Mean = E(OR),
+    `95% CrI` = apply(
+      quantile(OR, c(0.025, 0.975)), 2, 
+      function(x) sprintf("(%.2f, %.2f)", x[1], x[2])),
+    `Pr(OR > 1)` = Pr(OR > 1),
+  ) %>%
+  kable(
+    format = format, 
+    digits = 2, 
+    align = "lrrrr",
+    booktabs = TRUE,
+    ...) %>%
+  kable_styling(bootstrap_options = "striped", latex_options = "HOLD_position")
+  if (!is.null(fn) & format == "latex") {
+    save_tex_table(out, fn)
+  } else {
+    return(out)
+  }
+}
+```
+
+
+# Outcome Derivation
+
+The outcome is calculated for a patient as:
+
+- missing, if day 28 mortality is unknown (`D28_PatientStatus`) or if the patient was known to have been alive
+  at day 28 but number of days in hospital (`D28_OutcomeTotalDaysHospitalised`) is unknown
+- 0 if they died by day 28 (`D28_PatientStatus`)
+- 28 - min(28, `D28_OutcomeTotalDaysHospitalised`) otherwise
+
+# Descriptive Analyses
+
+## Overall
+
+As a cross check, @fig-dis-day-vs-days-hospitalised plots the number of days hospitalised (as reported in `D28_OutcomeTotalDaysHospitalised`) against the day of discharge from the index admission.
+
+```{r}
+#| label: fig-dis-day-vs-days-hospitalised
+#| fig-cap: |
+#|   Number of days hospitalised against day of discharge from index admission.
+#| fig-height: 4
+pdat <- fas_itt_dat %>%
+  dplyr::count(D28_day = pmin(28, D28_OutcomeTotalDaysHospitalised), DIS_day = pmin(28, DIS_day))
+ggplot(pdat, aes(D28_day, DIS_day)) +
+  geom_point(aes(size = n), shape = 21) +
+  geom_abline() +
+  scale_x_continuous("Number of days hospitalised (D28_OutcomeTotalDaysHospitalised)",
+                     breaks = seq(0, 30, 2)) +
+  scale_y_continuous("Day of discharge from index admission",
+                     breaks = seq(0, 30, 2)) +
+  labs(size = "Count")
+```
+
+The overall distribution of days alive and free of hospital are reported in @fig-dafh-dist for all participants in the ACS-ITT set.
+
+```{r}
+#| label: fig-dafh-dist
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital.
+#| fig-subcap: ACS-ITT
+#| fig-height: 4
+pdat <- acs_itt_dat %>%
+  dplyr::count(dafh = addNA(ordered(out_dafh, levels = 0:27)), .drop = F) %>%
+  mutate(p = n / sum(n))
+ggplot(pdat, aes(dafh, p)) +
+  geom_col() +
+  labs(x = "Days alive and free of hospital", y = "Proportion")
+```
+
+## Age
+
+```{r}
+#| label: fig-dafh-dist-age
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital by age group
+#| fig-height: 4
+pdat <- acs_itt_nona_dat %>%
+  dplyr::count(
+    agegte60,
+    dafh = fct_rev(ordered(out_dafh, levels = 0:27)), 
+    .drop = F) %>%
+  group_by(agegte60) %>%
+  mutate(p = n / sum(n))
+ggplot(pdat, aes(agegte60, p)) +
+  geom_col(aes(fill = dafh)) +
+  labs(x = "Age", y = "Cumulative proportion") +
+  scale_fill_viridis_d("Days alive and\nfree of hospital", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = TRUE))
+```
+
+## Country
+
+```{r}
+#| label: fig-dafh-dist-country
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital by country.
+#| fig-height: 4
+pdat <- acs_itt_nona_dat %>%
+  dplyr::count(
+    ctry,
+    dafh = ordered(out_dafh, levels = 0:27), 
+    .drop = F) %>%
+  group_by(ctry) %>%
+  mutate(p = n / sum(n))
+ggplot(pdat, aes(ctry, p)) +
+  geom_col(aes(fill = fct_rev(dafh))) +
+  labs(x = "Country", y = "Cumulative proportion") +
+  scale_fill_viridis_d("Days alive and\nfree of hospital", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = TRUE))
+```
+
+## Anti-coagulation
+
+```{r}
+#| label: fig-dafh-dist-anticoagulation
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital by anti-coagulation intervention.
+#| fig-height: 4
+pdat <- acs_itt_nona_dat %>%
+  dplyr::count(
+    CAssignment,
+    dafh = ordered(out_dafh, levels = 0:27), 
+    .drop = F) %>%
+  group_by(CAssignment) %>%
+  mutate(p = n / sum(n)) %>%
+  mutate(cp = cumsum(p)) %>%
+  ungroup()
+ggplot(pdat, aes(CAssignment, p)) +
+  geom_col(aes(fill = fct_rev(dafh))) +
+  labs(x = "Anticoagulation intervention", y = "Cumulative proportion") +
+  scale_fill_viridis_d("Days alive and\nfree of hospital", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = TRUE))
+```
+
+```{r}
+#| label: fig-dafh-dist-anticoagulation2
+#| fig-cap: |
+#|   Cumulative distribution of days alive and free of hospital by anti-coagulation intervention.
+#| fig-height: 4
+ggplot(pdat, aes(dafh, cp)) +
+  geom_step(aes(colour = CAssignment, group = CAssignment)) +
+  labs(x = "Days alive and free of ventilation", y = "Cumulative proportion") +
+  scale_colour_viridis_d(
+    "Days alive and\nfree of hospital", option = "A", begin = 0, end = 0.8) +
+  guides(fill = guide_legend(reverse = TRUE))
+```
+
+
+# Modelling
+
+## ACS-ITT
+
+### Reduced Model (No site or epoch terms)
+
+```{r}
+#| label: fit-reduced-model
+fit_reduced_model <- function(dat) {
+  mdat0 <- make_reduced_model_data(acs_itt_nona_dat)
+  snk <- capture.output(mfit0 <- ordmod0$sample(
+    data = mdat0,
+    seed = 733358,
+    chains = 4,
+    parallel_chains = 4,
+    iter_sampling = 1000,
+    refresh = 0
+  ))
+  mdrws0 <- as_draws_rvars(mfit0$draws())
+  mdrws0 <- add_treatment_rvs(mdrws0, mdat0)
+  
+  # Prepare odds ratios for use in summary table
+  mdrws0$OR <- c(mdrws0$OR, 
+                 setNames(exp(mdrws0$beta[c(6, 8:10)]), 
+                          c("Age 60+", "AU v IN", "NP v IN", "NZ v IN")))
+  
+  # Prepare outcome probability for comparison with observed proportions
+  
+  return(list(dat = mdat0, fit = mfit0, drws = mdrws0))
+}
+res <- fit_reduced_model(acs_itt_nona_dat)
+```
+
+
+```{r}
+#| label: posterior-summary-table-reduced
+#| tbl-cap: Posterior summaries for model parameters.
+odds_ratio_summary_table(res$drws$OR)
+```
+
+```{r}
+# Treatment specific level probabilities
+p_C1 <- ordered_logit(res$drws$alpha - res$drws$beta_uncon[1])
+p_C2 <- ordered_logit(res$drws$alpha - res$drws$beta_uncon[2])
+p_C3 <- ordered_logit(res$drws$alpha - res$drws$beta_uncon[3])
+p_C4 <- ordered_logit(res$drws$alpha - res$drws$beta_uncon[4])
+p_df <- expand_grid(
+  CAssignment = c("C1", "C2", "C3", "C4"),
+  out_dafh = sort(unique(res$dat$y_raw))
+) %>%
+  mutate(
+    p = c(p_C1, p_C2, p_C3, p_C4),
+    med = median(p),
+    lo = quantile(p, prob = 0.025)[1, ],
+    hi = quantile(p, prob = 0.975)[1, ]
+  )
+```
+
+```{r}
+#| label: fig-model-simple-versus-observed
+#| code-summary: Compare model level probabilities to observed
+#| fig-cap: |
+#|   Posterior probability of outcome levels by treatment group
+#|   compared to observed proportions.
+obs <- acs_itt_nona_dat %>%
+  dplyr::count(CAssignment, out_dafh = ordered(out_dafh)) %>%
+  complete(CAssignment, out_dafh, fill = list(n = 0)) %>%
+  group_by(CAssignment) %>%
+  mutate(p = n / sum(n))
+
+ggplot(p_df, aes(out_dafh, med)) +
+  facet_wrap( ~ CAssignment) +
+  geom_pointrange(aes(ymin = lo, ymax = hi), fatten = 1, colour = "red") +
+  geom_point(data = obs, aes(out_dafh, p), shape = 10) +
+  labs(
+    x = "WHO outcome scale",
+    y = "Probability of outcome"
+  )
+```
+
+### Primary Model
+
+```{r}
+#| label: fit-model-primary
+fit_primary_model <- function(dat) {
+  mdat <- make_model_data(dat)
+  snk <- capture.output(mfit <- ordmod$sample(
+    data = mdat,
+    seed = 813508,
+    chains = 4,
+    parallel_chains = 4,
+    iter_sampling = 1000,
+    refresh = 0,
+    adapt_delta = 0.97
+  ))
+  mdrws <- as_draws_rvars(mfit$draws())
+  mdrws <- add_treatment_rvs(mdrws, mdat)
+  
+  epoch_map <- dat %>% dplyr::count(epoch, epoch_lab)
+  site_map <- dat %>% dplyr::count(site_num, site)
+  
+  mdrws$OR <- c(
+    mdrws$OR, 
+    "Age 60+" = exp(mdrws$beta[which(grepl("age", colnames(mdat$X)))]),
+    "Ineligible C3" = exp(mdrws$beta[which(grepl("inelg", colnames(mdat$X)))]),
+    setNames(exp(mdrws$beta_region[-1]), c("AU", "NP", "NZ")),
+    setNames(exp(mdrws$gamma_epoch), epoch_map$epoch_lab),
+    setNames(exp(mdrws$gamma_site), site_map$site)
+  )
+  return(list(dat = mdat, fit = mfit, drws = mdrws))
+}
+
+res <- fit_primary_model(acs_itt_nona_dat)
+```
+
+```{r}
+#| label: posterior-summary-table-primary
+#| tbl-cap: Posterior summaries for model parameters.
+odds_ratio_summary_table(res$drws$OR)
+```
+
