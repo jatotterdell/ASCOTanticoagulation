@@ -9,7 +9,11 @@ description: |
   from randomisation to 28 days, calculated as 28 minus the number of days 
   spent in hospital.  All patients dying within 28 days will be assigned zero 
   free days.
-author: "James Totterdell"
+author:
+  - name: James Totterdell
+    affiliation: University of Sydney
+  - name: Rob Mahar
+    affiliation: University of Melbourne
 date: last-modified
 ---
 
