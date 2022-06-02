@@ -16,7 +16,7 @@ library(plotly)
 library(knitr)
 library(kableExtra)
 
-theme_set(theme_minimal(base_size = 10))
+theme_set(theme_minimal(base_size = 10, base_family = "Palatino"))
 ```
 
 ```{r}
@@ -40,7 +40,7 @@ all_daily_data <- read_all_daily()
 md <- get_interim_dates()
 id <- get_intervention_dates()
 p1 <- all_data %>%
-  filter(ENR_rec == 1) %>%
+  filter(ENR_rec == 1, CAssignment != "C0") %>%
   count(RandDate) %>%
   complete(RandDate = 
              seq.Date(min(RandDate, na.rm = TRUE), 
@@ -62,7 +62,8 @@ p2 <- id %>%
   ) %>%
   ggplot(.) +
   facet_grid(Domain ~ ., drop = TRUE, scales = "free_y", space = "free_y") +
-  geom_point(aes(x = Intervention, y = endate), shape = 4) +
+  geom_point(data = . %>% filter(Domain != "Antiviral"),
+             aes(x = Intervention, y = endate), shape = 4) +
   geom_segment(
     aes(x = Intervention, xend = Intervention, 
         y = stdate, yend = endate))  +
@@ -92,7 +93,7 @@ ggsave(file.path(pth, "enrolment-overall.pdf"), p, height = 4.5, width = 6)
 #|   vertical lines indicate timing of interim analyses
 #| fig-height: 10
 p1 <- all_data %>%
-  filter(ENR_rec == 1) %>%
+  filter(ENR_rec == 1, CAssignment != "C0") %>%
   count(Country = PT_CountryName, RandDate) %>%
   complete(
     Country, 
@@ -107,8 +108,15 @@ p1 <- all_data %>%
   geom_vline(data = md,
              aes(xintercept = as.numeric(meet_date)),
              linetype = 2) +
-  labs(x = "")
-(p1 / p2) + plot_layout(heights = c(5, 2))
+  labs(x = "", subtitle = "Cumulative enrolments", y = "")
+p <- (p1 / p2) + plot_layout(heights = c(5, 2))
+p
+```
+
+```{r}
+#| label: save-overall-enrolment-figure
+pth <- file.path("outputs", "figures", "baseline")
+ggsave(file.path(pth, "enrolment-country.pdf"), p, height = 6, width = 6)
 ```
 
 ```{r}
@@ -117,7 +125,7 @@ p1 <- all_data %>%
 #| column: screen-inset-shaded
 #| layout-nrow: 1
 p1 <- all_data %>%
-  filter(ENR_rec == 1) %>%
+  filter(ENR_rec == 1, CAssignment != "C0") %>%
   count(Country = PT_CountryName, Site = PT_LocationName, RandDate) %>%
   complete(
     nesting(Country, Site),
@@ -275,6 +283,15 @@ sdat <- all_data %>%
 generate_baseline_comorbidities_table(sdat, format = "html")
 ```
 
+```{r}
+#| label: save-baseline-comorbidities-table
+#| code-summary: Save table to outputs
+save_tex_table(
+  generate_baseline_comorbidities_table(sdat, format = "latex"),
+  "baseline/comorbidities"
+)
+```
+
 ## Prognostics
 
 Baseline prognostics are summarised by anti-coagulation intervention in the following table.
@@ -288,6 +305,15 @@ Baseline prognostics are summarised by anti-coagulation intervention in the foll
 sdat <- all_data %>%
     filter(ENR_rec == 1, CAssignment != "C0")
 generate_baseline_prognostics_table(sdat, format = "html")
+```
+
+```{r}
+#| label: save-baseline-prognostics-table
+#| code-summary: Save table to outputs
+save_tex_table(
+  generate_baseline_prognostics_table(sdat, format = "latex"),
+  "baseline/prognostics"
+)
 ```
 
 ## Age
