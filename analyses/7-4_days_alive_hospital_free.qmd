@@ -35,7 +35,7 @@ library(lubridate)
 library(ggdist)
 library(patchwork)
 
-theme_set(theme_minimal(base_size = 12))
+theme_set(theme_minimal(base_size = 10, base_family = "Palatino"))
 bayesplot_theme_set(theme_minimal(base_size = 12))
 color_scheme_set("red")
 options(digits = 4)
