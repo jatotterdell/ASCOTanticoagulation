@@ -260,6 +260,41 @@ add_days_alive_and_free <- function(dat) {
 }
 
 
+add_time_to_recovery <- function(dat) {
+  out <- dat %>%
+    mutate(
+      out_rec = case_when(
+        # If died and did not recover, then 2
+        DIS_deathlt28 == 1 & DD_recover_who == 0 ~ 2,
+        # If died, but earlier recovered, then 1
+        DIS_deathlt28 == 1 & DD_recover_who == 1 & DD_ttr_who < DIS_day ~ 1,
+        # If died and recovered on same day, then 2
+        DIS_deathlt28 == 1 & DD_recover_who == 1 & DD_ttr_who >= DIS_day ~ 2,
+        # Count as "recovered" if recover as per WHO
+        DD_recover_who == 1 ~ 1,
+        # Or id discharged alive within 28 days
+        DIS_day < 28 & DIS_deathlt28 == 0 ~ 1,
+        # If did not meet WHO criteria or discharge then no recovery
+        # >= because "... assumed that the participant is not hospitalised on the first day **following** discharge"
+        DD_recover_who == 0 & DIS_day >= 28 ~ 0,
+        TRUE ~ NA_real_
+      ),
+      out_ttr = case_when(
+        is.na(out_rec) ~ NA_real_,
+        # Censoring
+        out_rec == 0 ~ 28,
+        # Deaths
+        out_rec == 2 ~ DIS_day,
+        # Satisfy WHO criteria
+        out_rec == 1 & is.na(DD_ttr_who) ~ DIS_day + 1,
+        out_rec == 1 & !is.na(DD_ttr_who) ~ DD_ttr_who,
+        TRUE ~ NA_real_
+      )
+    )
+  return(out)
+}
+
+
 format_eligibility_data <- function(el) {
   el %>%
     select(-EligibilityID) %>%
@@ -457,8 +492,8 @@ summarise_daily_data <- function(dd) {
       DD_mechecmo = as.integer(any(DD_who == 7, na.rm = T)),
       DD_vasop = as.integer(any(DD_O2VasopressorsInotropes == "Yes")),
       DD_death = as.integer(any(DD_who == 8)),
-      DD_recover = as.integer(any(DD_who <= 3) | (DD_total_days < 28 & DD_who_worst < 8)),
-      DD_ttr = if_else(DD_recover == 1, min(DD_total_days, findfirst(DD_who <= 3, v = 29)), NA_real_),
+      DD_recover_who = as.integer(any(DD_who <= 3)),
+      DD_ttr_who = as.numeric(findfirst(DD_who <= 3)),
       .groups = "drop"
     ) %>%
     mutate(
@@ -511,6 +546,7 @@ create_fulldata_no_daily <- function() {
     ) %>%
     add_primary_outcome_components() %>%
     add_days_alive_and_free() %>%
+    add_time_to_recovery() %>%
     # restrict to randomisations prior to closure of anticoagulation
     filter(RandDate <= as.Date("2022-04-08") | is.na(RandDate))
 }
