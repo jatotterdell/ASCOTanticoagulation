@@ -1,0 +1,179 @@
+---
+title: "All Cause Mortality Day 28 and Day 90"
+description: |
+  Analyse of the all-cause mortality secondary outcome in ASCOT.
+author: "Robert Mahar"
+date: last-modified
+---
+
+# Preamble {#preamble}
+
+```{r}
+#| label: pkgs
+#| code-summary: Load packages
+library(tidyverse)
+library(labelled)
+library(kableExtra)
+library(cmdstanr)
+library(posterior)
+library(bayestestR)
+library(bayesplot)
+library(matrixStats)
+```
+
+```{r}
+#| label: data
+#| code-summary: Prepare dataset
+devtools::load_all()
+all_dat <- read_all_no_daily()
+
+# Full analysis set (intention-to-treat, including missing)
+fas_itt_dat <- all_dat %>% 
+  filter_fas_itt() %>%
+  transmute_model_cols() %>% 
+  left_join(all_dat %>% select(StudyPatientID, D28_death), by = "StudyPatientID")
+
+# Full analysis set (intention-to-treat, excluding missing)
+fas_itt_nona_dat <- fas_itt_dat %>% 
+  filter(!is.na(D28_death)) 
+
+# Anticoagulation set (intention-to-treat, including missing)
+acs_itt_dat <- all_dat %>% 
+  filter_acs_itt() %>%
+  transmute_model_cols() %>% 
+  left_join(all_dat %>% select(StudyPatientID, D28_death), by = "StudyPatientID")
+
+# Anticoagulation set (intention-to-treat, excluding missing)
+acs_itt_nona_dat <- acs_itt_dat %>% 
+  filter(!is.na(D28_death))  
+```
+
+# Modelling
+
+The analysis for all cause mortality is specified equivalently to that for the primary outcome. It includes intervention as randomised, age category, country, site nested within country, epoch, and intervention eligibility. The main analysis restricts the population to only those participants randomised to the anticoagulation domain.
+
+```{r}
+#| label: load-models
+#| code-summary: Compiles stan models.
+seed <- 59579
+model_full <- cmdstan_model(file.path("stan", "primary_logistic_model_site_epoch.stan"))
+```
+
+```{r}
+#| label: Munge stan data.
+#| code-summary: Munges stan data.
+make_stan_data <- function(dat, vars, outcome, beta_sd = c(2.5, rep(1, nXassign), 2.5, 10)) 
+{
+  X <- model.matrix(
+     as.formula(paste("~", paste(vars, collapse = " + "))),
+    data = dat,
+    contrast = list(
+      AAssignment = contr.orthonorm,
+      CAssignment = contr.orthonorm)
+  )
+  
+  nXassign <- sum(grepl("Assignment", colnames(X)))
+
+  y <- dat[[outcome]]
+  N <- dim(X)[1]
+  K <- dim(X)[2]  
+  
+    epoch  <- dat$epoch
+  M_epoch  <- max(dat$epoch)
+    region <- dat[["ctry_num"]]
+  M_region <- max(region)
+    site <- dat[["site_num"]]
+  M_site <- max(site)
+  region_by_site <- region_by_site <- dat %>% 
+    dplyr::count(ctry_num, site_num) %>% 
+    pull(ctry_num)
+  
+  list(N = N, K = K, X = X, y = y,
+       M_region = M_region, region = region,
+       M_site = M_site, site = site,
+       M_epoch = M_epoch, epoch = epoch,
+       region_by_site = region_by_site,
+       beta_sd = c(2.5, rep(1, nXassign), 2.5, 10))
+}
+
+dat_full <- make_stan_data(dat = acs_itt_nona_dat, 
+                           vars    = c("CAssignment", "AAssignment", "agegte60_c", "inelgc3"),
+                           outcome = "D28_death")
+```
+
+## Analysis model
+
+```{r}
+#| label: model1-sampling
+#| code-summary: Data and sampling
+
+run_stan <- function(model, data)
+{
+  model[["sample"]](data = data,
+                    seed = seed,
+                    refresh = 0,
+                    iter_sampling = 2500,
+                    chains = 8,
+                    parallel_chains = 8)
+}
+
+stan_full <- run_stan(model_full, dat_full)
+
+stan_full$summary(variables = c("beta", 
+                                "beta_region", 
+                                "gamma_site", "epsilon_site", "tau_site",
+                                "gamma_epoch", "epsilon_epoch", "tau_epoch"))
+
+```
+
+```{r}
+#| label: model-diagnostics
+#| code-summary: Diagnostics
+stan_full$cmdstan_diagnose()
+```
+
+
+
+```{r}
+#| label: model-trace
+#| code-summary: Trace plots
+mcmc_trace(stan_full$draws("beta", format = "matrix"))
+```
+```{r}
+#| label: model-summaries
+#| code-summary: Model summaries
+
+add_treatment_rvs <- function(rvs, mdat) {
+  
+  # Get the orthonormal contrasts.
+  Ca <- cbind(1, attr(mdat$X, "contrasts")$AAssignment) 
+  Cc <- cbind(1, attr(mdat$X, "contrasts")$CAssignment)
+  nC <- ncol(Cc)
+  # Get the treatment contrasts.
+  Ct <-  cbind(1, contr.treatment(nC))
+  trt_rows <- which(rownames(Cc) != "C0")
+  
+  rvs$eta <- as.vector(Cc %**% rvs$beta[1:nC])
+  rvs$beta_uncon <- as.vector(Cc[, -1] %**% rvs$beta[2:nC])
+  rvs$prob <- 1 / (1 + exp(-rvs$eta))
+  rvs$beta_trt <- as.vector(
+    transform_coding(Cc, Ct) %**% rvs$beta[1:nC])
+  rvs$OR <- setNames(exp(rvs$beta_trt[trt_rows][-1]), c("C2 vs C1", "C3 vs C1", "C4 vs C1"))
+  return(rvs)
+}
+
+# Extract the betas as a random variable type (using 'posterior' package)
+rvs_full <- as_draws_rvars(stan_full$draws(c("beta")))
+rvs_full <- add_treatment_rvs(rvs_full, dat_full)
+
+get_rvs <- function(par, fit, levels)
+{
+  rvs <- as_draws_rvars(fit[["draws"]](c("beta_region")))
+  setNames(exp(rvs), levels)
+}
+
+get_rvs("beta_region", stan_full, c("IN", "AU", "NZ", "NP"))
+
+# odds_ratio_summary_table(rvs_trt_only$OR)
+
+```
