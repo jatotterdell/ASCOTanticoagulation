@@ -114,7 +114,7 @@ p
 ```
 
 ```{r}
-#| label: save-overall-enrolment-figure
+#| label: save-country-enrolment-figure
 pth <- file.path("outputs", "figures", "baseline")
 ggsave(file.path(pth, "enrolment-country.pdf"), p, height = 6, width = 6)
 ```
