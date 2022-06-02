@@ -64,12 +64,12 @@ intervention_labels <- function() {
 get_intervention_dates <- function() {
   tribble(
     ~ Domain, ~ Intervention, ~ stdate, ~ endate,
-    "Anti-coagulation", "C1", as.Date("2021-02-18"), as.Date("2022-04-08"),
-    "Anti-coagulation", "C2", as.Date("2021-02-18"), as.Date("2022-04-08"),
-    "Anti-coagulation", "C3", as.Date("2021-02-18"), as.Date("2021-09-10"),
-    "Anti-coagulation", "C4", as.Date("2021-10-14"), as.Date("2022-04-08"),
-    "Anti-viral", "A1", as.Date("2021-06-10"), Sys.Date(),
-    "Anti-viral", "A2", as.Date("2021-06-10"), Sys.Date()
+    "Anticoagulation", "C1", as.Date("2021-02-18"), as.Date("2022-04-08"),
+    "Anticoagulation", "C2", as.Date("2021-02-18"), as.Date("2022-04-08"),
+    "Anticoagulation", "C3", as.Date("2021-02-18"), as.Date("2021-09-10"),
+    "Anticoagulation", "C4", as.Date("2021-10-14"), as.Date("2022-04-08"),
+    "Antiviral", "A1", as.Date("2021-06-10"), Sys.Date(),
+    "Antiviral", "A2", as.Date("2021-06-10"), Sys.Date()
   ) %>%
     mutate(Intervention = labelled(
       Intervention,
