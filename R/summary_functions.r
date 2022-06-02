@@ -277,7 +277,7 @@ generate_baseline_comorbidities_table <- function(dat, format = "html") {
     escape = F) %>%
     kable_styling(
       bootstrap_options = "striped",
-      font_size = 11,
+      font_size = 10,
       latex_options = "HOLD_position") %>%
     add_header_above(c(" " = 1, "Anticoagulation" = ncol(byCgrp) - 1, " " = 1)) %>%
     row_spec(0, align = "c")
@@ -477,7 +477,7 @@ generate_baseline_prognostics_table <- function(dat, format = "html") {
         align = "lrrrrr") %>%
       kable_styling(
         bootstrap_options = "striped",
-        font_size = 11,
+        font_size = 9,
         latex_options = "HOLD_position") %>%
       group_rows("Was the patient on room air for any of the preceding 24 hours?", 1, 2) %>%
       group_rows("Was the patient's GCS < 15?", 3, 4) %>%
@@ -492,7 +492,6 @@ generate_baseline_prognostics_table <- function(dat, format = "html") {
       group_rows("Taking aspirin", 21, 22) %>%
       add_header_above(c(" " = 1, "Anticoagulation" = ncol(byCgrp) - 1, " " = 1)) %>%
       row_spec(0, align = "c") %>%
-      add_footnote("For APTT, INR, Fibrinogen, and Prothrombin only at least one required.",
-                   notation = "number")
+      footnote(number = "For APTT, INR, Fibrinogen, and Prothrombin only at least one required.")
     return(outC)
 }
