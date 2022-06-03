@@ -1,7 +1,7 @@
 ---
-title: "All Cause Mortality Day 28 and Day 90"
+title: "Shortness of breath at day 28 and day 90"
 description: |
-  Analyse of the all-cause mortality secondary outcome in ASCOT.
+  Analyse of the shortness of breath secondary outcome (7.6) in ASCOT.
 author: "Robert Mahar"
 date: last-modified
 ---
@@ -31,34 +31,43 @@ all_dat <- read_all_no_daily()
 fas_itt_dat <- all_dat %>% 
   filter_fas_itt() %>%
   transmute_model_cols() %>% 
-  left_join(all_dat %>% select(StudyPatientID, D28_death), by = "StudyPatientID")
+  left_join(all_dat %>% select(StudyPatientID, D28_BreathSinceGettingCovid), by = "StudyPatientID")
 
 # Full analysis set (intention-to-treat, excluding missing)
 fas_itt_nona_dat <- fas_itt_dat %>% 
-  filter(!is.na(D28_death)) 
+  filter(!is.na(D28_BreathSinceGettingCovid)) 
 
 # Anticoagulation set (intention-to-treat, including missing)
 acs_itt_dat <- all_dat %>% 
   filter_acs_itt() %>%
   transmute_model_cols() %>% 
-  left_join(all_dat %>% select(StudyPatientID, D28_death), by = "StudyPatientID")
+  left_join(all_dat %>% select(StudyPatientID, D28_BreathSinceGettingCovid), by = "StudyPatientID")
 
 # Anticoagulation set (intention-to-treat, excluding missing)
 acs_itt_nona_dat <- acs_itt_dat %>% 
-  filter(!is.na(D28_death))  
+  filter(!is.na(D28_BreathSinceGettingCovid))  
 ```
 
 # Data checking
 
 ```{r}
 
-with(acs_itt_nona_dat, table(D28_death, CAssignment))
+with(acs_itt_nona_dat, table(D28_BreathSinceGettingCovid, CAssignment))
+unknowns <- all_dat %>% filter(D28_BreathSinceGettingCovid == "Unknown")
+
+# Remove patients with missing outcomes.
+acs_itt_nona_dat <- acs_itt_nona_dat[-which(acs_itt_nona_dat[["D28_BreathSinceGettingCovid"]] == "Unknown"),]
+
+# Check replace worked
+with(acs_itt_nona_dat, table(D28_BreathSinceGettingCovid))
 
 ```
 
+
+
 # Modelling
 
-The analysis for all cause mortality is specified equivalently to that for the primary outcome. It includes intervention as randomised, age category, country, site nested within country, epoch, and intervention eligibility. The main analysis restricts the population to only those participants randomised to the anticoagulation domain.
+The analysis for shortness of breath is specified equivalently to that for the primary outcome. It includes intervention as randomised, age category, country, site nested within country, epoch, and intervention eligibility. The main analysis restricts the population to only those participants randomised to the anticoagulation domain.
 
 ```{r}
 #| label: load-models
@@ -106,7 +115,9 @@ make_stan_data <- function(dat, vars, outcome, beta_sd = c(2.5, rep(1, nXassign)
 
 dat_full <- make_stan_data(dat = acs_itt_nona_dat, 
                            vars    = c("CAssignment", "AAssignment", "agegte60_c", "inelgc3"),
-                           outcome = "D28_death")
+                           outcome = "D28_BreathSinceGettingCovid")
+
+dat_full[["y"]] <- ifelse(dat_full[["y"]] == "Yes", 1, 0)
 ```
 
 ## Analysis model
@@ -226,7 +237,7 @@ make_outcome_table <- function(OR, format = "html", fn = NULL)
                 `95% CrI` = apply(quantile(OR, c(0.025, 0.975)), 2, function(x) 
                 sprintf("(%.2f, %.2f)", x[1], x[2])),
                 `Pr(OR < 1)` = sprintf("%.2f", Pr(OR < 1))) %>%
-    kable(caption = "Model-estimated odds ratios for the all-cause mortality at day 28.",
+    kable(caption = "Model-estimated odds ratios for the shortness of breath at day 28.",
           format = format, digits = 2, booktabs = TRUE, linesep = "", align = "lrrrrr", longtable = TRUE) %>%
     kable_styling(latex_options = "HOLD_position", font_size = 8) %>%
     group_rows("Anticoagulation treatment", 1, 5) %>%
@@ -245,7 +256,7 @@ make_outcome_table <- function(OR, format = "html", fn = NULL)
 }
 
 make_outcome_table(rvs_all)
-make_outcome_table(rvs_all, format = "latex", fn = "7-3_all_cause_mortality")
+make_outcome_table(rvs_all, format = "latex", fn = "7-6_shortness_of_breath")
 
 # End of script.
 ```
