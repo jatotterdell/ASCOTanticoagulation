@@ -29,11 +29,8 @@ parameters {
 }
 
 model {
-  matrix[N, R] eta;
   matrix[N, R + 1] lambda;
-  for (r in 1:R) {
-    eta[, r] = X * beta[, r]; // linear-predictor
-  }
+  matrix[N, R] eta = X * beta;
   for (n in 1:N) {
       lambda[n, 2:(R+1)] = mlogit(eta[n]); // cause-specific hazard
       lambda[n, 1] = 1 - sum(lambda[n, 2:(R+1)]); // conditional survival (no recovery or death)
