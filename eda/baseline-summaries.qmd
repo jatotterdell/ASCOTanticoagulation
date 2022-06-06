@@ -480,8 +480,8 @@ all_data %>%
   select(
     EligibilityCode, 
     StudyPatientID, 
-    starts_with("EL_Serum")) %>%
-  write_csv(file.path(ASCOT_DATA, "derived", "low_creatinine_values.csv"))
+    starts_with("EL_Serum"))
+  # write_csv(file.path(ASCOT_DATA, "derived", "low_creatinine_values.csv"))
 ggplot(all_data %>% 
          filter(!is.na(EL_SerumCreatinineUnits)), 
        aes(EL_SerumCreatinine_umolL)) +
