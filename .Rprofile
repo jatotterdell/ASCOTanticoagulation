@@ -1,6 +1,6 @@
 ASCOT_DATA <- Sys.getenv("ASCOT_DATA")
 ASCOT_DATA_RAW <- file.path(ASCOT_DATA, "raw")
-ANTICOAG_DATA <- file.path(ASCOT_DATA, "anticoagulation")
+ANTICOAG_DATA <- file.path(ASCOT_DATA)
 
 if (!dir.exists("outputs")) {
   dir.create(file.path("outputs", "tables", "baseline"), recursive = TRUE)
