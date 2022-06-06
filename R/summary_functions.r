@@ -47,7 +47,7 @@ generate_baseline_demographics_by <- function(dat, grpvar = NULL) {
     spread(!!grpvar, value)
   colnames(tab)[-1] <- dat %>%
     count(!!grpvar) %>%
-    mutate(lab = paste0(!!grpvar, "<br>(n = ", n, ")")) %>%
+    mutate(lab = paste0(!!grpvar, "<br><br>(n = ", n, ")")) %>%
     pull(lab)
   return(tab)
 }
@@ -90,7 +90,7 @@ generate_baseline_demographics <- function(dat) {
 
     ) %>%
     gather(Variable, Overall, factor_key = TRUE)
-  colnames(overall)[2] <- paste0("Overall<br>(n = ", nrow(dat), ")")
+  colnames(overall)[2] <- paste0("Overall<br><br>(n = ", nrow(dat), ")")
   return(overall)
 }
 
@@ -106,7 +106,9 @@ generate_baseline_demographics_table <- function(dat, format = "html") {
     ovrC   <- generate_baseline_demographics(dat %>% filter(CAssignment != "C0"))
     tabC <- left_join(byCgrp, ovrC, by = "Variable") %>%
       mutate(Variable = str_replace(Variable, "[A-z]*_", ""))
+    fsize <- 12
     if(format == "latex") {
+      fsize <- 9
       colnames(tabC) <- linebreak(colnames(tabC), linebreaker = "<br>", align = "c")
     }
     outC <- kable(
@@ -119,7 +121,7 @@ generate_baseline_demographics_table <- function(dat, format = "html") {
       kable_styling(
         bootstrap_options = "striped",
         latex_options = "HOLD_position",
-        font_size = 10) %>%
+        font_size = fsize) %>%
       group_rows("Sex", 2, 3) %>%
       group_rows("Weight (kg)", 4, 5) %>%
       group_rows("Ethnicity", 8, 18) %>%
@@ -168,7 +170,7 @@ generate_baseline_comorbidities <- function(dat) {
     pivot_longer(everything(), names_to = c("name", "measure"), names_sep = "_\\.") %>%
     pivot_wider(id_cols = name, names_from = measure, values_from = value) %>%
     arrange(-n) %>%
-    mutate(value = sprintf("%i (%3.1f)", n, 100 * p)) %>%
+    mutate(value = sprintf("%i (%3.0f)", n, 100 * p)) %>%
     select(-n, -p) %>%
     mutate(name = str_replace(name, "BAS_", ""),
            name = str_replace(name, "_Variable", ""),
@@ -218,7 +220,7 @@ generate_baseline_comorbidities_by <- function(dat, grpvar = NULL) {
       BAS_IatrogenicImmuno)
   missing <- basdat %>%
     group_by(!!grpvar) %>%
-    summarise(name = "Missing, n (\\%)", value = sprintf("%i (%3.1f)", sum(BAS_rec == 0), 100 * sum(BAS_rec == 0) / n())) %>%
+    summarise(name = "Missing, n (\\%)", value = sprintf("%i (%3.0f)", sum(BAS_rec == 0), 100 * sum(BAS_rec == 0) / n())) %>%
     spread(!!grpvar, value)
   tab <- basdat %>%
     select(-BAS_rec) %>%
@@ -226,7 +228,7 @@ generate_baseline_comorbidities_by <- function(dat, grpvar = NULL) {
                           `.p` = ~ sum(.x == "Yes", na.rm = T) / n())) %>%
     pivot_longer(-!!grpvar, names_to = c("name", "measure"), names_sep = "_\\.") %>%
     pivot_wider(id_cols = !!grpvar:name, names_from = measure, values_from = value) %>%
-    mutate(value = sprintf("%i (%3.1f)", n, 100 * p)) %>%
+    mutate(value = sprintf("%i (%3.0f)", n, 100 * p)) %>%
     select(-n, -p) %>%
     spread(!!grpvar, value) %>%
     mutate(name = str_replace(name, "BAS_", ""),
@@ -264,7 +266,9 @@ generate_baseline_comorbidities_table <- function(dat, format = "html") {
   byAgrp <- generate_baseline_comorbidities_by(dat %>% filter(AAssignment != "A0"), AAssignment)
   byCgrp <- generate_baseline_comorbidities_by(dat %>% filter(CAssignment != "C0"), CAssignment)
   tabC <- left_join(ovrC, byCgrp, by = "Comorbidity")[, c(1,(2 + 1:(ncol(byCgrp) - 1)), 2)]
+  fsize <- 12
   if(format == "latex") {
+    fsize <- 9
     colnames(tabC) <- linebreak(colnames(tabC), linebreaker = "<br>", align = "c")
   }
   outC <- kable(
@@ -277,7 +281,7 @@ generate_baseline_comorbidities_table <- function(dat, format = "html") {
     escape = F) %>%
     kable_styling(
       bootstrap_options = "striped",
-      font_size = 10,
+      font_size = fsize,
       latex_options = "HOLD_position") %>%
     add_header_above(c(" " = 1, "Anticoagulation" = ncol(byCgrp) - 1, " " = 1)) %>%
     row_spec(0, align = "c")
@@ -364,7 +368,17 @@ generate_baseline_prognostics_by <- function(dat, grpvar = NULL) {
       "Taking aspirin_Yes, n (\\%)" = sprintf("%i (%.0f)",
                                               sum(BAS_PatientTakingAspirin == "Yes", na.rm = TRUE),
                                               100 * sum(BAS_PatientTakingAspirin == "Yes", na.rm = TRUE) / n()),
-      "Taking aspirin_Missing, n (\\%)" = sprintf("%i (%.0f)", sum(is.na(BAS_PatientTakingAspirin)), 100 * sum(is.na(BAS_PatientTakingAspirin)) / n())
+      "Taking aspirin_Missing, n (\\%)" = sprintf("%i (%.0f)", sum(is.na(BAS_PatientTakingAspirin)), 100 * sum(is.na(BAS_PatientTakingAspirin)) / n()),
+      "Time from onset of symptoms to hospitalisation_Median (IQR)" = sprintf(
+        "%.0f (%.0f, %.0f)",
+        median(as.numeric(EL_AdmittedToHospital - EL_FirstSymptoms)),
+        quantile(as.numeric(EL_AdmittedToHospital - EL_FirstSymptoms), 0.25),
+        quantile(as.numeric(EL_AdmittedToHospital - EL_FirstSymptoms), 0.75)),
+      "Time from hospitalisation to randomisation_Median (IQR)" = sprintf(
+        "%.0f (%.0f, %.0f)",
+        median(as.numeric(RandDate - EL_AdmittedToHospital)),
+        quantile(as.numeric(RandDate - EL_AdmittedToHospital), 0.25),
+        quantile(as.numeric(RandDate - EL_AdmittedToHospital), 0.75))
     ) %>%
     gather(Variable, value, -!!grpvar, factor_key = TRUE) %>%
     spread(!!grpvar, value)
@@ -446,7 +460,17 @@ generate_baseline_prognostics <- function(dat) {
       "Taking aspirin_Yes, n (\\%)" = sprintf("%i (%.0f)",
                                               sum(BAS_PatientTakingAspirin == "Yes", na.rm = TRUE),
                                               100 * sum(BAS_PatientTakingAspirin == "Yes", na.rm = TRUE) / n()),
-      "Taking aspirin_Missing, n (\\%)" = sprintf("%i (%.0f)", sum(is.na(BAS_PatientTakingAspirin)), 100 * sum(is.na(BAS_PatientTakingAspirin)) / n())
+      "Taking aspirin_Missing, n (\\%)" = sprintf("%i (%.0f)", sum(is.na(BAS_PatientTakingAspirin)), 100 * sum(is.na(BAS_PatientTakingAspirin)) / n()),
+      "Time from onset of symptoms to hospitalisation_Median (IQR)" = sprintf(
+        "%.0f (%.0f, %.0f)",
+        median(as.numeric(EL_AdmittedToHospital - EL_FirstSymptoms)),
+        quantile(as.numeric(EL_AdmittedToHospital - EL_FirstSymptoms), 0.25),
+        quantile(as.numeric(EL_AdmittedToHospital - EL_FirstSymptoms), 0.75)),
+      "Time from hospitalisation to randomisation_Median (IQR)" = sprintf(
+        "%.0f (%.0f, %.0f)",
+        median(as.numeric(RandDate - EL_AdmittedToHospital)),
+        quantile(as.numeric(RandDate - EL_AdmittedToHospital), 0.25),
+        quantile(as.numeric(RandDate - EL_AdmittedToHospital), 0.75))
 
     ) %>%
     gather(Variable, value, factor_key = TRUE)
@@ -463,7 +487,9 @@ generate_baseline_prognostics_table <- function(dat, format = "html") {
     ovrC   <- generate_baseline_prognostics(dat %>% filter(CAssignment != "C0"))
     byCgrp <- generate_baseline_prognostics_by(dat %>% filter(CAssignment != "C0"), CAssignment)
     tabC <- left_join(ovrC, byCgrp, by = "Variable")[, c(1,(2 + 1:(ncol(byCgrp) - 1)), 2)]
+    fsize <- 12
     if(format == "latex") {
+      fsize <- 9
       colnames(tabC) <- linebreak(colnames(tabC), linebreaker = "<br>", align = "c")
     }
     outC <- tabC %>%
@@ -477,7 +503,7 @@ generate_baseline_prognostics_table <- function(dat, format = "html") {
         align = "lrrrrr") %>%
       kable_styling(
         bootstrap_options = "striped",
-        font_size = 9,
+        font_size = fsize,
         latex_options = "HOLD_position") %>%
       group_rows("Was the patient on room air for any of the preceding 24 hours?", 1, 2) %>%
       group_rows("Was the patient's GCS < 15?", 3, 4) %>%
@@ -490,8 +516,143 @@ generate_baseline_prognostics_table <- function(dat, format = "html") {
       group_rows("Fibrinogen\\\\textsuperscript{1} (g/L)", 17, 18, escape = F) %>%
       group_rows("Prothrombin time\\\\textsuperscript{1} (sec)", 19, 20, escape = F) %>%
       group_rows("Taking aspirin", 21, 22) %>%
+      group_rows("Time from onset of symptoms to hospitalisation", 23, 23) %>%
+      group_rows("Time from hospitalisation to randomisation", 24, 24) %>%
       add_header_above(c(" " = 1, "Anticoagulation" = ncol(byCgrp) - 1, " " = 1)) %>%
       row_spec(0, align = "c") %>%
       footnote(number = "For APTT, INR, Fibrinogen, and Prothrombin only at least one required.")
     return(outC)
+}
+
+# Discharge summary - other drugs ----
+
+#' Generates overall summary of drugs used during hospital stay,
+#' as recorded on discharge
+#'
+#' @param dat The dataset
+#' @return A tibble giving the summary
+generate_discharge_drugs <- function(dat) {
+  tab <- dat %>%
+    filter(DIS_rec == 1) %>%
+    select(
+      DIS_ReceivedAntibacterialDrugs,
+      DIS_NoAntiviral = DIS_ReceivedNone,
+      DIS_CamostatReceived,
+      DIS_FavipiravirReceived,
+      DIS_DoxycyclineReceived,
+      DIS_IvermectinReceived,
+      DIS_RemdesivirReceived,
+      DIS_OtherAntiviral = DIS_ReceivedOther,
+      DIS_NoImmunomodulatory = Dis_ImmunoNone,
+      DIS_ImmunoAnakinra,
+      DIS_ImmunoCorticosteroids,
+      DIS_ImmunoSarilumab,
+      DIS_ImmunoAzithromycin,
+      DIS_ImmunoTocilizumab,
+      DIS_ImmunoBaricitinib,
+      DIS_ImmunoRuxolitinib,
+      DIS_ImmunoTofacitinib,
+      DIS_ImmunoZinc,
+      DIS_OtherImmunomodulatory = DIS_IummunoOther
+    ) %>%
+    summarise_all(., list(Variable = ~ sprintf("%i (%.0f)", sum(.x == "Yes", na.rm = TRUE), 100 * sum(.x == "Yes", na.rm = TRUE) / n()))) %>%
+    pivot_longer(everything()) %>%
+    mutate(name = str_replace(name, "DIS_Received", ""),
+           name = str_replace(name, "DIS_Immuno", ""),
+           name = str_replace(name, "DIS_Iummuno", ""),
+           name = str_replace(name, "Dis_Immuno", ""),
+           name = str_replace(name, "DIS_", ""),
+           name = str_replace(name, "Received_Variable", ""),
+           name = str_replace(name, "_Variable", ""),
+           name = fct_inorder(gsub("([[:upper:]]*)([[:upper:]][[:lower:]]+)", "\\1 \\2", name)),
+           name = str_to_sentence(trimws(name)),
+           name = paste0(name, ", n (\\%)"))
+  colnames(tab) <- c(linebreak("Drug received"), linebreak(paste0("Overall\n(n = ", nrow(dat %>% filter(DIS_rec == 1)), ")"), align = "c"))
+  return(tab)
+}
+
+
+#' Generates summary of drugs used during hospital stay,
+#' as recorded on discharge, by grouping variable
+#'
+#' @param dat The dataset
+#' @param grpvar The grouping variable
+#' @return A tibble giving the summary
+generate_discharge_drugs_by <- function(dat, grpvar = NULL) {
+  grpvar <- enquo(grpvar)
+  tab <- dat %>%
+    filter(DIS_rec == 1) %>%
+    group_by(!!grpvar) %>%
+    select(
+      !!grpvar,
+      DIS_ReceivedAntibacterialDrugs,
+      DIS_NoAntiviral = DIS_ReceivedNone,
+      DIS_CamostatReceived,
+      DIS_FavipiravirReceived,
+      DIS_DoxycyclineReceived,
+      DIS_IvermectinReceived,
+      DIS_RemdesivirReceived,
+      DIS_OtherAntiviral = DIS_ReceivedOther,
+      DIS_NoImmunomodulatory = Dis_ImmunoNone,
+      DIS_ImmunoAnakinra,
+      DIS_ImmunoCorticosteroids,
+      DIS_ImmunoSarilumab,
+      DIS_ImmunoAzithromycin,
+      DIS_ImmunoTocilizumab,
+      DIS_ImmunoBaricitinib,
+      DIS_ImmunoRuxolitinib,
+      DIS_ImmunoTofacitinib,
+      DIS_ImmunoZinc,
+      DIS_OtherImmunomodulatory = DIS_IummunoOther
+    ) %>%
+    summarise_all(., list(Variable = ~ sprintf("%i (%.0f)", sum(.x == "Yes", na.rm = TRUE), 100 * sum(.x == "Yes", na.rm = TRUE) / n()))) %>%
+    gather(name, value, -!!grpvar, factor_key = TRUE) %>%
+    spread(!!grpvar, value) %>%
+    mutate(name = str_replace(name, "DIS_Received", ""),
+           name = str_replace(name, "DIS_Immuno", ""),
+           name = str_replace(name, "DIS_Iummuno", ""),
+           name = str_replace(name, "Dis_Immuno", ""),
+           name = str_replace(name, "DIS_", ""),
+           name = str_replace(name, "Received_Variable", ""),
+           name = str_replace(name, "_Variable", ""),
+           name = fct_inorder(gsub("([[:upper:]]*)([[:upper:]][[:lower:]]+)", "\\1 \\2", name)),
+           name = str_to_sentence(trimws(name)),
+           name = paste0(name, ", n (\\%)"))
+  colnames(tab) <- c(linebreak("Drug received"), dat  %>% filter(DIS_rec == 1) %>% count(!!grpvar) %>% mutate(lab = linebreak(paste0(!!grpvar, "\n(n = ", n, ")"), align = "c")) %>% pull(lab))
+  return(tab)
+}
+
+
+#' Drugs used during hospital stay
+#'
+#' Generates summary table of drugs used during hospital stay,
+#' as recorded on discharge, by domain or overall.
+#'
+#' @param dat The dataset
+#' @param closed If TRUE, generate overall table only, if FALSE one table per domain
+#' @return A tibble giving the summary
+generate_discharge_drugs_table <- function(dat, format = "html") {
+  ovrC   <- generate_discharge_drugs(dat %>% filter(CAssignment != "C0"))
+  bygrpC <- generate_discharge_drugs_by(dat %>% filter(CAssignment != "C0"), CAssignment)
+  tabC <- left_join(ovrC, bygrpC, by = "Drug received")[, c(1,(2 + 1:(ncol(bygrpC) - 1)), 2)]
+  fsize <- 12
+  if(format == "latex") {
+    fsize <- 9
+    colnames(tabC) <- linebreak(colnames(tabC), linebreaker = "<br>", align = "c")
+  }
+  outC <- kable(
+    tabC,
+    format = format,
+    booktabs = T,
+    caption = "Drugs received during hospital stay, domain C.",
+    align = "lrrrrrrrr",
+    escape = F) %>%
+    kable_styling(
+      bootstrap_options = "striped",
+      font_size = fsize,
+      latex_options = "HOLD_position") %>%
+    group_rows("Antivirals", 2, 8) %>%
+    group_rows("Immunomodulatory", 9, 19) %>%
+    add_header_above(c(" " = 1, "Anticoagulation" = ncol(bygrpC) - 1, " " = 1))
+  return(outC)
 }

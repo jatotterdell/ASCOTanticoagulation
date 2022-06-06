@@ -52,10 +52,10 @@ intervention_labels <- function() {
     ),
     CAssignment = c(
       "C0" = "Not randomised to anticoagulation",
-      "C1" = "Standard dose",
-      "C2" = "Intermediate dose",
-      "C3" = "Standard dose plus aspirin",
-      "C4" = "Therapeutic dose"
+      "C1" = "Standard<br>dose",
+      "C2" = "Intermediate<br>dose",
+      "C3" = "Standard dose<br>plus aspirin",
+      "C4" = "Therapeutic<br>dose"
     )
   )
 }
