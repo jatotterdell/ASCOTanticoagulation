@@ -34,7 +34,7 @@ model {
   for (n in 1:N) {
       lambda[n, 2:(R+1)] = mlogit(eta[n]); // cause-specific hazard
       lambda[n, 1] = 1 - sum(lambda[n, 2:(R+1)]); // conditional survival (no recovery or death)
-      y[n] ~ multinomial(to_vector(lambda[n])); // multi-logit likelihood
+      y[n] ~ multinomial(lambda[n]'); // multi-logit likelihood
   }
   to_vector(beta) ~ normal(0, 10);
 }
