@@ -14,6 +14,7 @@ format:
     colorlinks: true
     lof: true
     lot: true
+    linestretch: "1.2"
     mainfont: TeX Gyre Pagella
     mathfont: TeX Gyre Pagella Math
     monofont: TeX Gyre Cursor
@@ -30,20 +31,37 @@ execute:
 
 ## Study Population
 
-At the time of database lock for the anti-coagulation domain, ... participants had been enrolled onto the study platform and ... participants had been randomised to the anticoagulation domain. The first patient was randomised on ... and the last patient enrolled into the anticoagulation domain was randomised on... .
+At the time of database lock for the anticoagulation domain, ... participants had been enrolled onto the study platform and ... participants had been randomised to the anticoagulation domain. The first patient was randomised on ... and the last patient enrolled into the anticoagulation domain was randomised on... .
+
+Of the xxx participanta randomised to the anticoagulation domain, xxx withdrew consent for follow-up.
 
 ### Disposition
 
-Platform and domain specific flow diagrams are included in ...
+Platform and domain specific flow diagrams are included in @fig-platform-flow and @fig-anticoagulation-flow respectively.
 
-@fig-enrolments presents platform enrolments over time with timing of intervention availabilities.
+![Platform flowchart.](platform_flowchart.tex){#fig-platform-flow}
+
+![Anticoagulation domain flowchart.](domain_anticoagulation_flowchart.tex){#fig-anticoagulation-flow}
+
+@fig-enrolments presents overall platform enrolments by calendar time with timing of intervention availabilities and interim analyses. Enrolments by country are presented in @fig-enrolments-country.
 
 ```{r}
 #| label: fig-enrolments
 #| fig-cap: |
-#|   Overall enrolment to platform and intervention availability.
+#|   Overall enrolment to the anti-coagulation domain and intervention availability.
+#|   Vertical dashed lines indicate timing of interim analyses.
 knitr::include_graphics(
   "../outputs/figures/baseline/enrolment-overall.pdf"
+)
+```
+
+```{r}
+#| label: fig-enrolments-country
+#| fig-cap: |
+#|   Enrolment to platform and intervention availability by country.
+#|   Vertical dashed lines indicate timing of interim analyses.
+knitr::include_graphics(
+  "../outputs/figures/baseline/enrolment-country.pdf"
 )
 ```
 
@@ -54,20 +72,119 @@ knitr::include_graphics(
 
 ### Baseline Characteristics
 
-Baseline demographics are stratified by the anti-coagulation interventions are reported in @tbl-baseline-demographics
+#### Demographics
+
+Baseline demographics stratified by anticoagulation interventions are reported in @tbl-baseline-demographics
 ```{r}
 #| label: tbl-baseline-demographics
 #| tbl-cap: |
-#|   Baseline demographics for participants randomised to the anti-coagulation domain.
+#|   Baseline demographics for participants randomised to the anticoagulation domain.
 #| results: asis
 tab <- readLines(file.path("..", "outputs", "tables", "baseline", "demographics.tex"))
+writeLines(tab[-which(grepl("caption", tab))])
+```
+
+The age distribution of participants are presented in @fig-age-overall.
+```{r}
+#| label: fig-age-overall
+#| fig-cap: |
+#|   Distribution of age amongst participants randomised to the anticoagulation domain.
+knitr::include_graphics(
+  "../outputs/figures/baseline/age-overall.pdf"
+)
+```
+
+#### Co-morbidities
+
+Baseline co-morbidities stratified by anticoagulation interventions are reported in @tbl-baseline-comorbidities.
+```{r}
+#| label: tbl-baseline-comorbidities
+#| tbl-cap: |
+#|   Baseline comorbidities for participants randomised to the anticoagulation domain.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "baseline", "comorbidities.tex"))
+writeLines(tab[-which(grepl("caption", tab))])
+```
+
+#### Prognostics
+
+Baseline prognostics stratified by anticoagulation interventions are reported in @tbl-baseline-prognostics.
+```{r}
+#| label: tbl-baseline-prognostics
+#| tbl-cap: |
+#|   Baseline prognostics for participants randomised to the anticoagulation domain.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "baseline", "prognostics.tex"))
+writeLines(tab[-which(grepl("caption", tab))])
+```
+
+The relative timing (in days) of hospitalisation, symptom onset, randomisation, and first positive test are presented in @fig-days-to-events-overall.
+```{r}
+#| label: fig-days-to-events-overall
+#| fig-cap: |
+#|   Days between events for hospitalisation, randomisation,
+#|   symptom onset, and first positive test.
+knitr::include_graphics(
+  "../outputs/figures/baseline/days-between-events-overall.pdf"
+)
+```
+
+\clearpage
+
+### Drugs Received During Hospital Stay
+
+There were 19 participants without a discharge record (due to withdrawal of consent for follow-up). For the continuing participants, the other medications received during their hospital stay are reported in @tbl-discharge-drugs.
+
+```{r}
+#| label: tbl-discharge-drugs
+#| tbl-cap: |
+#|   Drugs received during hospital stay for participants randomised to 
+#|   the anti-coagulation domain.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "baseline", "drugs.tex"))
 writeLines(tab[-which(grepl("caption", tab))])
 ```
 
 
 ### Adherence
 
-## Primary Outcome 
+\clearpage
+
+## Primary Outcome
+
+The primary outcome is a composite comprised of:
+
+- day 28 mortality
+- vasopressor/inotropic support within first 28 days
+- new intensive respiratory support within first 28 days.
+
+The proportion of participants who met the primary outcome, and rates of missingness, are reported in @tbl-primary-composite-summary.
+
+```{r}
+#| label: tbl-primary-composite-summary
+#| tbl-cap: |
+#|   Summary of primary composite outcome by treatment group.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "primary", "anticoagulation-summary.tex"))
+writeLines(tab)
+```
+
+A breakdown of the composite, including missingness by component is reported in @tbl-primary-composite-breakdown. Missingness is predominantly due to unknown patient status at study day 28. Amongst participants where the primary outcome was observed (1,526), 103 (7%) met the primary outcome criteria, most commonly due to ventilation and/or death (@tbl-primary-composite-combinations).
+
+```{r}
+#| label: tbl-primary-composite-breakdown
+#| tbl-cap: |
+#|   Breakdown of primary composite outcome by treatment group.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "primary", "composite-breakdown.tex"))
+writeLines(tab)
+```
+
+### Primary Analysis
+
+The primary analysis was based on the ACS-ITT set.
+
+{{< pagebreak >}}
 
 ## Secondary Outcomes
 
@@ -78,6 +195,8 @@ writeLines(tab[-which(grepl("caption", tab))])
 ### WHO outcome scale
 
 ### Days free of hospitalisation
+
+{{< pagebreak >}}
 
 ## Domain Specific Outcomes
 

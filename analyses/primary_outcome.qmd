@@ -267,21 +267,26 @@ There were 50 participants who had died by day 28, 40 were are reported as a dis
 #| label: po-component-death
 #| code-summary: Summarise the death component
 mort_table <- all_dat %>%
-  filter_fas_itt() %>%
+  filter_acs_itt() %>%
+  group_by(CAssignment) %>%
   summarise(
     `Mortality_Alive at day 28_` = sum(1 - D28_death, na.rm = TRUE),
     `Mortality_Death within 28 days_Total` = sum(D28_death, na.rm = TRUE),
     `Mortality_Death within 28 days_Prior to discharge` = sum(DIS_death & DIS_day <= 28, na.rm = TRUE),
     `Mortality_Death within 28 days_Post-discharge` = sum(D28_death == 1 & DIS_death == 0, na.rm = TRUE),
-    `Mortality_Unknown at day 28_` = sum(is.na(D28_death))
+    `Mortality_Unknown_` = sum(is.na(D28_death))
   ) %>%
-  gather(key, Frequency) %>%
-    separate(key, into = c("Measure", "Outcome", "Breakdown"), sep = "_") %>%
-    mutate(`Percentage` = sprintf("%2.1f", 100 * Frequency / nrow(fas_itt_dat)))
+  gather(key, Frequency, -CAssignment, factor_key = T) %>%
+  spread(CAssignment, Frequency) %>%
+  separate(key, into = c("Measure", "Outcome", "Breakdown"), sep = "_") %>%
+  mutate(
+    Overall = C1 + C2 + C3 + C4,
+    across(C1:Overall, ~ sprintf("%i (%.0f)", .x, 100 * .x / sum(.x[c(1,2,5)])))
+  )
 kable(
   mort_table %>% select(-1),
   caption = "Composite primary endpoint breakdown - mortality.",
-  align = "llrr") %>%
+  align = "llrrrrr") %>%
   kable_styling(font_size = 11) %>%
   collapse_rows(1, valign = "top", latex_hline = 'custom', custom_latex_hline = 1) %>%
   group_rows("Mortality", 1, nrow(mort_table))
@@ -295,24 +300,26 @@ Vasopressor/inotropic support is reported on both the daily (from day 1 to disch
 #| label: po-component-vasopressor
 #| code-summary: Summarise the vasopressor/inotropes component
 vaso_table <- all_dat %>%
-  filter_fas_itt() %>%
+  filter_acs_itt() %>%
+  group_by(CAssignment) %>%
   summarise(
     `Vasopressor/inotropes_Not required_` = sum(1 - ANY_vasop, na.rm = TRUE),
     `Vasopressor/inotropes_Use within 28 days_Total` = sum(ANY_vasop, na.rm = TRUE),
     `Vasopressor/inotropes_Use within 28 days_Prior to discharge` = sum(DD_vasop, na.rm = TRUE),
     `Vasopressor/inotropes_Use within 28 days_Post-discharge` = sum(D28_vasop, na.rm = TRUE),
-    `Vasopressor/inotropes_Unknown_Total` = sum(is.na(ANY_vasop)),
-    `Vasopressor/inotropes_Unknown_Missing day 28` = sum(is.na(D28_vasop)),
-    `Vasopressor/inotropes_Unknown_Missing daily records` = 
-      sum(is.na(DAILY_missing) | DAILY_missing == 1),
+    `Vasopressor/inotropes_Unknown_` = sum(is.na(ANY_vasop))
   ) %>%
-  gather(key, Frequency) %>%
-    separate(key, into = c("Measure", "Outcome", "Breakdown"), sep = "_") %>%
-    mutate(`Percentage` = sprintf("%2.1f", 100 * Frequency / nrow(fas_itt_dat)))
+  gather(key, Frequency, -CAssignment, factor_key = T) %>%
+  spread(CAssignment, Frequency) %>%
+  separate(key, into = c("Measure", "Outcome", "Breakdown"), sep = "_") %>%
+  mutate(
+    Overall = C1 + C2 + C3 + C4,
+    across(C1:Overall, ~ sprintf("%i (%.0f)", .x, 100 * .x / sum(.x[c(1,2,5)])))
+  )
 kable(
   vaso_table %>% select(-1),
   caption = "Composite primary endpoint breakdown - vasopressor/inotropes.",
-  align = "llrr") %>%
+  align = "llrrrr") %>%
   kable_styling(font_size = 11) %>%
   collapse_rows(1, valign = "top", latex_hline = 'custom', custom_latex_hline = 1) %>%
   group_rows("Vasopressor/inotropes", 1, nrow(vaso_table))
@@ -326,20 +333,22 @@ Respiratory support is reported on both the daily (from day 1 to discharge) and 
 #| label: po-component-respiratory
 #| code-summary: Summarise the ventilation component
 vent_table <- all_dat %>%
-  filter_fas_itt()  %>%
+  filter_acs_itt()  %>%
+  group_by(CAssignment) %>%
   summarise(
     `Ventilation_Not required_` = sum(1 - ANY_vent, na.rm = TRUE),
     `Ventilation_Use within 28 days_Total` = sum(ANY_vent, na.rm = TRUE),
     `Ventilation_Use within 28 days_Prior to discharge` = sum(ANY_DD_vent, na.rm = TRUE),
     `Ventilation_Use within 28 days_Post-discharge` = sum(D28_vent, na.rm = TRUE),
-    `Ventilation_Unknown_Total` = sum(is.na(ANY_vent)),
-    `Ventilation_Unknown_Missing daily records` = sum(is.na(DAILY_missing) | DAILY_missing == 1),
-      `Ventilation_Unknown_Unknown status at day 28` = 
-      sum(ANY_DD_vent == 0 & is.na(D28_vent), na.rm = TRUE),
+    `Ventilation_Unknown_` = sum(is.na(ANY_vent))
   ) %>%
-  gather(key, Frequency) %>%
-    separate(key, into = c("Measure", "Outcome", "Breakdown"), sep = "_") %>%
-    mutate(`Percentage` = sprintf("%2.1f", 100 * Frequency / nrow(fas_itt_dat)))
+  gather(key, Frequency, -CAssignment, factor_key = T) %>%
+  spread(CAssignment, Frequency) %>%
+  separate(key, into = c("Measure", "Outcome", "Breakdown"), sep = "_") %>%
+  mutate(
+    Overall = C1 + C2 + C3 + C4,
+    across(C1:Overall, ~ sprintf("%i (%.0f)", .x, 100 * .x / sum(.x[c(1, 2, 5)])))
+  )
 kable(
   vent_table %>% select(-1),
   caption = "Composite primary endpoint breakdown - respiratory support.",
@@ -357,7 +366,7 @@ There were 3 participants who were DAMA and identified as likely to die. However
 #| label: po-components-dama
 #| code-summary: Summarise the DAMA component
 all_dat %>%
-  filter_fas_itt()  %>%
+  filter_acs_itt()  %>%
   select(DIS_DAMA, DIS_DAMAlikelytodie, D28_death) %>%
   dplyr::count(DIS_DAMA, DIS_DAMAlikelytodie, D28_death) %>%
   spread(D28_death, n) %>%
@@ -378,21 +387,23 @@ There were 107 (7% of observed outcomes) participants who met the composite outc
 #| tbl-cap: |
 #|   Composite primary endpoint breakdown - overall.
 comp_table <- all_dat %>%
-  filter_fas_itt()  %>%
+  filter_acs_itt()  %>%
+  group_by(CAssignment) %>%
   summarise(
-    `Total_Total_` = length(PO),
-    `Primary Outcome_Yes_` = sum(PO, na.rm = TRUE),
     `Primary Outcome_No_`  = sum(1 - PO, na.rm = TRUE),
+    `Primary Outcome_Yes_` = sum(PO, na.rm = TRUE),
     `Primary Outcome_Unknown_Total` = sum(is.na(PO)),
-    `Primary Outcome_Unknown_Unknown day 28 status` = sum(is.na(PO) & is.na(D28_death)),
-    `Primary Outcome_Unknown_Unknown vasopressor/inotrope use (known day 28 status)` = 
-      sum(is.na(PO) & !is.na(D28_death) & is.na(ANY_vasop)),
-    `Primary Outcome_Unknown_Missing any daily records` = 
-      sum((is.na(PO) & is.na(DAILY_missing)) | (!is.na(DAILY_missing) & DAILY_missing == 1))
+    `Primary Outcome_Unknown_Day 28 status` = sum(is.na(PO) & is.na(D28_death)),
+    `Primary Outcome_Unknown_Vasopressor/inotropes` = 
+      sum(is.na(PO) & !is.na(D28_death) & is.na(ANY_vasop))
   ) %>%
-  gather(key, Frequency) %>%
-    separate(key, into = c("Measure", "Outcome", "Breakdown"), sep = "_") %>%
-    mutate(`Percentage` = sprintf("%2.1f", 100 * Frequency / nrow(fas_itt_dat)))
+  gather(key, Frequency, -CAssignment, factor_key = T) %>%
+  spread(CAssignment, Frequency) %>%
+  separate(key, into = c("Measure", "Outcome", "Breakdown"), sep = "_") %>%
+  mutate(
+    Overall = C1 + C2 + C3 + C4,
+    across(C1:Overall, ~ sprintf("%i (%.0f)", .x, 100 * .x / sum(.x[1:3])))
+  )
 kable(
   comp_table %>% select(-1),
   align = "llrr") %>%
@@ -408,15 +419,42 @@ kable(
 #| tbl-cap: |
 #|   Composite primary endpoint breakdown.
 tab <- bind_rows(comp_table, mort_table, vaso_table, vent_table)
+tab_head <- all_dat %>% 
+  filter_acs_itt() %>% 
+  dplyr::count(CAssignment = factor(CAssignment, labels = intervention_labels()$CAssignment[-1])) %>%
+  mutate(label = paste0(CAssignment, "<br>(n = ", n, ")")) %>%
+  pull(label) %>%
+  c(paste0("Overall<br><br>(n = ", nrow(all_dat %>% filter_acs_itt()), ")"))
+colnames(tab)[4:8] <- tab_head
 kable(
   tab %>% select(-1),
-  align = "llrr") %>%
+  align = "llrrrrr",
+  escape = F) %>%
   kable_styling(font_size = 11) %>%
   collapse_rows(1, valign = "top", latex_hline = 'custom', custom_latex_hline = 1) %>%
-  group_rows("Primary outcome", 1, 8) %>%
-  group_rows("Mortality", 8, 12) %>%
-  group_rows("Vasopressor/inotropes", 13, 19) %>%
-  group_rows("Ventilation", 20, 26)
+  group_rows("Primary outcome", 1, nrow(comp_table)) %>%
+  group_rows("Mortality", nrow(comp_table) + 1, nrow(comp_table) + nrow(mort_table)) %>%
+  group_rows("Vasopressor/inotropes", 11, 15) %>%
+  group_rows("Ventilation", 16, 20)
+```
+
+```{r}
+#| label: save-composite-primary-table
+#| code-summary: Save table to outputs
+colnames(tab)[4:8] <- linebreak(tab_head, align = "c", linebreaker = "<br>")
+out <- kable(
+  tab %>% select(-1),
+  format = "latex",
+  align = "llrrrrr",
+  booktabs = TRUE,
+  escape = F) %>%
+  kable_styling(font_size = 9, latex_options = "HOLD_position") %>%
+  collapse_rows(1, valign = "top", latex_hline = 'none') %>%
+  group_rows("Primary outcome", 1, nrow(comp_table)) %>%
+  group_rows("Mortality", nrow(comp_table) + 1, nrow(comp_table) + nrow(mort_table)) %>%
+  group_rows("Vasopressor/inotropes", 11, 15) %>%
+  group_rows("Ventilation", 16, 20)
+save_tex_table(out, fn = "primary/composite-breakdown")
 ```
 
 
@@ -425,12 +463,13 @@ kable(
 #| code-summary: Summarise the component combinations
 #| tbl-cap: |
 #|   Observed outcome combinations.
-levs <- c("None", "Death + V/I + Vent", "Death + V/I", "Death + Vent", "V/I + Vent", 
-          "Death", "V/I", "Vent", "Unknown")
-all_dat %>%
-  filter_fas_itt()  %>%
+levs <- c("None", "Death + Vas./Ino. + Ventilation", "Death + Vas./Ino.", "Death + Ventilation", "Vas./Ino. + Ventilation", 
+          "Death", "Vas./Ino.", "Ventilation", "Unknown")
+tab <- all_dat %>%
+  filter_acs_itt()  %>%
+  group_by(CAssignment) %>%
   summarise(
-    `Composite outcomes` = factor(case_when(
+    `Composite outcomes` = case_when(
       PO == 0 ~ 0,
       is.na(PO) ~ 99,
       D28_death == 1 & ANY_vasop == 1 & ANY_vent == 1 ~ 1,
@@ -440,11 +479,11 @@ all_dat %>%
       D28_death == 1 ~ 5,
       ANY_vasop == 1 ~ 6,
       ANY_vent == 1 ~ 7,
-    ), labels = levs)
-  ) %>%
-  dplyr::count(`Composite outcomes`) %>%
-  kable() %>%
-  kable_styling()
+    )) %>%
+  dplyr::count(CAssignment, `Composite outcomes`) %>%
+  mutate(`Composite outcomes` = factor(`Composite outcomes`, levels = c(0:7, 99), labels = levs)) %>%
+  spread(CAssignment, n, fill = 0) %>%
+  mutate(Overall = C1 + C2 + C3 + C4)
 ```
 
 # Descriptive Analyses
@@ -711,17 +750,50 @@ fas_itt_dat %>%
 #| label: tbl-domainC-po
 #| code-summary: Relationship anti-coagulation to outcome
 #| tbl-cap: Primary outcome by anti-coagulation intervention.
-all_dat %>%
-  filter(ENR_rec == 1, WTH_FU == 0) %>%
-  dplyr::count(`Anti-coagulation` = CAssignment, PO) %>%
-  group_by(`Anti-coagulation`) %>%
-  spread(PO, n, fill = 0) %>%
-  mutate(
-    p_1 = `1` / (`1` + `0`),
-    p_miss = `<NA>` / (`1` + `0` + `<NA>`)
-  ) %>%
-  kable(digits = 2) %>%
-  kable_styling(bootstrap_options = "striped")
+make_po_table <- function(dat, format = "html") {
+  tab <- dat %>%
+    mutate(CAssignment = factor(CAssignment, labels = intervention_labels()$CAssignment[-1])) %>%
+    group_by(CAssignment) %>%
+    summarise(
+      Randomised = n(),
+      `Outcome missing` = sprintf("%i (%.1f)", sum(is.na(PO)), 100 * mean(is.na(PO))),
+      `Outcome observed` = sprintf("%i (%.1f)", sum(!is.na(PO)), 100 * mean(!is.na(PO))),
+      `Met primary outcome` = sprintf("%i (%.1f)", sum(PO, na.rm = TRUE), 100 * mean(PO, na.rm = TRUE)),
+    ) %>%
+    bind_rows(
+      dat  %>%
+        group_by(CAssignment = "Overall") %>%
+        summarise(
+          Randomised = n(),
+          `Outcome missing` = sprintf("%i (%.1f)", sum(is.na(PO)), 100 * mean(is.na(PO))),
+          `Outcome observed` = sprintf("%i (%.1f)", sum(!is.na(PO)), 100 * mean(!is.na(PO))),
+          `Met primary outcome` = sprintf("%i (%.1f)", sum(PO, na.rm = TRUE), 100 * mean(PO, na.rm = TRUE)),
+      )
+    ) %>%
+    mutate(CAssignment = fct_inorder(CAssignment)) %>%
+    gather(key, value, -CAssignment, factor_key = T) %>%
+    spread(CAssignment, value)
+  colnames(tab)[1] <- "n (\\%)"
+  if(format == "latex") {
+    colnames(tab) <- linebreak(colnames(tab), align = "c", linebreaker = "<br>")
+  }
+    kable(tab,
+      format = format,
+      align = "lrrrrr",
+      escape = FALSE,
+      booktabs = TRUE
+    ) %>%
+    kable_styling(font_size = 10, latex_options = "HOLD_position")  
+}
+make_po_table(
+    all_dat %>%
+      filter_acs_itt()
+)
+save_tex_table(make_po_table(
+      all_dat %>%
+      filter_acs_itt(),
+      "latex"), 
+      "primary/anticoagulation-summary")
 ```
 
 ```{r}

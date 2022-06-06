@@ -16,7 +16,9 @@ library(plotly)
 library(knitr)
 library(kableExtra)
 
-theme_set(theme_minimal(base_size = 10, base_family = "Palatino"))
+theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank()))
 ```
 
 ```{r}
@@ -254,7 +256,8 @@ Baseline demographics are summarised by intervention in the following table.
 #|   Baseline demographics for participants randomised into
 #|   the anticoagulation domain.
 sdat <- all_data %>%
-    filter(ENR_rec == 1, CAssignment != "C0")
+    filter(ENR_rec == 1, CAssignment != "C0") %>%
+  mutate(CAssignment = factor(CAssignment, labels = intervention_labels()$CAssignment[-1]))
 generate_baseline_demographics_table(sdat, format = "html")
 ```
 
@@ -279,7 +282,8 @@ Baseline co-morbidities are summarised by anti-coagulation intervention in the f
 #|   Baseline co-morbidities for participants randomised into
 #|   then anticoagulation domain.
 sdat <- all_data %>%
-    filter(ENR_rec == 1, CAssignment != "C0")
+    filter(ENR_rec == 1, CAssignment != "C0") %>%
+  mutate(CAssignment = factor(CAssignment, labels = intervention_labels()$CAssignment[-1]))
 generate_baseline_comorbidities_table(sdat, format = "html")
 ```
 
@@ -303,7 +307,8 @@ Baseline prognostics are summarised by anti-coagulation intervention in the foll
 #|   Baseline prognostic variables for 
 #|   participants randomised into anticoagulation domain.
 sdat <- all_data %>%
-    filter(ENR_rec == 1, CAssignment != "C0")
+    filter(ENR_rec == 1, CAssignment != "C0") %>%
+  mutate(CAssignment = factor(CAssignment, labels = intervention_labels()$CAssignment[-1]))
 generate_baseline_prognostics_table(sdat, format = "html")
 ```
 
@@ -323,8 +328,8 @@ save_tex_table(
 #| code-summary: Histogram of age
 #| fig-cap: |
 #|   Distribution of age
-all_data %>%
-  filter(ENR_rec == 1) %>%
+p_age <- all_data %>%
+  filter(ENR_rec == 1, CAssignment != "C0") %>%
   ggplot(., aes(AgeAtEntry)) + 
   geom_histogram(
     breaks = c(18, seq(20, 100, 5)), 
@@ -334,7 +339,15 @@ all_data %>%
     x = "Age at randomisation (5-year bins, 30 to 34, 35 to 39, etc.)", 
     y = "Count") +
   scale_x_continuous(breaks = seq(20, 95, 5))
+p_age
 ```
+
+```{r}
+#| label: save-age-figure
+pth <- file.path("outputs", "figures", "baseline")
+ggsave(file.path(pth, "age-overall.pdf"), p_age, height = 2, width = 4)
+```
+
 
 ```{r}
 #| label: fig-age-by-cassignment
@@ -406,7 +419,13 @@ p3 <- ggplot(tsfs_dat, aes(hosp_to_rand)) +
 p4 <- ggplot(tsfs_dat, aes(pt_to_rand)) +
   geom_bar() +
   labs(x = "Positive test to randomisation", y = "Frequency")
-(p1 | p2) / (p3 | p4)
+p <- (p1 | p2) / (p3 | p4)
+```
+
+```{r}
+#| label: save-days-to-event-figure
+pth <- file.path("outputs", "figures", "baseline")
+ggsave(file.path(pth, "days-between-events-overall.pdf"), p, height = 3, width = 6)
 ```
 
 ```{r}
@@ -497,4 +516,27 @@ p2 <- ggplot(tmp, aes(EL_SerumCreatinine_umolL, clearance)) +
   scale_y_log10() +
   labs(x = "Serum creatinine\n(umol/L)", y = "Creatinine clearance\n(mL/min)")
 p1 / p2
+```
+
+# Drugs Received During Hospital Stay
+
+```{r}
+#| label: tbl-drugs-table
+#| code-summary: Drugs during hospital stay table
+#| tbl-cap: |
+#|   Drugs received during hospital stay for participants randomised into
+#|   the anticoagulation domain.
+sdat <- all_data %>%
+    filter(ENR_rec == 1, CAssignment != "C0") %>%
+  mutate(CAssignment = factor(CAssignment, labels = intervention_labels()$CAssignment[-1]))
+generate_discharge_drugs_table(sdat, format = "html")
+```
+
+```{r}
+#| label: save-drugs-table
+#| code-summary: Save table to outputs
+save_tex_table(
+  generate_discharge_drugs_table(sdat, format = "latex"),
+  "baseline/drugs"
+)
 ```
