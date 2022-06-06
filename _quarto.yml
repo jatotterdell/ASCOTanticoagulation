@@ -26,7 +26,7 @@ website:
           - analyses/primary_outcome.qmd
           - "analyses/7-1_time_to_clinical_recovery.qmd"
           - "analyses/7-2_who_ordinal_scale.qmd"
-          - analyses/all_cause_mortality.qmd
+          - "analyses/7-3_all_cause_mortality.qmd"
           - "analyses/7-4_days_alive_hospital_free.qmd"
 
 format:
