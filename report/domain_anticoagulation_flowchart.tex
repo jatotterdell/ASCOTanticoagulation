@@ -1,0 +1,96 @@
+\begin{tikzpicture}[auto,
+  block_center/.style ={rectangle, draw=black, thick, fill=white, font = \footnotesize,
+    text width=14em, text centered, minimum height=4em},
+  block_assign/.style ={rectangle, draw=black, thick, fill=white, anchor=north, font = \footnotesize,
+    text width=10em, text centered, minimum height=5em, inner sep=6pt},
+  block_left/.style ={rectangle, draw=black, thick, fill=white, font = \footnotesize,
+    text width=21em, text ragged, minimum height=4em, inner sep=6pt},
+  block_left_small/.style ={rectangle, draw=black, thick, fill=white, font = \footnotesize,
+    text width=10em, text ragged, minimum height=2em, inner sep=6pt},
+  block_blank/.style={rectangle, draw=white, thick, fill=white, font = \footnotesize,
+    text width=0em, text ragged, minimum height=0em, inner sep=0pt},
+  block_noborder/.style ={rectangle, draw=none, thick, fill=none, font = \footnotesize,
+    text width=10em, text centered, minimum height=0.5cm},
+  line/.style ={draw, thick, -latex', shorten >=0pt}]
+  % enrollment - row 1
+  \node [block_center] (peligible) {Enrolled into platform\\ \textbf{1,599}};
+  % enrollment - row 2
+  \node [block_blank] (blank1) [below=3.5cm of peligible] {};
+  \node [block_left] (ineligible) [right=0.5cm of blank1] {\textbf{25} Ineligible for anticoagulation domain\textsuperscript{\dagger}: \\
+  \begin{tabular}{@{\hskip 10pt}r@{\hskip 3pt}l}
+    \textbf{12} & Did not consent to domain \\
+    \textbf{11} & Domain unavailable \\
+    \textbf{1} & Clinician to commence therapeutic anticoagulation \\
+    \textbf{1} & $\text{eGFR}<15\text{ml/min/}1.73\text{m}^2$ \\
+    \textbf{0} & $\text{Platelet count }$\leq$30\times 10^9/\text{L}$ \\
+    \textbf{0} & Receiving dual antiplatelet threapy \\
+    \textbf{0} & Contraindication to heparin \\
+    \textbf{0} & History of intracranial haemorrhage \\
+    \textbf{0} & Contraindication to thromboprophylaxis
+  \end{tabular} \\
+  \textbf{39} Ineligible for aspirin intervention\textsuperscript{\dagger} \\
+  \begin{tabular}{@{\hskip 10pt}r@{\hskip 3pt}l}
+    \textbf{39} & Receiving an antiplatelet agent \\
+    \textbf{1} & Hypersensitivity to aspirin
+  \end{tabular} };
+  % row 3
+  \node [block_center] (randomised) [below=4cm of blank1] {Randomised to anticoagulation domain\\ \textbf{1,574}};
+  % row 4
+  \node [block_assign] (int0) [below left=1cm and 2cm of randomised] {Standard dose \\ \textbf{619}};
+  \node [block_assign] (int1) [right=0.4cm of int0] {Intermediate dose \\ \textbf{620}};
+  \node [block_assign] (int3) [below right=1cm and 2cm of randomised] {Therapeutic dose \\ \textbf{50}};
+  \node [block_assign] (int2) [left=0.4cm of int3] {Standard dose + aspirin \\ \textbf{285}};
+  % row 5
+  \node [block_left_small] (int0excl) [below = of int0] {\textbf{9} Excluded: \\
+  \begin{tabular}{@{\hskip 10pt}r@{\hskip 3pt}l}
+    \textbf{9} & Withdrew follow-up
+  \end{tabular}};
+  \node [block_left_small] (int1excl) [below = of int1] {\textbf{7} Excluded: \\
+  \begin{tabular}{@{\hskip 10pt}r@{\hskip 3pt}l}
+    \textbf{7}  & Withdrew follow-up
+  \end{tabular}};
+  \node [block_left_small] (int2excl) [below = of int2] {\textbf{2} Excluded: \\
+  \begin{tabular}{@{\hskip 10pt}r@{\hskip 3pt}l}
+    \textbf{2}  & Withdrew follow-up
+  \end{tabular}};
+  \node [block_left_small] (int3excl) [below = of int3] {\textbf{0} Excluded: \\
+  \begin{tabular}{@{\hskip 10pt}r@{\hskip 3pt}l}
+    \textbf{0}  & Withdrew follow-up
+  \end{tabular}};
+  %\node [block_left_small] (otherexclu) [right = 0.25cm of int2excl] {\textbf{0} Excluded: \\
+  %\begin{tabular}{@{\hskip 10pt}r@{\hskip 3pt}l}
+  %  \textbf{0} & Withdrew consent \\
+  %  \textbf{0} & Outcome not available
+  %\end{tabular}
+  %};
+  % row 6
+  \node [block_assign] (int0analysis) [below = of int0excl] {Follow-up\\ to day 28 \\ \textbf{610}};
+  \node [block_assign] (int1analysis) [below = of int1excl] {Follow-up\\ to day 28 \\ \textbf{613}};
+  \node [block_assign] (int2analysis) [below = of int2excl] {Follow-up\\ to day 28 \\ \textbf{283}};
+  \node [block_assign] (int3analysis) [below = of int3excl] {Follow-up\\ to day 28 \\ \textbf{50}};
+  % \node [block_assign] (covadjust) [right = 0.25cm of int2analysis] {Covariate adjustment\textsuperscript{\ddag} \\ \textbf{xxx}};
+  % footnotes
+  \node [anchor=north west, text width=3cm, align=left] at (ineligible.south west) {
+    \textsuperscript{\dagger Participants may meet more than one exclusion criteria}
+  };
+  % connecting nodes with paths
+  \begin{scope}[every path/.style=line]
+    % paths for enrollemnt rows
+    \path (peligible)  -- (randomised);
+    \path (blank1)     -- (ineligible);
+    \path (randomised) -- (int0);
+    \path (randomised) -- (int1);
+    \path (randomised) -- (int2);
+    \path (randomised) -- (int3);
+    \path (int0) -- (int0excl);
+    \path (int1) -- (int1excl);
+    \path (int2) -- (int2excl);
+    \path (int3) -- (int3excl);
+    \path (int0excl) -- (int0analysis);
+    \path (int1excl) -- (int1analysis);
+    \path (int2excl) -- (int2analysis);
+    \path (int3excl) -- (int3analysis);
+    %\path (ineligible) -| (otherexclu);
+    %\path (otherexclu) -- (covadjust);
+  \end{scope}
+\end{tikzpicture}

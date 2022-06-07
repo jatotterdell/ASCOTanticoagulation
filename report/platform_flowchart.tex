@@ -1,0 +1,53 @@
+\begin{tikzpicture}[auto,
+  block_center/.style ={rectangle, draw=black, thick, fill=white, font = \footnotesize,
+    text width=14em, text centered, minimum height=4em},
+  block_left/.style ={rectangle, draw=black, thick, fill=white, font = \footnotesize,
+    text width=24em, text ragged, minimum height=4em, inner sep=6pt},
+  block_blank/.style={rectangle, draw=white, thick, fill=white, font = \footnotesize,
+    text width=0em, text ragged, minimum height=0em, inner sep=0pt},
+  line/.style ={draw, thick, -latex', shorten >=0pt}]
+   enrollment - row 1
+  \node [block_center] (screened) {Screened for platform eligibility\\ \textbf{2,230}};
+   enrollment - row 2
+  \node [block_blank] (blank1) [below=4.5cm of screened] {};
+  \node [block_left] (ineligible) [right=1cm of blank1] {\textbf{631}\h Ineligible for platform: \\
+    \begin{tabular}{@{\hskip 10pt}r@{\hskip 3pt}l}
+      \textbf{175} & Did not consent \\
+      \textbf{165} & Not in the patients best interests \\
+      \textbf{65} & No eligible domains \\
+      \textbf{58} & Not committed to active treatment \\
+      \textbf{42} & First positive test - over 14 days ago \\
+      \textbf{32} & No signs or symptoms \\
+      \textbf{31} & First symptoms - over 14 days ago \\
+      \textbf{28} & SARS-CoV-2 not confirmed by test \\
+      \textbf{18} & Receiving acute intensive respiratory support \\
+      \textbf{6} & Did not consent to any domains \\
+      \textbf{6} & Expired platform pending \\
+      \textbf{4} & Previously participated in the trial \\
+      \textbf{1} & Pregnant patients cannot be enrolled at this hospital
+    \end{tabular}};
+  %\node [block_center] (eligible) [below=2cm of blank1] {Eligible for platform\\ \textbf{xxx}};
+  %\node [block_blank] (blank2) [below=1.5cm of eligible] {};
+  %\node [block_left] (norand) [right=1cm of blank2] {\textbf{xxx}\h Not enrolled: \\
+  % \begin{tabular}{@{\hskip 10pt}r@{\hskip 3pt}l}
+  %    \textbf{xxx} & No available eligible domains \\
+  %    \textbf{xx}  & Declined consent
+  %  \end{tabular}};
+  \node [block_center] (randomised) [below=4.5cm of blank1] {Enrolled and randomised to at least one domain\\ \textbf{1,599}};
+  \node [block_blank] (blank3) [below=1.5cm of randomised] {};
+  \node [block_left] (missing) [right=1cm of blank3] {
+    \begin{tabular}{@{\hskip 2pt}r@{\hskip 3pt}l}
+      \textbf{18} & Withdrew consent for follow-up
+    \end{tabular} };
+  \node [block_center] (d28) [below=1.5cm of blank3] {Follow-up to day 28 \\ \textbf{1,581}};
+  % connecting nodes with paths
+  \begin{scope}[every path/.style=line]
+    % paths for enrollemnt rows
+    \path (screened)   -- (randomised);
+    \path (blank1)     -- (ineligible);
+    %\path (eligible)   -- (randomised);
+    %\path (blank2)     -- (norand);
+    \path (blank3)     -- (missing);
+    \path (randomised) -- (d28);
+  \end{scope}
+\end{tikzpicture}
