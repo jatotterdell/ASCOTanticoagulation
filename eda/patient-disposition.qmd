@@ -34,7 +34,7 @@ dat <- read_all_no_daily()
 #| label: eligibility-overview
 #| code-summary: Overview Eligibility
 dat %>%
-  count(ENR_rec, EL_OutcomeReason) %>%
+  dplyr::count(ENR_rec, EL_OutcomeReason) %>%
   group_by(ENR_rec) %>%
   arrange(-n, .by_group = TRUE) %>%
   ungroup()
@@ -57,7 +57,7 @@ For reference, the exclusion criteria for the anti-coagulation domain follows (d
 #| code-summary: Consent to anticoagulation domain
 dat %>%
   filter(ENR_rec == 1) %>%
-  count(
+  dplyr::count(
     EL_inelg_c,
     CAssignment,
     EL_Con_DomainC
@@ -119,4 +119,24 @@ dat %>%
   )
 ```
 
-## CONSORT Flowchart
+# Withdrawals
+
+```{r}
+#| label: withdrawal-summaries
+dat %>%
+  dplyr::count(WTH_FU, 
+               CON_WithdrawnContact28, 
+               CON_WithdrawnDailyCollection)
+dat %>%
+  dplyr::count(WTH_FU, 
+               CON_WithdrawnDomainA, 
+               CON_WithdrawalReason, 
+               CON_WithdrawalClincianReason)
+```
+
+
+```{r}
+dat %>%
+  dplyr::count(WTH_FU, CAssignment)
+```
+

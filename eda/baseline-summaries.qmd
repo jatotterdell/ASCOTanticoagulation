@@ -43,10 +43,10 @@ md <- get_interim_dates()
 id <- get_intervention_dates()
 p1 <- all_data %>%
   filter(ENR_rec == 1, CAssignment != "C0") %>%
-  count(RandDate) %>%
+  dplyr::count(RandDate) %>%
   complete(RandDate = 
              seq.Date(min(RandDate, na.rm = TRUE), 
-                      Sys.Date(), 
+                      as.Date("2022-04-09"), 
                       by = "1 day"),
            fill = list(n = 0)) %>%
   mutate(`Cumulative enrolments` = cumsum(n)) %>%
@@ -96,7 +96,7 @@ ggsave(file.path(pth, "enrolment-overall.pdf"), p, height = 4.5, width = 6)
 #| fig-height: 10
 p1 <- all_data %>%
   filter(ENR_rec == 1, CAssignment != "C0") %>%
-  count(Country = PT_CountryName, RandDate) %>%
+  dplyr::count(Country = PT_CountryName, RandDate) %>%
   complete(
     Country, 
     RandDate = seq.Date(min(RandDate, na.rm = T), Sys.Date(), by = "1 day"),
@@ -128,10 +128,10 @@ ggsave(file.path(pth, "enrolment-country.pdf"), p, height = 6, width = 6)
 #| layout-nrow: 1
 p1 <- all_data %>%
   filter(ENR_rec == 1, CAssignment != "C0") %>%
-  count(Country = PT_CountryName, Site = PT_LocationName, RandDate) %>%
+  dplyr::count(Country = PT_CountryName, Site = PT_LocationName, RandDate) %>%
   complete(
     nesting(Country, Site),
-    RandDate = seq.Date(min(RandDate), max(RandDate), by = "1 day"),
+    RandDate = seq.Date(min(RandDate), as.Date("2022-04-09"), by = "1 day"),
     fill = list(n = 0)) %>%
   group_by(Country, Site) %>%
   mutate(`Cumulative enrolments` = cumsum(n)) %>%
@@ -146,6 +146,99 @@ p1 <- all_data %>%
   scale_y_continuous(breaks = function(x) 
     unique(floor(pretty(seq(0, (max(x) + 1) * 1.1)))))
 ggplotly(p1, height = 1000)
+```
+
+```{r}
+#| label: enrolment-india-sites
+p_india <- all_data %>%
+  filter(ENR_rec == 1, CAssignment != "C0", PT_CountryName == "India") %>%
+  dplyr::count(Country = PT_CountryName, Site = PT_LocationName, RandDate) %>%
+  complete(
+    nesting(Country, Site),
+    RandDate = seq.Date(min(RandDate), as.Date("2022-04-09"), by = "1 day"),
+    fill = list(n = 0))  %>%
+  group_by(Country, Site) %>%
+  mutate(`Cumulative enrolments` = cumsum(n)) %>%
+  rename(`Calendar date` = RandDate) %>%
+  ggplot(., aes(`Calendar date`, `Cumulative enrolments`)) +
+  facet_wrap( ~ Site, 
+              ncol = 3, scales = "free_y") +
+  geom_step() +
+  geom_vline(data = md,
+             aes(xintercept = as.numeric(meet_date)),
+             linetype = 2) +
+  scale_y_continuous(breaks = function(x) 
+    unique(floor(pretty(seq(0, (max(x) + 1) * 1.1))))) +
+  scale_x_date(date_breaks  = "4 months", date_labels = "%b %Y") +
+  theme(strip.text = element_text(size = rel(0.7)))
+```
+
+```{r}
+#| label: save-india-site-enrolment-figure
+pth <- file.path("outputs", "figures", "baseline")
+ggsave(file.path(pth, "enrolment-india-sites.pdf"), p_india, height = 5, width = 7)
+```
+
+```{r}
+#| label: enrolment-australia-sites
+p_aus <- all_data %>%
+  filter(ENR_rec == 1, CAssignment != "C0", PT_CountryName == "Australia") %>%
+  dplyr::count(Country = PT_CountryName, Site = PT_LocationName, RandDate) %>%
+  complete(
+    nesting(Country, Site),
+    RandDate = seq.Date(min(RandDate), as.Date("2022-04-09"), by = "1 day"),
+    fill = list(n = 0))  %>%
+  group_by(Country, Site) %>%
+  mutate(`Cumulative enrolments` = cumsum(n)) %>%
+  rename(`Calendar date` = RandDate) %>%
+  ggplot(., aes(`Calendar date`, `Cumulative enrolments`)) +
+  facet_wrap( ~ Site, 
+              ncol = 3, scales = "free_y") +
+  geom_step() +
+  geom_vline(data = md,
+             aes(xintercept = as.numeric(meet_date)),
+             linetype = 2) +
+  scale_y_continuous(breaks = function(x) 
+    unique(floor(pretty(seq(0, (max(x) + 1) * 1.1))))) +
+  scale_x_date(date_breaks  = "4 months", date_labels = "%b %Y") +
+  theme(strip.text = element_text(size = rel(0.7)))
+```
+
+```{r}
+#| label: save-australia-site-enrolment-figure
+pth <- file.path("outputs", "figures", "baseline")
+ggsave(file.path(pth, "enrolment-australia-sites.pdf"), p_aus, height = 5, width = 7)
+```
+
+```{r}
+#| label: enrolment-nepal-nz-sites
+p_npnz <- all_data %>%
+  filter(ENR_rec == 1, CAssignment != "C0", PT_CountryName %in% c("Nepal", "New Zealand")) %>%
+  dplyr::count(Country = PT_CountryName, Site = PT_LocationName, RandDate) %>%
+  complete(
+    nesting(Country, Site),
+    RandDate = seq.Date(as.Date("2021-02-08"), as.Date("2022-04-09"), by = "1 day"),
+    fill = list(n = 0))  %>%
+  group_by(Country, Site) %>%
+  mutate(`Cumulative enrolments` = cumsum(n)) %>%
+  rename(`Calendar date` = RandDate) %>%
+  ggplot(., aes(`Calendar date`, `Cumulative enrolments`)) +
+  facet_wrap( ~ paste(Country, Site,  sep = ": "),
+              ncol = 3, scales = "free_y") +
+  geom_step() +
+  geom_vline(data = md,
+             aes(xintercept = as.numeric(meet_date)),
+             linetype = 2) +
+  scale_y_continuous(breaks = function(x) 
+    unique(floor(pretty(seq(0, (max(x) + 1) * 1.1))))) +
+  scale_x_date(date_breaks  = "4 months", date_labels = "%b %Y") +
+  theme(strip.text = element_text(size = rel(0.7)))
+```
+
+```{r}
+#| label: save-nepal-nz-site-enrolment-figure
+pth <- file.path("outputs", "figures", "baseline")
+ggsave(file.path(pth, "enrolment-nepalnz-sites.pdf"), p_npnz, height = 3, width = 7)
 ```
 
 ## Intervention Assignments

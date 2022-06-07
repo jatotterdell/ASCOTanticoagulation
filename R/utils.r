@@ -68,8 +68,8 @@ get_intervention_dates <- function() {
     "Anticoagulation", "C2", as.Date("2021-02-18"), as.Date("2022-04-08"),
     "Anticoagulation", "C3", as.Date("2021-02-18"), as.Date("2021-09-10"),
     "Anticoagulation", "C4", as.Date("2021-10-14"), as.Date("2022-04-08"),
-    "Antiviral", "A1", as.Date("2021-06-10"), Sys.Date(),
-    "Antiviral", "A2", as.Date("2021-06-10"), Sys.Date()
+    "Antiviral", "A1", as.Date("2021-06-10"), as.Date("2022-04-09"),
+    "Antiviral", "A2", as.Date("2021-06-10"), as.Date("2022-04-09")
   ) %>%
     mutate(Intervention = labelled(
       Intervention,
@@ -180,7 +180,7 @@ transmute_model_cols <- function(dat) {
       agegte60,
       agegte60_c = agegte60 - mean(agegte60),
       country = factor(Country, levels = c("IN", "AU", "NP", "NZ")),
-      inelgc3 = if_else(EL_inelg_c3 == 1 | is.na(EL_inelg_c3), 1, 0),
+      inelgc3 = if_else(EL_inelg_c3 == 0 | is.na(EL_inelg_c3), 0, 1),
       ctry = factor(Country, levels = c("IN", "AU", "NP", "NZ")),
       ctry_num,
       # group sites with < 5 counts
