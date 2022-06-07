@@ -256,6 +256,63 @@ read_deviation_file <- function(fn) {
 }
 
 
+## Manually created files from trial management group ----
+
+
+read_per_protocol_list <- function() {
+  fn <- file.path(ASCOT_DATA_RAW, "Patients Not Per Protocol_31MAY2022.csv")
+  out <- read_csv(fn) %>%
+    mutate(Reason = str_replace(Reason, "Protol", "Protocol")) %>%
+    rename(StudyPatientID = `Patient ID`)
+  return(out)
+}
+
+
+read_protocol_deviations <- function() {
+  fn <- file.path(ASCOT_DATA_RAW, "PDs_31MAY2022.csv")
+  out <- read_csv(
+    fn,
+    col_types = cols(
+      DateofDeviation = col_date(format = "%d/%m/%Y")
+    ))
+  return(out)
+}
+
+
+read_sars <- function() {
+  fn <- file.path(ASCOT_DATA_RAW, "SARs_31MAY2022.csv")
+  out <- read_csv(
+    fn,
+    na = c("", "NA", "n/a", "N/A"),
+    col_types = cols(
+      DateofSAEOnset = col_date(format = "%d/%m/%Y"),
+      DateLoggedOnDatabase = col_date(format = "%d/%m/%Y"),
+      ProtocolTreatmentStartDate = col_date(format = "%d/%m/%Y"),
+      ProtocolTreatmentEndDate = col_date(format = "%d/%m/%Y"),
+      DateOfResolution = col_date(format = "%d/%m/%Y")
+    ))
+  return(out)
+}
+
+
+read_saes <- function() {
+  fn <- file.path(ASCOT_DATA_RAW, "SAEs_31MAY2022.csv")
+  out <- read_csv(
+    fn,
+    na = c("", "NA", "n/a", "N/A"),
+    col_types = cols(
+      DateofSAEOnset = col_date(format = "%d/%m/%Y"),
+      DateLoggedOnDatabase = col_date(format = "%d/%m/%Y"),
+      ProtocolTreatmentStartDate = col_date(format = "%d/%m/%Y"),
+      ProtocolTreatmentEndDate = col_date(format = "%d/%m/%Y"),
+      DateofResolution = col_date(format = "%d/%m/%Y")
+    ))
+  return(out)
+}
+
+
+## Helpers to read all and save derived dataset ----
+
 #' @title read_raw_extracts(fn)
 #' @description
 #' Read the raw data for extract "fn".
