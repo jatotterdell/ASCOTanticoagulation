@@ -349,7 +349,7 @@ Baseline demographics are summarised by intervention in the following table.
 #|   Baseline demographics for participants randomised into
 #|   the anticoagulation domain.
 sdat <- all_data %>%
-    filter(ENR_rec == 1, CAssignment != "C0") %>%
+    filter_acs_itt() %>%
   mutate(CAssignment = factor(CAssignment, labels = intervention_labels()$CAssignment[-1]))
 generate_baseline_demographics_table(sdat, format = "html")
 ```
@@ -375,7 +375,7 @@ Baseline co-morbidities are summarised by anti-coagulation intervention in the f
 #|   Baseline co-morbidities for participants randomised into
 #|   then anticoagulation domain.
 sdat <- all_data %>%
-    filter(ENR_rec == 1, CAssignment != "C0") %>%
+    filter_acs_itt() %>%
   mutate(CAssignment = factor(CAssignment, labels = intervention_labels()$CAssignment[-1]))
 generate_baseline_comorbidities_table(sdat, format = "html")
 ```
@@ -400,7 +400,7 @@ Baseline prognostics are summarised by anti-coagulation intervention in the foll
 #|   Baseline prognostic variables for 
 #|   participants randomised into anticoagulation domain.
 sdat <- all_data %>%
-    filter(ENR_rec == 1, CAssignment != "C0") %>%
+    filter_acs_itt() %>%
   mutate(CAssignment = factor(CAssignment, labels = intervention_labels()$CAssignment[-1]))
 generate_baseline_prognostics_table(sdat, format = "html")
 ```
@@ -422,7 +422,7 @@ save_tex_table(
 #| fig-cap: |
 #|   Distribution of age
 p_age <- all_data %>%
-  filter(ENR_rec == 1, CAssignment != "C0") %>%
+  filter_acs_itt() %>%
   ggplot(., aes(AgeAtEntry)) + 
   geom_histogram(
     breaks = c(18, seq(20, 100, 5)), 
@@ -449,7 +449,7 @@ ggsave(file.path(pth, "age-overall.pdf"), p_age, height = 2, width = 4)
 #|   Distribution of age by anti-coagulation intervention
 #| fig-cap-location: bottom
 p <- all_data %>%
-  filter(ENR_rec == 1) %>%
+  filter_acs_itt() %>%
   ggplot(., aes(AgeAtEntry)) + 
   facet_wrap( ~ CAssignment, scales = "free_y", ncol = 2) +
   geom_histogram(
@@ -471,7 +471,8 @@ p
 #| fig-cap: |
 #|   Distribution of weight
 p <- all_data %>%
-  filter(ENR_rec == 1, !is.na(BAS_WeightMeasurement)) %>%
+  filter_acs_itt() %>%
+  filter(!is.na(BAS_WeightMeasurement)) %>%
   # 2 with weight reported as 0, make NA
   mutate(BAS_Weight = if_else(BAS_Weight == 0, NA_real_, BAS_Weight)) %>%
   ggplot(., aes(BAS_Weight)) +
@@ -488,7 +489,7 @@ p
 #|   symptom onset, and first positive test.
 #| echo: false
 tsfs_dat <- all_data %>%
-  filter(ENR_rec == 1) %>%
+  filter_acs_itt() %>%
   transmute(
     CAssignment,
     RandDate,
@@ -531,7 +532,7 @@ tsfs_dat %>%
 
 ```{r}
 all_data %>%
-  filter(ENR_rec == 1) %>%
+  filter_acs_itt() %>%
   dplyr::count(
     BAS_DDimerTestPerformed,
     BAS_DDimerOutOfRange, 
@@ -540,7 +541,7 @@ all_data %>%
 
 ```{r}
 all_data %>% 
-  filter(ENR_rec == 1) %>%
+  filter_acs_itt() %>%
   ggplot(., aes(BAS_DDimerEntered, BAS_DDimerResult)) +
   facet_wrap( ~ BAS_DDimerUnits, scales = "free_x") +
   geom_point()
@@ -548,7 +549,7 @@ all_data %>%
 
 ```{r}
 all_data %>% 
-  filter(ENR_rec == 1) %>%
+  filter_acs_itt() %>%
   ggplot(., aes(BAS_DDimerResult)) +
   geom_histogram() +
   scale_x_log10()
@@ -620,7 +621,7 @@ p1 / p2
 #|   Drugs received during hospital stay for participants randomised into
 #|   the anticoagulation domain.
 sdat <- all_data %>%
-    filter(ENR_rec == 1, CAssignment != "C0") %>%
+    filter_acs_itt() %>%
   mutate(CAssignment = factor(CAssignment, labels = intervention_labels()$CAssignment[-1]))
 generate_discharge_drugs_table(sdat, format = "html")
 ```
