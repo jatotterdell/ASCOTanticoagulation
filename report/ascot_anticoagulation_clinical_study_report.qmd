@@ -27,6 +27,17 @@ execute:
 
 # Synopsis
 
+# Introduction
+
+## Purpose
+
+The trial steering committee (TSC) closed randomisation to the anticoagulation domain on xx xxx 2022. The blinded statistical analysis workin group prepared a statistical analysis plan (SAP) for reporting the results of the anticoagulation domain. The unblinded team of statisticians undertook these analysis using the relevant records as extracted from the database on 2022-06-06.
+
+This report summarises the data and results for the anticoagulation domain. The report restricts these summaries and analyses to the interventions available in the anticoagulation domain and does not report on the interventions in the antiviral domain.
+
+## Trial Status
+
+
 # Results
 
 ## Study Population
@@ -37,7 +48,7 @@ At the time of database lock for the anticoagulation domain, 1,599 participants 
 
 ### Disposition
 
-Of the 1,574 participants randomised to the anticoagulation domain, 18 withdrew consent for follow-up leaving 1,556 participants continuing to study day 28.
+Of the 1,574 participants randomised to the anticoagulation domain, 18 withdrew consent for follow-up leaving 1,556 participants continuing to study day 28. The analyses and summaries included in this report exclude data on participants who withdrew consent for follow-up.
 
 Platform and domain specific flow diagrams are included in @fig-platform-flow and @fig-anticoagulation-flow respectively.
 
@@ -194,6 +205,10 @@ writeLines(tab[-which(grepl("caption", tab))])
 ### Adherence
 
 \clearpage
+
+## Analyses - General
+
+Bayesian models were computed using Stan via `cmdstanr` (versions) in R (versions). For each model, 8 chains were used with a burn in of 500 and sampling of 2500 iterations per chain. Convergence diagnostics were assessed for each model. If an issue was identified (e.g. divergent transitions) then the default sampling parameters may have been adjusted (e.g. increasing target acceptance rate or increasing maximum tree depth). If any convergence issues remained they will be reported along with the model results. If the model was amended in any way to satisfy convergence criteria (e.g. aggregation of groups) then this will be reported in the relevant section. Sampling was run using a different (randomly selected) random seed for each model, and these were recorded for replication.
 
 ## Primary Outcome
 
