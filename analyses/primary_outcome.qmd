@@ -1335,14 +1335,14 @@ save_tex_table(
 
 ```{r}
 #| echo: false
-do.call(cbind, res$fit$diagnostic_summary())
+do.call(cbind, mfit$diagnostic_summary())
 ```
 :::
 
 ```{r}
 #| label: primary-summary
 #| code-summary: Summaries
-res$fit$summary(c("beta", "beta_region"))
+mfit$summary(c("beta", "beta_region"))
 ```
 
 ```{r}
@@ -1354,7 +1354,7 @@ res$fit$summary(c("beta", "beta_region"))
 #| fig-width: 10
 #| code-summary: Trace plots site terms
 #| column: page
-mcmc_trace(res$fit$draws(
+mcmc_trace(mfit$draws(
   c("epsilon_site", "tau_site"), 
   format = "matrix"))
 ```
@@ -1368,7 +1368,7 @@ mcmc_trace(res$fit$draws(
 #| fig-width: 10
 #| code-summary: Trace plots epoch terms
 #| column: page
-mcmc_trace(res$fit$draws(
+mcmc_trace(mfit$draws(
   c("epsilon_epoch", "tau_epoch"), 
   format = "matrix"))
 ```
@@ -1381,7 +1381,7 @@ mcmc_trace(res$fit$draws(
 tibble(
   Contrast = fct_inorder(
     c("C2 v C1", "C3 v C1", "C4 v C1", "C2 vs C4")), 
-  RV = c(res$drws$OR, res$drws$OR[1] / res$drws$OR[3])) %>% 
+  RV = c(mdrws$OR[1:3], mdrws$OR[1] / mdrws$OR[3])) %>% 
   ggplot(., aes(y = Contrast, xdist = RV)) + 
   stat_halfeye(
     aes(fill = 
@@ -1409,11 +1409,11 @@ tibble(
 #| tbl-cap: Posterior summaries
 tibble(
     Parameter = c("OR[C2]", "OR[C3]", "OR[C4]"),
-    `Pr(OR < 1)` = Pr(modrv$OR < 1),
-    Median = median(modrv$OR),
-    Mean = E(modrv$OR),
+    `Pr(OR < 1)` = Pr(mdrws$OR[1:3] < 1),
+    Median = median(mdrws$OR[1:3]),
+    Mean = E(mdrws$OR[1:3]),
     `95% CrI` = apply(
-      quantile(modrv$OR, c(0.025, 0.975)), 2, 
+      quantile(mdrws$OR[1:3], c(0.025, 0.975)), 2, 
       function(x) sprintf("(%.2f, %.2f)", x[1], x[2]))
   ) %>%
   kable(digits = 2, align = "lrrrr") %>%
@@ -1424,7 +1424,7 @@ tibble(
 
 ```{r}
 #| eval: false
-y_ppc <- res$drws$y_ppc
+y_ppc <- mdrws$y_ppc
 ppc_dat <- bind_cols(acs_itt_nona_dat, tibble(y_ppc = y_ppc)) %>%
   select(
     StudyPatientID,
@@ -1638,7 +1638,6 @@ odds_ratio_summary_table(mod_rvs$OR)
 
 ```{r}
 #| label: sample-primary-fas-itt-model
-#| eval: false
 mdat <- make_model_data_primary(fas_itt_nona_dat)
 snk <- capture.output(
   mfit <- primary_mod$sample(
@@ -1703,13 +1702,16 @@ save_tex_table(
   "outcomes/primary/primary-model-fas-itt-summary-table")
 ```
 
+## Sens: Concurrent Randomisation
+
+
+
 ## Sens:  Worst-Case
 
 Under this scenario, all participants with unknown primary outcome status were were to assumed to have met the primary outcome.
 
 ```{r}
 #| label: sample-primary-acs-itt-wc-model
-#| eval: false
 mdat <- make_model_data_primary(acs_itt_wc_dat)
 snk <- capture.output(
   mfit <- primary_mod$sample(
@@ -1770,7 +1772,6 @@ Under this scenario, all participants with unknown primary outcome status were w
 
 ```{r}
 #| label: sample-primary-acs-itt-bc-model
-#| eval: false
 mdat <- make_model_data_primary(acs_itt_bc_dat)
 snk <- capture.output(
   mfit <- primary_mod$sample(
@@ -1824,3 +1825,22 @@ plot_or_densities(mdrws$OR[1:8])
 #| echo: false
 odds_ratio_summary_table(mdrws$OR[1:8])
 ```
+
+## Sens: Remove site and epoch effects
+
+
+
+## Sens: Account for timing of adaptations
+
+In light of the fact that response-adaptive randomisation was never activated in the anticoagulation domain, the only adaptations were those which corresponded with the cessation and introduction of interventions. Therefore, an ad-hoc sensitivity analyses was undertaken where, rather than adjust for calendar time in 4 week epochs, a fixed term for each of the 4 recruitment periods:
+
+- trial start to cessation of C3
+- cessation of C3 to introduction of antiviral
+- introduction of antiviral to introduction of therapeutic
+- introduction of therapeutic to closure of anticoagulation domain.
+
+In this analysis, the 4 periods of recruitment are included as a fixed effect in the model.
+
+# Per-Protocol Analysis
+
+In the per-protocol analysis, participants who did not satisfy the intervention criteria (as determined by blinded review) are excluded from the analysis set.
