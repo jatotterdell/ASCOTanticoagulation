@@ -57,7 +57,7 @@ read_eligibility_file <- function(fn) {
     rename(EL_OralTherapeuticAnticoagAgents = EL_OralTherapeuticAnticoagAgents...38) %>%
     select(-EL_OralTherapeuticAnticoagAgents...50) %>%
     # As requested, exclude ineligible participant
-    filter(StudyPatientID != "BLK00001")
+    filter(StudyPatientID != "BLK00001" | is.na(StudyPatientID))
   return(eligibility)
 }
 
