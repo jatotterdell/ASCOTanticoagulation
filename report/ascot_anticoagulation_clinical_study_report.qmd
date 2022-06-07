@@ -31,11 +31,13 @@ execute:
 
 ## Study Population
 
-At the time of database lock for the anticoagulation domain, ... participants had been enrolled onto the study platform and ... participants had been randomised to the anticoagulation domain. The first patient was randomised on ... and the last patient enrolled into the anticoagulation domain was randomised on... .
+### Summary
 
-Of the xxx participanta randomised to the anticoagulation domain, xxx withdrew consent for follow-up.
+At the time of database lock for the anticoagulation domain, 1,599 participants had been enrolled onto the study platform and 1,574 participants had been randomised to the anticoagulation domain. The first participant was randomised on 2021-02-08 and the last participant enrolled into the anticoagulation domain was randomised on 2022-03-29.
 
 ### Disposition
+
+Of the 1,574 participants randomised to the anticoagulation domain, 18 withdrew consent for follow-up leaving 1,556 participants continuing to study day 28.
 
 Platform and domain specific flow diagrams are included in @fig-platform-flow and @fig-anticoagulation-flow respectively.
 
@@ -43,7 +45,7 @@ Platform and domain specific flow diagrams are included in @fig-platform-flow an
 
 ![Anticoagulation domain flowchart.](domain_anticoagulation_flowchart.tex){#fig-anticoagulation-flow}
 
-@fig-enrolments presents overall platform enrolments by calendar time with timing of intervention availabilities and interim analyses. Enrolments by country are presented in @fig-enrolments-country.
+@fig-enrolments presents overall platform enrolments by calendar time with timing of intervention availabilities and interim analyses. Enrolments by country are presented in @fig-enrolments-country. Due to the changes to the trial which occurred independently of the within trial results, the initial allocation ratios were not changed during recruitment to the anticoagulation domain. Therefore, the only trial adaptations which occurred were the cessation of the standard dose plus aspirin intervention in the anticoagulation domain, the opening of the antiviral domain, and the introduction of the therapeutic dose intervention into the anticoagulation domain. Despite this, the timing of interim analyses are indicated on the Figures.
 
 ```{r}
 #| label: fig-enrolments
@@ -65,10 +67,53 @@ knitr::include_graphics(
 )
 ```
 
+```{r}
+#| label: fig-enrolments-india-sites
+#| fig-cap: |
+#|   Enrolment to sites in India. 
+#|   Vertical dashed lines indicate timing of interim analyses.
+knitr::include_graphics(
+  "../outputs/figures/baseline/enrolment-india-sites.pdf"
+)
+```
+
+```{r}
+#| label: fig-enrolments-australia-sites
+#| fig-cap: |
+#|   Enrolment to sites in Australia. 
+#|   Vertical dashed lines indicate timing of interim analyses.
+knitr::include_graphics(
+  "../outputs/figures/baseline/enrolment-australia-sites.pdf"
+)
+```
+
+```{r}
+#| label: fig-enrolments-nepal-nz-sites
+#| fig-cap: |
+#|   Enrolment to sites in Nepal and New Zealand 
+#|   Vertical dashed lines indicate timing of interim analyses.
+knitr::include_graphics(
+  "../outputs/figures/baseline/enrolment-nepalnz-sites.pdf"
+)
+```
+
+\clearpage
+
+### Intervention Allocations
+
+\clearpage
 
 ### Deviations
 
 {{< pagebreak >}}
+
+### Analysis Sets
+
+The primary analysis population includes all participants who were randomised to the anticoagulation domain. For the intention-to-treat (ITT) analysis, all participants randomised to the anticoagulation domain were analysed according to their aside regimen irrespective of deviations or non-adherence.
+
+Secondary analyses expand the analysis set to include all participants randomised to the platform including those who were not randomised to the anticoagulation domain for the purpose of additional covariate information.
+
+Per-protocol (PP) analyses restrict both of analysis sets to only those participants who sufficiently adhered to the protocol as determined by blinded review. Participants who were not PP had their outcomes set to missing.
 
 ### Baseline Characteristics
 
@@ -165,7 +210,7 @@ The proportion of participants who met the primary outcome, and rates of missing
 #| tbl-cap: |
 #|   Summary of primary composite outcome by treatment group.
 #| results: asis
-tab <- readLines(file.path("..", "outputs", "tables", "primary", "anticoagulation-summary.tex"))
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "anticoagulation-summary.tex"))
 writeLines(tab)
 ```
 
@@ -176,15 +221,46 @@ A breakdown of the composite, including missingness by component is reported in 
 #| tbl-cap: |
 #|   Breakdown of primary composite outcome by treatment group.
 #| results: asis
-tab <- readLines(file.path("..", "outputs", "tables", "primary", "composite-breakdown.tex"))
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "composite-breakdown.tex"))
 writeLines(tab)
 ```
 
 ### Primary Analysis
 
-The primary analysis was based on the ACS-ITT set.
+The primary model was a logistic regression model adjusting for anticoagulation treatment, antiviral treatment, age ($\geq 60$), and country, with random effects for site (nested within country) and epoch (calendar time 4 week intervals). The two most recent epochs were combined due to small numbers, and the two earliest epochs were combined for the same reason.
 
-{{< pagebreak >}}
+#### Full Model ACS-ITT set
+
+The primary analysis was based on the ACS-ITT set using the full model as specified in the statistical appendix to the core protocol.
+
+```{r}
+#| label: tbl-primary-model-acs-itt-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios) 
+#|   for primary model fit to the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-summary-table.tex"))
+writeLines(tab)
+```
+
+#### Sensitivity
+
+##### FAS-ITT
+
+The primary model was fit to the expanded FAS-ITT set. The model treatment effects were similar to those obtained under the ACS-ITT set.
+
+```{r}
+#| label: tbl-primary-model-fas-itt-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios) 
+#|   for primary model fit to the FAS-ITT set.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-fas-itt-summary-table.tex"))
+writeLines(tab)
+```
+
+
+\clearpage
 
 ## Secondary Outcomes
 
@@ -192,11 +268,13 @@ The primary analysis was based on the ACS-ITT set.
 
 ### All-cause mortality
 
+All-cause mortality to day 28 was modelled using the same method as for the primary outcome.
+
 ### WHO outcome scale
 
 ### Days free of hospitalisation
 
-{{< pagebreak >}}
+\clearpage
 
 ## Domain Specific Outcomes
 
