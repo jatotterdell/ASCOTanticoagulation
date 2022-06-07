@@ -208,7 +208,7 @@ writeLines(tab[-which(grepl("caption", tab))])
 
 ## Analyses - General
 
-Bayesian models were computed using Stan via `cmdstanr` (versions) in R (versions). For each model, 8 chains were used with a burn in of 500 and sampling of 2500 iterations per chain. Convergence diagnostics were assessed for each model. If an issue was identified (e.g. divergent transitions) then the default sampling parameters may have been adjusted (e.g. increasing target acceptance rate or increasing maximum tree depth). If any convergence issues remained they will be reported along with the model results. If the model was amended in any way to satisfy convergence criteria (e.g. aggregation of groups) then this will be reported in the relevant section. Sampling was run using a different (randomly selected) random seed for each model, and these were recorded for replication.
+Bayesian models were computed using Stan via `cmdstanr` (0.5.2 and cmdstan version 2.29.2) in R (4.2.0). For each model, 8 chains were used with a burn in of 500 and sampling of 2500 iterations per chain. Convergence diagnostics were assessed for each model. If an issue was identified (e.g. divergent transitions) then the default sampling parameters may have been adjusted (e.g. increasing target acceptance rate or increasing maximum tree depth). If any convergence issues remained they will be reported along with the model results. If the model was amended in any way to satisfy convergence criteria (e.g. aggregation of groups) then this will be reported in the relevant section. Sampling was run using a different (randomly selected) random seed for each model, and these were recorded for replication.
 
 ## Primary Outcome
 
