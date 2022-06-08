@@ -67,6 +67,7 @@ acs_itt_bc_dat <- acs_itt_dat %>%
 logistic_mod <- cmdstan_model("stan/logistic_bernoulli.stan")
 noepoch_mod <- cmdstan_model("stan/primary_logistic_model_site.stan")
 primary_mod <- cmdstan_model("stan/primary_logistic_model_site_epoch.stan")
+primary_mod2 <- cmdstan_model("stan/primary_logistic_model_site_epoch2.stan")
 # logistic_subgrp_mod <- cmdstan_model("stan/logistic_subgroup.stan")
 # logistic_subgrp_multi_mod <- cmdstan_model("stan/logistic_subgroup_multi.stan")
 ```
@@ -74,6 +75,41 @@ primary_mod <- cmdstan_model("stan/primary_logistic_model_site_epoch.stan")
 ```{r}
 #| label: model-data-for-acs-itt
 #| code-summary: Setup ACS-ITT datasets and functions
+
+make_stan_data <- function(dat, vars, outcome, beta_sd = c(2.5, rep(1, nXassign), 2.5, 10)) 
+{
+  X <- model.matrix(
+     as.formula(paste("~", paste(vars, collapse = " + "))),
+    data = dat,
+    contrast = list(
+      AAssignment = contr.orthonorm,
+      CAssignment = contr.orthonorm)
+  )
+  
+  nXassign <- sum(grepl("Assignment", colnames(X)))
+
+  y <- dat[[outcome]]
+  N <- dim(X)[1]
+  K <- dim(X)[2]  
+  
+    epoch  <- dat$epoch
+  M_epoch  <- max(dat$epoch)
+    region <- dat[["ctry_num"]]
+  M_region <- max(region)
+    site <- dat[["site_num"]]
+  M_site <- max(site)
+  region_by_site <- region_by_site <- dat %>% 
+    dplyr::count(ctry_num, site_num) %>% 
+    pull(ctry_num)
+  
+  list(N = N, K = K, X = X, y = y,
+       M_region = M_region, region = region,
+       M_site = M_site, site = site,
+       M_epoch = M_epoch, epoch = epoch,
+       region_by_site = region_by_site,
+       beta_sd = beta_sd)
+}
+
 make_model_data_trt_only <- function(dat) {
   X <- model.matrix(
      ~ CAssignment + AAssignment,
@@ -494,8 +530,32 @@ tab <- all_dat %>%
   dplyr::count(CAssignment, `Composite outcomes`) %>%
   mutate(`Composite outcomes` = factor(`Composite outcomes`, levels = c(0:7, 99), labels = levs)) %>%
   spread(CAssignment, n, fill = 0) %>%
-  mutate(Overall = C1 + C2 + C3 + C4)
+  mutate(Overall = C1 + C2 + C3 + C4) %>%
+  mutate(across(C1:Overall, ~ sprintf("%i (%.0f)", .x, 100 * .x / sum(.x))))
+colnames(tab)[-1] <- tab_head
+colnames(tab)[1] <- "Composite outcomes, n (\\%)"
+kable(
+  tab ,
+  align = "lrrrrr",
+  escape = F) %>%
+  kable_styling(font_size = 11)
 ```
+
+```{r}
+colnames(tab) <- linebreak(colnames(tab), align = "c", linebreaker = "<br>")
+out <- kable(
+  tab,
+  format = "latex",
+  align = "lrrrrr",
+  booktabs = TRUE,
+  linesep = "",
+  escape = F) %>%
+  kable_styling(
+    font_size = 9, 
+    latex_options = "HOLD_position")
+save_tex_table(out, fn = "outcomes/primary/composite-combinations")
+```
+
 
 # Descriptive Analyses
 
@@ -508,10 +568,12 @@ tab <- all_dat %>%
 #|   Relationship (logistic regression linear in age) 
 #|   between age at entry and the primary outcome.
 agedat <- all_dat %>% 
-  filter(ENR_rec == 1, WTH_FU == 0) %>%
+  filter_acs_itt() %>%
   dplyr::count(PO, AgeAtEntry) %>% 
   spread(PO, n, fill = 0) %>% 
-  mutate(p = `1` / (`1` + `0`))
+  mutate(
+    n = `0` + `1` + `<NA>`,
+    p = `1` / (`1` + `0`))
 agemod <- glm(
   cbind(`1`, `0`) ~ AgeAtEntry, 
   data = agedat, 
@@ -520,11 +582,20 @@ agedat <- agedat %>%
   mutate(
     ypred = predict(agemod, newdata = agedat, type = "response")
   )
-p <- ggplot(agedat, aes(AgeAtEntry, p)) +
+p1 <- ggplot(agedat, aes(AgeAtEntry, n)) +
+  geom_col() +
+  labs(y = "Number of\nenrolments",
+       x = "Age at entry")
+p2 <- ggplot(agedat, aes(AgeAtEntry, p)) +
     geom_point() +
     geom_line(aes(y = ypred)) +
-    labs(y = "Proportion with outcome", x = "Age at entry")
-ggplotly(p)
+    labs(y = "Proportion\nwith outcome", x = "Age at entry")
+p <- p1 | p2
+```
+
+```{r}
+path <- file.path("outputs", "figures", "outcomes", "primary")
+ggsave(file.path(path, "outcome-age.pdf"), p, height = 2, width = 6)
 ```
 
 ```{r}
@@ -533,7 +604,7 @@ ggplotly(p)
 #| tbl-cap: |
 #|   Relationship between age >= 60 and the primary outcome.
 all_dat %>%
-  filter(ENR_rec == 1, WTH_FU == 0) %>%
+  filter_acs_itt() %>%
   dplyr::count(`Age 60+` = agegte60, PO) %>%
   group_by(`Age 60+`) %>%
   spread(PO, n, fill = 0) %>%
@@ -551,17 +622,33 @@ all_dat %>%
 #| label: tbl-country-po
 #| code-summary: Relationship country to outcome
 #| tbl-cap: Primary outcome by country.
-all_dat %>%
-  filter(ENR_rec == 1, WTH_FU == 0) %>%
+tdat <- all_dat %>%
+  filter_acs_itt() %>%
   dplyr::count(Country = PT_CountryName, PO) %>%
   group_by(Country) %>%
   spread(PO, n, fill = 0) %>%
   mutate(
+    n = `1` + `0` + `<NA>`,
     p_1 = `1` / (`1` + `0`),
     p_miss = `<NA>` / (`1` + `0` + `<NA>`)
-  ) %>%
-  kable(digits = 2) %>%
-  kable_styling(bootstrap_options = "striped")
+  )
+p1 <- ggplot(tdat, aes(Country, n)) +
+  geom_col() +
+    labs(
+      y = "Number\nof enrolments", 
+      x = "Country of enrolment")
+p2 <- ggplot(tdat, aes(Country, p_1)) +
+  geom_point() +
+    labs(
+      y = "Proportion meeting\nprimary outcome", 
+      x = "Country of enrolment")  +
+  ylim(0, NA)
+p <- p1 | p2
+```
+
+```{r}
+path <- file.path("outputs", "figures", "outcomes", "primary")
+ggsave(file.path(path, "outcome-country.pdf"), p, height = 2, width = 6)
 ```
 
 ## Site
@@ -570,31 +657,45 @@ all_dat %>%
 #| label: tbl-site-po
 #| code-summary: Relationship site to outcome
 #| tbl-cap: Primary outcome by site within country.
-tabdat <- all_dat %>%
-  filter(ENR_rec == 1, WTH_FU == 0) %>%
+tdat <- all_dat %>%
+  filter_acs_itt() %>%
   dplyr::count(
-    Country = PT_CountryName, 
-    Site = PT_LocationName, 
+    Country_lab = Country,
+    Site_lab = fct_infreq(Location),
+    Country = factor(PT_CountryName, levels = c("India", "Australia", "Nepal", "New Zealand")),
+    Site = PT_LocationName,
     PO) %>%
   group_by(Country, Site) %>%
   spread(PO, n, fill = 0) %>%
   mutate(
+    n = `1` + `0` + `<NA>`,
     p_1 = `1` / (`1` + `0`),
     p_miss = `<NA>` / (`1` + `0` + `<NA>`)
   ) %>%
   ungroup()
-n_country <- tabdat %>% 
-  dplyr::count(Country) %>%
-  pull(n)
-cn <- cumsum(n_country)
-tabdat %>%
-  select(-Country) %>%
-  kable(digits = 2) %>%
-  kable_styling(bootstrap_options = "striped") %>%
-  pack_rows("Australia", 1, cn[1]) %>%
-  pack_rows("India", cn[1] + 1, cn[2]) %>%
-  pack_rows("Nepal", cn[2] + 1, cn[3]) %>%
-  pack_rows("New Zealand", cn[3] + 1, cn[4])
+
+p1 <- ggplot(tdat, aes(Site_lab, n)) +
+  facet_grid( ~ Country, scales = "free_x", space = "free_x") +
+  geom_col() +
+    labs(
+      y = "Number of\nenrolments", 
+      x = "") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.border = element_rect(fill = NA))
+p2 <- ggplot(tdat, aes(Site_lab, p_1)) +
+  facet_grid( ~ Country, scales = "free_x", space = "free_x") +
+  geom_point() +
+    labs(
+      y = "Proportion meeting\nprimary outcome", 
+      x = "Site of enrolment") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.border = element_rect(fill = NA))
+p <- p1 / p2
+```
+
+```{r}
+path <- file.path("outputs", "figures", "outcomes", "primary")
+ggsave(file.path(path, "outcome-country-site.pdf"), p, height = 4, width = 6.25)
 ```
 
 ## Calendar Time
@@ -605,20 +706,35 @@ tabdat %>%
 #| fig-cap: |
 #|   Relationship between calendar date and the primary outcome.
 caldat <- all_dat %>% 
-  filter(ENR_rec == 1, WTH_FU == 0) %>%
+  filter_acs_itt() %>%
   dplyr::count(PO, yr = year(RandDate), mth = month(RandDate)) %>% 
   spread(PO, n, fill = 0) %>% 
-  mutate(p = `1` / (`1` + `0`))
-p <- ggplot(caldat, aes(mth, p)) +
-  facet_wrap( ~ yr, drop = T) +
+  mutate(p = `1` / (`1` + `0`),
+         n = `1` + `0` + `<NA>`)
+p1 <- ggplot(caldat, aes(mth, p)) +
+  facet_grid( ~ yr, drop = T, scales = "free_x", space = "free") +
     geom_point() +
     labs(
-      y = "Proportion with outcome", 
-      x = "Calendar date (year and month)") +
+      y = "Proportion meeting\nprimary outcome", 
+      x = "Calendar date (month of year)") +
   scale_x_continuous(breaks = 1:12) +
   ylim(0, 0.25)
-ggplotly(p)
+p2 <- ggplot(caldat, aes(mth, n)) +
+  facet_grid( ~ yr, drop = T, scales = "free_x", space = "free") +
+    geom_col() +
+    labs(
+      y = "Number of\nenrolments", 
+      x = "Calendar date (month of year)") +
+  scale_x_continuous(breaks = 1:12)
+p <- p2 | p1
+p
 ```
+
+```{r}
+path <- file.path("outputs", "figures", "outcomes", "primary")
+ggsave(file.path(path, "outcome-calendar-time.pdf"), p, height = 2, width = 6)
+```
+
 
 ## Days since symptom onset
 
@@ -812,7 +928,7 @@ save_tex_table(make_po_table(
 #| code-summary: Relationship anti-coagulation to outcome by country
 #| tbl-cap: Primary outcome by anti-coagulation intervention by country.
 all_dat %>%
-  filter(ENR_rec == 1, WTH_FU == 0) %>%
+  filter_acs_itt() %>%
   dplyr::count(
     Country = PT_CountryName, 
     `Anti-coagulation` = CAssignment, 
@@ -828,10 +944,10 @@ all_dat %>%
   select(-Country) %>%
   kable(digits = 2) %>%
   kable_styling(bootstrap_options = "striped") %>%
-  pack_rows("Australia", 1, 5) %>%
-  pack_rows("India", 6, 10) %>%
-  pack_rows("Nepal", 11, 15) %>%
-  pack_rows("New Zealand", 16, 20)
+  pack_rows("Australia", 1, 4) %>%
+  pack_rows("India", 5, 8) %>%
+  pack_rows("Nepal", 9, 12) %>%
+  pack_rows("New Zealand", 13, 16)
 ```
 
 ```{r}
@@ -1058,38 +1174,36 @@ ggplot(dsfs_or, aes(xdist = value, y = grp)) +
 ##### Age group
 
 ```{r}
-#| eval: false
-# Fit each region subgroup independently
-age_vals <- unique(acs_itt_nona_dat$agegte60)
-age_or <- vector("list", length(dsfs_vals))
-names(age_or) <- c("Age 60+", "Age < 60")
-for(i in 1:length(age_vals)) {
-  mod_dat <- make_model_data_trt_only(
-    acs_itt_nona_dat %>% filter(agegte60 == age_vals[i]))
-  seed <- 713509
-  snk <- capture.output(
-    submod <- logistic_mod$sample(
-      data = mod_dat,
-      seed = seed,
-      refresh = 0,
-      iter_sampling = 2500,
-      chains = 8,
-      parallel_chains = 8
-  ))
-  mod_rvs <- as_draws_rvars(submod$draws(c("beta")))
-  mod_rvs <- add_treatment_rvs(mod_rvs, mod_dat)
-  age_or[[i]] <- mod_rvs$OR
-}
-age_or <- as_tibble(age_or) %>% 
-  mutate(Contrast = names(age_or[[1]])) %>%
-  pivot_longer(1:2, "grp") %>%
-  mutate(Contrast = fct_inorder(Contrast))
-ggplot(age_or, aes(xdist = value, y = grp)) +
-  facet_grid(Contrast ~ .) +
-  stat_pointinterval() +
-  geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_log10() +
-  labs(y = "Age group")
+mdat <- make_stan_data(
+  acs_itt_nona_dat, 
+  c("CAssignment", "AAssignment", "agegte60", "inelgc3", "CAssignment:agegte60"),
+  "PO",
+  c(2.5, rep(1, 5), 2.5, 10, rep(1, 3)))
+snk <- capture.output(
+  mfit <- logistic_mod$sample(
+    data = mdat,
+    seed = 71251,
+    refresh = 0,
+    iter_sampling = 2500,
+    chains = 8,
+    parallel_chains = 8,
+    adapt_delta = 0.98
+))
+mdrws <- as_draws_rvars(mfit$draws(c("beta")))
+mdrws <- add_treatment_rvs(mdrws, mdat)
+```
+
+```{r}
+epoch_map <- acs_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)
+site_map <- acs_itt_nona_dat %>% dplyr::count(site_num, site)
+Ca <- cbind(1, attr(mdat$X, "contrasts")$AAssignment)
+Cc <- cbind(1, attr(mdat$X, "contrasts")$CAssignment)
+nC <- ncol(Cc)
+Ct <-  cbind(1, contr.treatment(nC))
+# Effect for age < 60
+mdrws$beta_trt1 <- sweep(Cc, 2, Cc[1, ]) %**% mdrws$beta[1:4]
+# Effect for age >= 60
+mdrws$beta_trt2 <- sweep(cbind(Cc, Cc[, -1]), 2, c(Cc[1, ], Cc[1, -1])) %**% mdrws$beta[c(1:4, 9:11)]
 ```
 
 ### Treatment plus covariates (no site or epoch)
@@ -1329,6 +1443,43 @@ save_tex_table(
   "outcomes/primary/primary-model-acs-itt-summary-table")
 ```
 
+```{r}
+#| label: odds-ratio-summary-primary-model-epoch-site-terms
+ors <- mdrws$OR[9:length(mdrws$OR)]
+orsdat <- tibble(
+  Group = "Epoch",
+  Parameter = fct_inorder(names(ors)[1:12]),
+  posterior = ors[1:12]
+)
+p_epoch <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
+  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
+  geom_vline(xintercept = 1, linetype = 2) +
+  scale_x_log10("Odds ratio (log scale)") +
+  labs(y = "Epoch")
+
+ors <- mdrws$OR[9:length(mdrws$OR)]
+orsdat <- tibble(
+  Group = rep("Site", 39 - 12),
+  Country = factor(mdat$region_by_site, labels = c("India", "Australia", "Nepal", "New\nZealand")),
+  Parameter = fct_inorder(names(ors[-(1:12)])),
+  posterior = ors[-(1:12)]
+)
+p_site <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
+  facet_grid(Country ~ ., scales = "free_y", space = "free_y") +
+  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
+  geom_vline(xintercept = 1, linetype = 2) +
+  scale_x_log10("Odds ratio (log scale)") +
+  labs(y = "Site") +
+  theme(panel.border = element_rect(fill = NA))
+
+p <- p_epoch | p_site
+p
+```
+
+```{r}
+pth <- file.path("outputs", "figures", "outcomes", "primary", "primary-model-epoch-site-terms.pdf")
+ggsave(pth, p, width = 6, height = 4.5)
+```
 
 ::: column-margin
 **Diagnostics**
@@ -1492,6 +1643,107 @@ p7 <- plot_grp_ppc(ppc_site %>% filter(Country == "NZ"))
 
 p1 | p2
 ```
+
+#### Subgroups
+
+##### Country only
+
+```{r}
+mdat <- make_stan_data(
+  acs_itt_nona_dat, 
+  c("CAssignment", "AAssignment", "agegte60", "inelgc3", "country", "CAssignment:country"),
+  "PO",
+  c(2.5, rep(1, 5), 2.5, 10, rep(2.5, 3), rep(1, 9)))
+snk <- capture.output(
+  mfit <- primary_mod2$sample(
+    data = mdat,
+    seed = 12573,
+    refresh = 0,
+    iter_sampling = 2500,
+    chains = 8,
+    parallel_chains = 8,
+    adapt_delta = 0.98
+))
+mdrws <- as_draws_rvars(mfit$draws(c(
+  "beta", "gamma_site", "tau_site", 
+  "gamma_epoch", "tau_epoch", "y_ppc")))
+names(mdrws$beta) <- colnames(mdat$X)
+mdrws <- add_treatment_rvs(mdrws, mdat)
+```
+
+```{r}
+epoch_map <- acs_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)
+site_map <- acs_itt_nona_dat %>% dplyr::count(site_num, site)
+Ca <- cbind(1, attr(mdat$X, "contrasts")$AAssignment)
+Cc <- cbind(1, attr(mdat$X, "contrasts")$CAssignment)
+nC <- ncol(Cc)
+Ct <-  cbind(1, contr.treatment(nC))
+# Effect for India
+mdrws$beta_trt1 <- as.vector(sweep(Cc, 2, Cc[1, ]) %**% mdrws$beta[1:4])[-1]
+# Effect for Australia
+mdrws$beta_trt2 <- as.vector(sweep(cbind(Cc, Cc[, -1]), 2, c(Cc[1, ], Cc[1, -1])) %**% 
+  mdrws$beta[c(1:4, grep(":countryAU$", names(mdrws$beta)))])[-1]
+# Effect for Nepal
+mdrws$beta_trt3 <- as.vector(sweep(cbind(Cc, Cc[, -1]), 2, c(Cc[1, ], Cc[1, -1])) %**% 
+  mdrws$beta[c(1:4, grep(":countryNP$", names(mdrws$beta)))])[-1]
+# Effect for New Zealand
+mdrws$beta_trt4 <- as.vector(sweep(cbind(Cc, Cc[, -1]), 2, c(Cc[1, ], Cc[1, -1])) %**% 
+  mdrws$beta[c(1:4, grep(":countryNZ$", names(mdrws$beta)))])[-1]
+
+subgrp_effects <- expand_grid(
+  Country = c("India", "Australia", "Nepal", "New Zealand"),
+  Intervention = c("Intermediate", "Standard plus aspirin", "Therapeutic"))
+subgrp_effects$posterior <- exp(c(mdrws$beta_trt1, mdrws$beta_trt2, mdrws$beta_trt3, mdrws$beta_trt4))
+```
+
+```{r}
+ggplot(subgrp_effects, aes(xdist = posterior, y = Country)) +
+  facet_grid(Intervention ~ .) +
+  stat_pointinterval() +
+  geom_vline(xintercept = 1, linetype = 2) +
+  scale_x_log10("Odds ratio (log scale)") +
+  theme(panel.border = element_rect(fill = NA))
+```
+
+
+##### Age only
+
+```{r}
+mdat <- make_stan_data(
+  acs_itt_nona_dat, 
+  c("CAssignment", "AAssignment", "agegte60", "inelgc3", "CAssignment:agegte60"),
+  "PO",
+  c(2.5, rep(1, 5), 2.5, 10, rep(1, 3)))
+snk <- capture.output(
+  mfit <- primary_mod$sample(
+    data = mdat,
+    seed = 71251,
+    refresh = 0,
+    iter_sampling = 2500,
+    chains = 8,
+    parallel_chains = 8,
+    adapt_delta = 0.98
+))
+mdrws <- as_draws_rvars(mfit$draws(c(
+  "beta", "beta_region", 
+  "gamma_site", "tau_site", 
+  "gamma_epoch", "tau_epoch", "y_ppc")))
+mdrws <- add_treatment_rvs(mdrws, mdat)
+```
+
+```{r}
+epoch_map <- acs_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)
+site_map <- acs_itt_nona_dat %>% dplyr::count(site_num, site)
+Ca <- cbind(1, attr(mdat$X, "contrasts")$AAssignment)
+Cc <- cbind(1, attr(mdat$X, "contrasts")$CAssignment)
+nC <- ncol(Cc)
+Ct <-  cbind(1, contr.treatment(nC))
+# Effect for age < 60
+mdrws$beta_trt1 <- sweep(Cc, 2, Cc[1, ]) %**% mdrws$beta[1:4]
+# Effect for age >= 60
+mdrws$beta_trt2 <- sweep(cbind(Cc, Cc[, -1]), 2, c(Cc[1, ], Cc[1, -1])) %**% mdrws$beta[c(1:4, 9:11)]
+```
+
 
 # Sensitivity Analyses
 
