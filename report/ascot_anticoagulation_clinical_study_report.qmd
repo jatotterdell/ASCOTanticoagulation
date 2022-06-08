@@ -10,6 +10,7 @@ format:
   pdf:
     documentclass: scrreprt
     toc: true
+    toc-depth: 4
     number-sections: true
     colorlinks: true
     lof: true
@@ -48,7 +49,7 @@ At the time of database lock for the anticoagulation domain, 1,599 participants 
 
 ### Disposition
 
-Of the 1,574 participants randomised to the anticoagulation domain, 18 withdrew consent for follow-up leaving 1,556 participants continuing to study day 28. The analyses and summaries included in this report exclude data on participants who withdrew consent for follow-up.
+Of the 1,574 participants randomised to the anticoagulation domain, 18 withdrew consent for follow-up leaving 1,556 participants continuing to study day 28. The analyses and summaries included in this report exclude only data on participants who withdrew consent for follow-up.
 
 Platform and domain specific flow diagrams are included in @fig-platform-flow and @fig-anticoagulation-flow respectively.
 
@@ -128,6 +129,8 @@ Per-protocol (PP) analyses restrict both of analysis sets to only those particip
 
 ### Baseline Characteristics
 
+As previously mentioned, the following summaries exclude participants who withdrew consent for follow-up.
+
 #### Demographics
 
 Baseline demographics stratified by anticoagulation interventions are reported in @tbl-baseline-demographics
@@ -187,9 +190,11 @@ knitr::include_graphics(
 
 \clearpage
 
-### Drugs Received During Hospital Stay
+### Discharge Summaries
 
-There were 19 participants without a discharge record (due to withdrawal of consent for follow-up). For the continuing participants, the other medications received during their hospital stay are reported in @tbl-discharge-drugs.
+#### Drugs Received During Hospital Stay
+
+There were 18 participants without a discharge record (due to withdrawal of consent for follow-up). For the continuing participants, the other medications received during their hospital stay are reported in @tbl-discharge-drugs.
 
 ```{r}
 #| label: tbl-discharge-drugs
@@ -240,6 +245,21 @@ tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "co
 writeLines(tab)
 ```
 
+```{r}
+#| label: tbl-primary-composite-combinations
+#| tbl-cap: |
+#|   Breakdown of primary composite combinations by treatment group.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "composite-combinations.tex"))
+writeLines(tab)
+```
+
+A summary of the primary outcome by each of the baseline covariates pre-specified to be included in the primary model are presented in the appendix (@sec-app-primary-outcome-model-cov).
+
+
+
+\clearpage
+
 ### Primary Analysis
 
 The primary model was a logistic regression model adjusting for anticoagulation treatment, antiviral treatment, age ($\geq 60$), and country, with random effects for site (nested within country) and epoch (calendar time 4 week intervals). The two most recent epochs were combined due to small numbers, and the two earliest epochs were combined for the same reason.
@@ -258,9 +278,21 @@ tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "pr
 writeLines(tab)
 ```
 
-#### Sensitivity
+```{r}
+#| label: fig-primary-model-acs-itt-site-epoch-parameters
+#| fig-cap: |
+#|   Summary (point - median, block - 0.75 CrI, line - 0.95 CrI) 
+#|   of odds ratio posteriors for epoch and site effects for
+#|   the primary model fit to the ACS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/primary-model-epoch-site-terms.pdf"
+)
+```
 
-##### FAS-ITT
+
+### Sensitivity
+
+#### FAS-ITT
 
 The primary model was fit to the expanded FAS-ITT set. The model treatment effects were similar to those obtained under the ACS-ITT set.
 
@@ -295,4 +327,46 @@ All-cause mortality to day 28 was modelled using the same method as for the prim
 
 ## Safety
 
-# Appendices {.unnumbered}
+# Appendix
+
+## Primary Outcome by Model Covariates (ACS-ITT) {#sec-app-primary-outcome-model-cov}
+
+```{r}
+#| label: fig-primary-outcome-age
+#| fig-cap: |
+#|   Proportion of participants satisfying primary outcome criteria
+#|   by age at randomisation.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/outcome-age.pdf"
+)
+```
+
+```{r}
+#| label: fig-primary-outcome-country
+#| fig-cap: |
+#|   Proportion of participants satisfying primary outcome criteria
+#|   by country of randomisation.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/outcome-country.pdf"
+)
+```
+
+```{r}
+#| label: fig-primary-outcome-country-site
+#| fig-cap: |
+#|   Proportion of participants satisfying primary outcome criteria
+#|   by country and site of randomisation.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/outcome-country-site.pdf"
+)
+```
+
+```{r}
+#| label: fig-primary-outcome-calendar-time
+#| fig-cap: |
+#|   Proportion of participants satisfying primary outcome criteria
+#|   by calendar time (month) of randomisation.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/outcome-calendar-time.pdf"
+)
+```
