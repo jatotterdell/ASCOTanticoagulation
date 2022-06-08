@@ -583,11 +583,13 @@ agedat <- agedat %>%
     ypred = predict(agemod, newdata = agedat, type = "response")
   )
 p1 <- ggplot(agedat, aes(AgeAtEntry, n)) +
-  geom_col() +
-  labs(y = "Number of\nenrolments",
+  geom_col(colour = "grey40", fill = "grey40") +
+  geom_vline(xintercept = 60, linetype = 2) +
+  labs(y = "Number of\nparticipants",
        x = "Age at entry")
 p2 <- ggplot(agedat, aes(AgeAtEntry, p)) +
     geom_point() +
+    geom_vline(xintercept = 60, linetype = 2) +
     geom_line(aes(y = ypred)) +
     labs(y = "Proportion\nwith outcome", x = "Age at entry")
 p <- p1 | p2
@@ -635,7 +637,7 @@ tdat <- all_dat %>%
 p1 <- ggplot(tdat, aes(Country, n)) +
   geom_col() +
     labs(
-      y = "Number\nof enrolments", 
+      y = "Number of\nparticipants", 
       x = "Country of enrolment")
 p2 <- ggplot(tdat, aes(Country, p_1)) +
   geom_point() +
@@ -678,7 +680,7 @@ p1 <- ggplot(tdat, aes(Site_lab, n)) +
   facet_grid( ~ Country, scales = "free_x", space = "free_x") +
   geom_col() +
     labs(
-      y = "Number of\nenrolments", 
+      y = "Number of\nparticipants", 
       x = "") +
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
         panel.border = element_rect(fill = NA))
@@ -723,7 +725,7 @@ p2 <- ggplot(caldat, aes(mth, n)) +
   facet_grid( ~ yr, drop = T, scales = "free_x", space = "free") +
     geom_col() +
     labs(
-      y = "Number of\nenrolments", 
+      y = "Number of\nparticipants", 
       x = "Calendar date (month of year)") +
   scale_x_continuous(breaks = 1:12)
 p <- p2 | p1
@@ -747,7 +749,8 @@ ggsave(file.path(path, "outcome-calendar-time.pdf"), p, height = 2, width = 6)
 dsfsdat <- fas_itt_dat %>%
   dplyr::count(PO, dsfs) %>% 
   spread(PO, n, fill = 0) %>% 
-  mutate(p = `1` / (`1` + `0`))
+  mutate(n = `1` + `0` + `<NA>`,
+         p = `1` / (`1` + `0`))
 dsfsmod <- glm(
   cbind(`1`, `0`) ~ dsfs, 
   data = dsfsdat, 
@@ -756,11 +759,23 @@ dsfsdat <- dsfsdat %>%
   mutate(
     ypred = predict(dsfsmod, newdata = dsfsdat, type = "response")
   )
-p <- ggplot(dsfsdat, aes(dsfs, p)) +
+p1 <- ggplot(dsfsdat, aes(dsfs, n)) +
+  geom_col(colour = "grey40", fill = "grey40") +
+  geom_vline(xintercept = 7.5, linetype = 2) +
+  labs(y = "Number of\nparticipants",
+       x = "Days since first symptoms")
+p2 <- ggplot(dsfsdat, aes(dsfs, p)) +
     geom_point() +
+    geom_vline(xintercept = 7.5, linetype = 2) +
     geom_line(aes(y = ypred)) +
-    labs(y = "Proportion with outcome", x = "Days since onset")
-ggplotly(p)
+    labs(y = "Proportion\nwith outcome", 
+         x = "Days since first symptoms")
+p <- p1 | p2
+```
+
+```{r}
+path <- file.path("outputs", "figures", "outcomes", "primary")
+ggsave(file.path(path, "outcome-dsfs.pdf"), p, height = 2, width = 6)
 ```
 
 ```{r}
@@ -1393,16 +1408,17 @@ snk <- capture.output(
     data = mdat,
     seed = 32915,
     refresh = 0,
+    iter_warmup = 1000,
     iter_sampling = 2500,
     chains = 8,
     parallel_chains = 8,
     adapt_delta = 0.98
 ))
-mdrws <- as_draws_rvars(mfit$draws(c(
+prim_mdrws <- as_draws_rvars(mfit$draws(c(
   "beta", "beta_region", 
   "gamma_site", "tau_site", 
   "gamma_epoch", "tau_epoch", "y_ppc")))
-mdrws <- add_treatment_rvs(mdrws, mdat)
+prim_mdrws <- add_treatment_rvs(prim_mdrws, mdat)
 ```
 
 ```{r}
@@ -1412,20 +1428,20 @@ Ca <- cbind(1, attr(mdat$X, "contrasts")$AAssignment)
 Cc <- cbind(1, attr(mdat$X, "contrasts")$CAssignment)
 nC <- ncol(Cc)
 Ct <-  cbind(1, contr.treatment(nC))
-mdrws$eta <- as.vector(Cc %**% mdrws$beta[1:nC])
-mdrws$beta_uncon <- as.vector(Cc[, -1] %**% mdrws$beta[2:nC])
-mdrws$prob <- 1 / (1 + exp(-mdrws$eta))
-mdrws$beta_trt <- as.vector(transform_coding(Cc, Ct) %**% mdrws$beta[1:nC])
-mdrws$OR <- setNames(
-  exp(mdrws$beta_trt[-1]), 
+prim_mdrws$eta <- as.vector(Cc %**% prim_mdrws$beta[1:nC])
+prim_mdrws$beta_uncon <- as.vector(Cc[, -1] %**% prim_mdrws$beta[2:nC])
+prim_mdrws$prob <- 1 / (1 + exp(-prim_mdrws$eta))
+prim_mdrws$beta_trt <- as.vector(transform_coding(Cc, Ct) %**% prim_mdrws$beta[1:nC])
+prim_mdrws$OR <- setNames(
+  exp(prim_mdrws$beta_trt[-1]), 
   c("Intermediate", "Standard + aspirin", "Therapeutic"))
-mdrws$OR <- c(
-  mdrws$OR, 
-  "Age 60+ (ref < 60)" = exp(mdrws$beta[which(grepl("age", colnames(mdat$X)))]),
+prim_mdrws$OR <- c(
+  prim_mdrws$OR, 
+  "Age 60+ (ref < 60)" = exp(prim_mdrws$beta[which(grepl("age", colnames(mdat$X)))]),
   "Ineligible aspirin (ref eligible)" = exp(mdrws$beta[which(grepl("inelg", colnames(mdat$X)))]),
-  setNames(exp(mdrws$beta_region[-1]), c("Australia (ref India)", "Nepal", "New Zealand")),
-  setNames(exp(mdrws$gamma_epoch), epoch_map$epoch_lab),
-  setNames(exp(mdrws$gamma_site), site_map$site)
+  setNames(exp(prim_mdrws$beta_region[-1]), c("Australia (ref India)", "Nepal", "New Zealand")),
+  setNames(exp(prim_mdrws$gamma_epoch), epoch_map$epoch_lab),
+  setNames(exp(prim_mdrws$gamma_site), site_map$site)
 )
 ```
 
@@ -1433,19 +1449,19 @@ mdrws$OR <- c(
 ```{r}
 #| label: odds-ratio-summary-table-primary-model
 #| tbl-cap: Posterior summaries for model parameters.
-odds_ratio_summary_table(mdrws$OR)
+odds_ratio_summary_table(prim_mdrws$OR)
 ```
 
 ```{r}
 #| label: odds-ratio-summary-table-primary-model-save
 save_tex_table(
-  odds_ratio_summary_table(mdrws$OR[1:8], "latex"),
+  odds_ratio_summary_table(prim_mdrws$OR[1:8], "latex"),
   "outcomes/primary/primary-model-acs-itt-summary-table")
 ```
 
 ```{r}
 #| label: odds-ratio-summary-primary-model-epoch-site-terms
-ors <- mdrws$OR[9:length(mdrws$OR)]
+ors <- prim_mdrws$OR[9:length(prim_mdrws$OR)]
 orsdat <- tibble(
   Group = "Epoch",
   Parameter = fct_inorder(names(ors)[1:12]),
@@ -1457,7 +1473,6 @@ p_epoch <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
   scale_x_log10("Odds ratio (log scale)") +
   labs(y = "Epoch")
 
-ors <- mdrws$OR[9:length(mdrws$OR)]
 orsdat <- tibble(
   Group = rep("Site", 39 - 12),
   Country = factor(mdat$region_by_site, labels = c("India", "Australia", "Nepal", "New\nZealand")),
@@ -1532,7 +1547,7 @@ mcmc_trace(mfit$draws(
 tibble(
   Contrast = fct_inorder(
     c("C2 v C1", "C3 v C1", "C4 v C1", "C2 vs C4")), 
-  RV = c(mdrws$OR[1:3], mdrws$OR[1] / mdrws$OR[3])) %>% 
+  RV = c(prim_mdrws$OR[1:3], prim_mdrws$OR[1] / prim_mdrws$OR[3])) %>% 
   ggplot(., aes(y = Contrast, xdist = RV)) + 
   stat_halfeye(
     aes(fill = 
@@ -1554,22 +1569,6 @@ tibble(
   geom_vline(xintercept = 1)
 ```
 
-```{r}
-#| label: tbl-posterior-summaries-primary
-#| code-summary: Posterior summaries
-#| tbl-cap: Posterior summaries
-tibble(
-    Parameter = c("OR[C2]", "OR[C3]", "OR[C4]"),
-    `Pr(OR < 1)` = Pr(mdrws$OR[1:3] < 1),
-    Median = median(mdrws$OR[1:3]),
-    Mean = E(mdrws$OR[1:3]),
-    `95% CrI` = apply(
-      quantile(mdrws$OR[1:3], c(0.025, 0.975)), 2, 
-      function(x) sprintf("(%.2f, %.2f)", x[1], x[2]))
-  ) %>%
-  kable(digits = 2, align = "lrrrr") %>%
-  kable_styling(bootstrap_options = "striped")
-```
 
 #### Posterior Predictive Checks
 
@@ -1657,7 +1656,7 @@ mdat <- make_stan_data(
 snk <- capture.output(
   mfit <- primary_mod2$sample(
     data = mdat,
-    seed = 12573,
+    seed = 44106,
     refresh = 0,
     iter_sampling = 2500,
     chains = 8,
@@ -1691,20 +1690,21 @@ mdrws$beta_trt4 <- as.vector(sweep(cbind(Cc, Cc[, -1]), 2, c(Cc[1, ], Cc[1, -1])
   mdrws$beta[c(1:4, grep(":countryNZ$", names(mdrws$beta)))])[-1]
 
 subgrp_effects <- expand_grid(
-  Country = c("India", "Australia", "Nepal", "New Zealand"),
+  Country = c("India", "Australia", "Nepal", "New Zealand", "Primary Model"),
   Intervention = c("Intermediate", "Standard plus aspirin", "Therapeutic"))
-subgrp_effects$posterior <- exp(c(mdrws$beta_trt1, mdrws$beta_trt2, mdrws$beta_trt3, mdrws$beta_trt4))
+subgrp_effects$posterior <- exp(
+  c(mdrws$beta_trt1, mdrws$beta_trt2, mdrws$beta_trt3, mdrws$beta_trt4, log(prim_mdrws$OR[1:3])))
 ```
 
 ```{r}
-ggplot(subgrp_effects, aes(xdist = posterior, y = Country)) +
+p <- ggplot(subgrp_effects, aes(xdist = posterior, y = Country)) +
   facet_grid(Intervention ~ .) +
   stat_pointinterval() +
   geom_vline(xintercept = 1, linetype = 2) +
   scale_x_log10("Odds ratio (log scale)") +
   theme(panel.border = element_rect(fill = NA))
+p
 ```
-
 
 ##### Age only
 
@@ -1717,8 +1717,9 @@ mdat <- make_stan_data(
 snk <- capture.output(
   mfit <- primary_mod$sample(
     data = mdat,
-    seed = 71251,
+    seed = 61723,
     refresh = 0,
+    iter_warmup = 1000,
     iter_sampling = 2500,
     chains = 8,
     parallel_chains = 8,
@@ -1739,9 +1740,75 @@ Cc <- cbind(1, attr(mdat$X, "contrasts")$CAssignment)
 nC <- ncol(Cc)
 Ct <-  cbind(1, contr.treatment(nC))
 # Effect for age < 60
-mdrws$beta_trt1 <- sweep(Cc, 2, Cc[1, ]) %**% mdrws$beta[1:4]
+mdrws$beta_trt1 <- as.vector(sweep(Cc, 2, Cc[1, ]) %**% mdrws$beta[1:4])[-1]
 # Effect for age >= 60
-mdrws$beta_trt2 <- sweep(cbind(Cc, Cc[, -1]), 2, c(Cc[1, ], Cc[1, -1])) %**% mdrws$beta[c(1:4, 9:11)]
+mdrws$beta_trt2 <- as.vector(sweep(cbind(Cc, Cc[, -1]), 2, c(Cc[1, ], Cc[1, -1])) %**% mdrws$beta[c(1:4, 9:11)])[-1]
+
+subgrp_effects <- expand_grid(
+  Age = c("< 60", "60+", "Primary model"),
+  Intervention = c("Intermediate", "Standard plus aspirin", "Therapeutic"))
+subgrp_effects$posterior <- exp(c(mdrws$beta_trt1, mdrws$beta_trt2, log(prim_mdrws$OR[1:3])))
+```
+
+```{r}
+p <- ggplot(subgrp_effects, aes(xdist = posterior, y = Age)) +
+  facet_grid(Intervention ~ .) +
+  stat_pointinterval() +
+  geom_vline(xintercept = 1, linetype = 2) +
+  scale_x_log10("Odds ratio (log scale)") +
+  theme(panel.border = element_rect(fill = NA))
+```
+
+##### Days since symptom onset only
+
+```{r}
+mdat <- make_stan_data(
+  acs_itt_nona_dat, 
+  c("CAssignment", "AAssignment", "agegte60", "inelgc3", "dsfsgt7", "CAssignment:dsfsgt7"),
+  "PO",
+  c(2.5, rep(1, 5), 2.5, 10, 2.5, rep(1, 3)))
+snk <- capture.output(
+  mfit <- primary_mod$sample(
+    data = mdat,
+    seed = 32218,
+    refresh = 0,
+    iter_warmup = 1000,
+    iter_sampling = 2500,
+    chains = 8,
+    parallel_chains = 8,
+    adapt_delta = 0.98
+))
+mdrws <- as_draws_rvars(mfit$draws(c(
+  "beta", "beta_region", 
+  "gamma_site", "tau_site", 
+  "gamma_epoch", "tau_epoch", "y_ppc")))
+mdrws <- add_treatment_rvs(mdrws, mdat)
+```
+
+```{r}
+names(mdrws$beta) <- colnames(mdat$X)
+Ca <- cbind(1, attr(mdat$X, "contrasts")$AAssignment)
+Cc <- cbind(1, attr(mdat$X, "contrasts")$CAssignment)
+nC <- ncol(Cc)
+Ct <-  cbind(1, contr.treatment(nC))
+# Effect for DSFS <= 7
+mdrws$beta_trt1 <- as.vector(sweep(Cc, 2, Cc[1, ]) %**% mdrws$beta[1:4])[-1]
+# Effect for DSFS > 7
+mdrws$beta_trt2 <- as.vector(sweep(cbind(Cc, Cc[, -1]), 2, c(Cc[1, ], Cc[1, -1])) %**% mdrws$beta[c(1:4, 10:12)])[-1]
+
+subgrp_effects <- expand_grid(
+  `Days since first symptom` = c("<= 7", "> 7", "Primary model"),
+  Intervention = c("Intermediate", "Standard plus aspirin", "Therapeutic"))
+subgrp_effects$posterior <- exp(c(mdrws$beta_trt1, mdrws$beta_trt2, log(prim_mdrws$OR[1:3])))
+```
+
+```{r}
+p <- ggplot(subgrp_effects, aes(xdist = posterior, y = `Days since first symptom`)) +
+  facet_grid(Intervention ~ .) +
+  stat_pointinterval() +
+  geom_vline(xintercept = 1, linetype = 2) +
+  scale_x_log10("Odds ratio (log scale)") +
+  theme(panel.border = element_rect(fill = NA))
 ```
 
 
