@@ -113,6 +113,8 @@ knitr::include_graphics(
 
 ### Intervention Allocations
 
+Due to the trial progression, response adaptive randomisation was never activated in the anti-coagulation domain. Therefore, allocations to the interventions were uniform across all available interventions from trial start to trial closure. However, the available interventions changed over time due to external decisions. The following figures summarise treatment allocations over time.
+
 \clearpage
 
 ### Deviations
@@ -213,7 +215,13 @@ writeLines(tab[-which(grepl("caption", tab))])
 
 ## Analyses - General
 
-Bayesian models were computed using Stan via `cmdstanr` (0.5.2 and cmdstan version 2.29.2) in R (4.2.0). For each model, 8 chains were used with a burn in of 500 and sampling of 2500 iterations per chain. Convergence diagnostics were assessed for each model. If an issue was identified (e.g. divergent transitions) then the default sampling parameters may have been adjusted (e.g. increasing target acceptance rate or increasing maximum tree depth). If any convergence issues remained they will be reported along with the model results. If the model was amended in any way to satisfy convergence criteria (e.g. aggregation of groups) then this will be reported in the relevant section. Sampling was run using a different (randomly selected) random seed for each model, and these were recorded for replication.
+Bayesian models were computed using Stan via `cmdstanr` (0.5.2 and cmdstan version 2.29.2) in R (4.2.0). For each model, 8 chains were used with a warm-up of 1000 iterations and sampling for 2500 iterations per chain resulting in 20,000 posterior draws per model. Standard diagnostics were assessed for each model (divergent transitions, trace plots, R-hat). If an issue was identified (e.g. divergent transitions) then the default sampling parameters may have been adjusted (e.g. increasing target acceptance rate or increasing maximum tree depth). If any convergence issues resulted for the pre-specified models, then they are reported along with the model results. If the model was amended in any way to satisfy convergence criteria (e.g. aggregation of groups, removal of model terms) then this is reported in the relevant section. Sampling was run using a different (randomly selected) random seed for each model, and these were recorded for replication.
+
+Missing outcome data were not imputed for any of the models (with the exception of the deterministic imputation used in the best-case/worst-case sensitivity analyses).
+
+For models where site was included as a random effect, sites with less than 5 participants were aggregated within country into an "other sites" grouping. Similarly, for models where epoch was included, epochs with less than 10 participants were aggregated with the adjacent epoch. 
+
+\clearpage
 
 ## Primary Outcome
 
@@ -223,7 +231,11 @@ The primary outcome is a composite comprised of:
 - vasopressor/inotropic support within first 28 days
 - new intensive respiratory support within first 28 days.
 
-The proportion of participants who met the primary outcome, and rates of missingness, are reported in @tbl-primary-composite-summary.
+The definition also allowed for patients who had unknown day 28 status, but were discharged against medical advice (DAMA) and designated as likely to die within 28 days. However, no participants met this criteria (all cases of DAMA and likely to die within 28 days had known day 28 status).
+
+The proportion of participants who met the primary outcome, and rates of missingness, are reported in @tbl-primary-composite-summary. A breakdown of the composite, including missingness by component is reported in @tbl-primary-composite-breakdown. Missingness was predominantly due to unknown patient status at study day 28. Amongst participants where the primary outcome was observed (1,526), 103 (7%) met the primary outcome criteria, most commonly due to requirement of new intensive ventilation and/or death (@tbl-primary-composite-combinations).
+
+A summary of the primary outcome by each of the baseline covariates pre-specified to be included in the primary model (or as pre-specified subgroup analyses) are presented in the appendix (@sec-app-primary-outcome-model-cov).
 
 ```{r}
 #| label: tbl-primary-composite-summary
@@ -233,8 +245,6 @@ The proportion of participants who met the primary outcome, and rates of missing
 tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "anticoagulation-summary.tex"))
 writeLines(tab)
 ```
-
-A breakdown of the composite, including missingness by component is reported in @tbl-primary-composite-breakdown. Missingness is predominantly due to unknown patient status at study day 28. Amongst participants where the primary outcome was observed (1,526), 103 (7%) met the primary outcome criteria, most commonly due to ventilation and/or death (@tbl-primary-composite-combinations).
 
 ```{r}
 #| label: tbl-primary-composite-breakdown
@@ -254,17 +264,11 @@ tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "co
 writeLines(tab)
 ```
 
-A summary of the primary outcome by each of the baseline covariates pre-specified to be included in the primary model are presented in the appendix (@sec-app-primary-outcome-model-cov).
-
-
-
 \clearpage
 
-### Primary Analysis
+### Primary Analysis (ACS-ITT set)
 
 The primary model was a logistic regression model adjusting for anticoagulation treatment, antiviral treatment, age ($\geq 60$), and country, with random effects for site (nested within country) and epoch (calendar time 4 week intervals). The two most recent epochs were combined due to small numbers, and the two earliest epochs were combined for the same reason.
-
-#### Full Model ACS-ITT set
 
 The primary analysis was based on the ACS-ITT set using the full model as specified in the statistical appendix to the core protocol.
 
@@ -281,14 +285,37 @@ writeLines(tab)
 ```{r}
 #| label: fig-primary-model-acs-itt-site-epoch-parameters
 #| fig-cap: |
-#|   Summary (point - median, block - 0.75 CrI, line - 0.95 CrI) 
-#|   of odds ratio posteriors for epoch and site effects for
+#|   Posterior Summaries (point - median, block - 0.75 CrI, line - 0.95 CrI) 
+#|   of odds ratio for epoch and site effects for
 #|   the primary model fit to the ACS-ITT set.
 knitr::include_graphics(
   "../outputs/figures/outcomes/primary/primary-model-epoch-site-terms.pdf"
 )
 ```
 
+\clearpage
+
+### Subgroups
+
+The pre-specified subgroups where treatment effect heterogeneity was to be investigate were:
+
+- country
+- days since symptom onset ($\leq 7$ or $>7$ days)
+- age at enrolment ($<60$ or $\geq 60$ years of age)
+- supplemental oxygen or oxygen saturation less than 94% at randomisation (yes or no)
+- receipt of corticosteroid during hospital stay (yes or no)
+- receipt of remdesivir during hospital stay (yes or no)
+- receipt of other agent intended to be antiviral against SARS-CoV-2 during hospital stay (yes or no)
+
+Domain-specific subgroups were additionally specified as:
+
+- weight ($< 120$ or $\geq 120$ kg)
+- patient on aspirin at baseline (yes or no)
+- D-dimer above upper limit of normal at baseline (yes or no)
+
+For each sub-group analysis, the primary model was extended to include an interaction term between the covariate of interest and the anticoagulation interventions.
+
+\clearpage
 
 ### Sensitivity
 
@@ -311,7 +338,11 @@ writeLines(tab)
 
 ## Secondary Outcomes
 
+For all secondary outcomes, the primary model (adjusting for interventions, age group, country, site, and epoch using the relevant outcome model) was fit to the ACS-ITT set. The only sensitivity analysis conducted was to repeat the analysis restricted to contemporaneous controls without the epoch term.
+
 ### Time to clinical recovery
+
+\clearpage
 
 ### All-cause mortality
 
@@ -325,6 +356,8 @@ All-cause mortality to day 28 was modelled using the same method as for the prim
 
 ## Domain Specific Outcomes
 
+\clearpage
+
 ## Safety
 
 # Appendix
@@ -335,7 +368,8 @@ All-cause mortality to day 28 was modelled using the same method as for the prim
 #| label: fig-primary-outcome-age
 #| fig-cap: |
 #|   Proportion of participants satisfying primary outcome criteria
-#|   by age at randomisation.
+#|   by age at randomisation. Vertical dashed line indicates the 
+#|   pre-specified cut-point of 60 years of age.
 knitr::include_graphics(
   "../outputs/figures/outcomes/primary/outcome-age.pdf"
 )
@@ -368,5 +402,16 @@ knitr::include_graphics(
 #|   by calendar time (month) of randomisation.
 knitr::include_graphics(
   "../outputs/figures/outcomes/primary/outcome-calendar-time.pdf"
+)
+```
+
+```{r}
+#| label: fig-primary-outcome-dsfs
+#| fig-cap: |
+#|   Proportion of participants satisfying primary outcome criteria
+#|   by days since first symptoms at randomisation. 
+#|   Vertical dashed line indicates the pre-specified cut-point of 7 days.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/outcome-dsfs.pdf"
 )
 ```
