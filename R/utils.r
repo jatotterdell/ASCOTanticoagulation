@@ -191,12 +191,12 @@ transmute_model_cols <- function(dat) {
       ),
       site_num,
       relRandDate = as.numeric(max(RandDate) - RandDate),
-      epoch = floor(relRandDate / 28),
+      epoch_raw = floor(relRandDate / 28),
       # Manual merge after check of count(epoch)
       epoch = case_when(
-        epoch %in% 0:1 ~ 2,
-        epoch == 14 ~ 13,
-        TRUE ~ epoch
+        epoch_raw %in% 0:1 ~ 2,
+        epoch_raw == 14 ~ 13,
+        TRUE ~ epoch_raw
       ) - 1,
     ) %>%
     group_by(epoch) %>%
