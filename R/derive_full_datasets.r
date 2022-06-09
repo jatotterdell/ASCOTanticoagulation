@@ -152,6 +152,25 @@ add_withdrawn_followup <- function(dat) {
 }
 
 
+add_oxygen <- function(dat) {
+  dat %>%
+    mutate(
+      # Note one subject is outlier with Oxygen saturation of 10%
+      BAS_PeripheralOxygen = if_else(
+        BAS_PeripheralOxygen < 10 | is.na(BAS_PeripheralOxygen),
+        NA_real_,
+        BAS_PeripheralOxygen),
+      supp_oxy = case_when(
+        BAS_OnRoomAir24hrs == "Yes" ~ 1,
+        BAS_PeripheralOxygen < 94 ~ 1,
+        BAS_OnRoomAir24hrsUnknown == "Yes" ~ NA_real_,
+        is.na(BAS_PeripheralOxygen) ~ NA_real_,
+        TRUE ~ 0
+      )
+    )
+}
+
+
 #' @title add_primary_outcome(dat, daily_dat)
 #' @description Add the derived primary outcome for each participant.
 #' @param dat Dataset with one record per participant with their outcomes
