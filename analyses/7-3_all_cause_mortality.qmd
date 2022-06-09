@@ -19,6 +19,18 @@ library(posterior)
 library(bayestestR)
 library(bayesplot)
 library(matrixStats)
+library(lubridate)
+library(patchwork)
+library(ggdist)
+
+theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank()))
+bayesplot_theme_set(theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank())))
+color_scheme_set("red")
+options(digits = 4)
 ```
 
 ```{r}
@@ -57,6 +69,7 @@ with(acs_itt_nona_dat, table(D28_death, CAssignment))
 ## Descriptive
 
 ```{r}
+#| label: descriptive-table-mortality-anticoagulation
 make_mortality_table <- function(dat, format = "html") {
   tab <- dat %>%
     mutate(CAssignment = factor(CAssignment, labels = intervention_labels()$CAssignment[-1])) %>%
@@ -109,6 +122,164 @@ save_tex_table(make_mortality_table(
       "outcomes/secondary/anticoagulation-summary-mortality")
 ```
 
+### Age
+
+```{r}
+#| label: fig-age-po
+#| code-summary: Relationship age to outcome
+#| fig-cap: |
+#|   Relationship (logistic regression linear in age) 
+#|   between age at entry and the primary outcome.
+agedat <- acs_itt_dat %>%
+  dplyr::count(D28_death, AgeAtEntry) %>% 
+  spread(D28_death, n, fill = 0) %>% 
+  mutate(
+    n = `0` + `1` + `<NA>`,
+    p = `1` / (`1` + `0`))
+agemod <- glm(
+  cbind(`1`, `0`) ~ AgeAtEntry, 
+  data = agedat, 
+  family = binomial())
+agedat <- agedat %>%
+  mutate(
+    ypred = predict(agemod, newdata = agedat, type = "response")
+  )
+p1 <- ggplot(agedat, aes(AgeAtEntry, n)) +
+  geom_col(colour = "grey40", fill = "grey40") +
+  geom_vline(xintercept = 60, linetype = 2) +
+  labs(y = "Number of\nparticipants",
+       x = "Age at entry")
+p2 <- ggplot(agedat, aes(AgeAtEntry, p)) +
+    geom_point() +
+    geom_vline(xintercept = 60, linetype = 2) +
+    geom_line(aes(y = ypred)) +
+    labs(y = "Proportion\ndied by day 28", x = "Age at entry")
+p <- p1 | p2
+```
+
+```{r}
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-3-age.pdf"), p, height = 2, width = 6)
+```
+
+### Country
+
+```{r}
+#| label: tbl-country-po
+#| code-summary: Relationship country to outcome
+#| tbl-cap: Primary outcome by country.
+tdat <- all_dat %>%
+  filter_acs_itt() %>%
+  dplyr::count(Country = PT_CountryName, D28_death) %>%
+  group_by(Country) %>%
+  spread(D28_death, n, fill = 0) %>%
+  mutate(
+    n = `1` + `0` + `<NA>`,
+    p_1 = `1` / (`1` + `0`),
+    p_miss = `<NA>` / (`1` + `0` + `<NA>`)
+  )
+p1 <- ggplot(tdat, aes(Country, n)) +
+  geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "Country of enrolment")
+p2 <- ggplot(tdat, aes(Country, p_1)) +
+  geom_point() +
+    labs(
+      y = "Proportion\ndied by day 28", 
+      x = "Country of enrolment")  +
+  ylim(0, NA)
+p <- p1 | p2
+```
+
+```{r}
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-3-country.pdf"), p, height = 2, width = 6)
+```
+
+### Site
+
+```{r}
+#| label: tbl-site-7-3
+#| code-summary: Relationship site to outcome
+#| tbl-cap: Day 28 mortality by site within country.
+tdat <- all_dat %>%
+  filter_acs_itt() %>%
+  dplyr::count(
+    Country_lab = Country,
+    Site_lab = fct_infreq(Location),
+    Country = factor(PT_CountryName, levels = c("India", "Australia", "Nepal", "New Zealand")),
+    Site = PT_LocationName,
+    D28_death) %>%
+  group_by(Country, Site) %>%
+  spread(D28_death, n, fill = 0) %>%
+  mutate(
+    n = `1` + `0` + `<NA>`,
+    p_1 = `1` / (`1` + `0`),
+    p_miss = `<NA>` / (`1` + `0` + `<NA>`)
+  ) %>%
+  ungroup()
+
+p1 <- ggplot(tdat, aes(Site_lab, n)) +
+  facet_grid( ~ Country, scales = "free_x", space = "free_x") +
+  geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.border = element_rect(fill = NA))
+p2 <- ggplot(tdat, aes(Site_lab, p_1)) +
+  facet_grid( ~ Country, scales = "free_x", space = "free_x") +
+  geom_point() +
+    labs(
+      y = "Proportion\ndied by day 28", 
+      x = "Site of enrolment") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.border = element_rect(fill = NA))
+p <- p1 / p2
+```
+
+```{r}
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-3-country-site.pdf"), p, height = 4, width = 6.25)
+```
+
+### Calendar Time
+
+```{r}
+#| label: fig-cal-po
+#| code-summary: Relationship calendar date to outcome
+#| fig-cap: |
+#|   Relationship between calendar date and the primary outcome.
+caldat <- all_dat %>% 
+  filter_acs_itt() %>%
+  dplyr::count(D28_death, yr = year(RandDate), mth = month(RandDate)) %>% 
+  spread(D28_death, n, fill = 0) %>% 
+  mutate(p = `1` / (`1` + `0`),
+         n = `1` + `0` + `<NA>`)
+p1 <- ggplot(caldat, aes(mth, p)) +
+  facet_grid( ~ yr, drop = T, scales = "free_x", space = "free") +
+    geom_point() +
+    labs(
+      y = "Proportion\ndied by day 28", 
+      x = "Calendar date (month of year)") +
+  scale_x_continuous(breaks = 1:12) +
+  ylim(0, 0.15)
+p2 <- ggplot(caldat, aes(mth, n)) +
+  facet_grid( ~ yr, drop = T, scales = "free_x", space = "free") +
+    geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "Calendar date (month of year)") +
+  scale_x_continuous(breaks = 1:12)
+p <- p2 | p1
+p
+```
+
+```{r}
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-3-calendar-time.pdf"), p, height = 2, width = 6)
+```
 
 # Modelling
 
@@ -124,14 +295,14 @@ model_full <- cmdstan_model(file.path("stan", "primary_logistic_model_site_epoch
 ```{r}
 #| label: Munge stan data.
 #| code-summary: Munges stan data.
-make_stan_data <- function(dat, vars, outcome, beta_sd = c(2.5, rep(1, nXassign), 2.5, 10)) 
+make_stan_data <- function(dat, vars, outcome, beta_sd = c(2.5, rep(1, nXassign), 2.5, 10), ctr = contr.orthonorm) 
 {
   X <- model.matrix(
      as.formula(paste("~", paste(vars, collapse = " + "))),
     data = dat,
     contrast = list(
-      AAssignment = contr.orthonorm,
-      CAssignment = contr.orthonorm)
+      AAssignment = ctr,
+      CAssignment = ctr)
   )
   
   nXassign <- sum(grepl("Assignment", colnames(X)))
@@ -155,11 +326,11 @@ make_stan_data <- function(dat, vars, outcome, beta_sd = c(2.5, rep(1, nXassign)
        M_site = M_site, site = site,
        M_epoch = M_epoch, epoch = epoch,
        region_by_site = region_by_site,
-       beta_sd = c(2.5, rep(1, nXassign), 2.5, 10))
+       beta_sd = beta_sd)
 }
 
 dat_full <- make_stan_data(dat = acs_itt_nona_dat, 
-                           vars    = c("CAssignment", "AAssignment", "agegte60_c", "inelgc3"),
+                           vars    = c("CAssignment", "AAssignment", "agegte60", "inelgc3"),
                            outcome = "D28_death")
 ```
 
@@ -174,9 +345,11 @@ run_stan <- function(model, data)
   model[["sample"]](data = data,
                     seed = seed,
                     refresh = 0,
+                    iter_warmup = 1000,
                     iter_sampling = 2500,
                     chains = 8,
-                    parallel_chains = 8)
+                    parallel_chains = 8,
+                    adapt_delta = 0.97)
 }
 
 stan_full <- run_stan(model_full, dat_full)
@@ -235,6 +408,7 @@ add_treatment_rvs <- function(rvs, mdat) {
 
 # Extract the betas as a random variable type (using 'posterior' package)
 rvs_beta   <- as_draws_rvars(stan_full$draws(c("beta")))
+names(rvs_beta$beta) <- colnames(dat_full$X)
 rvs_trt    <- add_treatment_rvs(rvs_beta, dat_full)[["OR"]]
 rvs_region <- as_draws_rvars(stan_full[["draws"]](c("beta_region")))[[1]]
 rvs_site   <- as_draws_rvars(stan_full[["draws"]](c("gamma_site")))[[1]]
@@ -261,8 +435,8 @@ names_agegrp <- "60+"
 names_inlgc3 <- "Ineligible C3"
 
 # Set names and exponentiation.
-rvs_agegrp <- setNames(exp(rvs_beta[[1]][6]), names_agegrp)  
-rvs_inlgc3 <- setNames(exp(rvs_beta[[1]][7]), names_inlgc3)  
+rvs_agegrp <- setNames(exp(rvs_beta[[1]]["agegte60"]), names_agegrp)  
+rvs_inlgc3 <- setNames(exp(rvs_beta[[1]]["inelgc3"]), names_inlgc3)  
 rvs_region <- setNames(exp(rvs_region), region_lab[["label"]])
 rvs_site   <- setNames(exp(rvs_site),   site_lab[["label"]])
 rvs_epoch  <- setNames(exp(rvs_epoch),  epoch_lab[["label"]])
@@ -288,8 +462,8 @@ make_outcome_table <- function(OR, format = "html", fn = NULL)
     group_rows("Country", 7, 10) %>%
     group_rows("Site", 11, 37) %>%
     group_rows("Epoch", 38, 49) %>%
-    add_footnote("Note: Epoch is the 4-week interval relative to the most recently randomised participant.",
-                 notation = "none", escape = TRUE)
+    footnote(none = "Note: Epoch is the 4-week interval relative to the most recently randomised participant.",
+             escape = TRUE)
   if (!is.null(fn) & format == "latex") {
     out
     save_tex_table(out, fn)
@@ -298,11 +472,49 @@ make_outcome_table <- function(OR, format = "html", fn = NULL)
   }
 }
 
-make_outcome_table(rvs_all)
-make_outcome_table(rvs_all, format = "latex", fn = "7-3_all_cause_mortality")
+odds_ratio_summary_table(rvs_all)
+```
 
-# End of script.
+```{r}
+#| label: odds-ratio-summary-table-primary-model-save
+save_tex_table(
+  odds_ratio_summary_table(rvs_all[1:10], "latex"),
+  "outcomes/secondary/7-3-primary-model-acs-itt-summary-table")
 ```
 
 
+```{r}
+#| label: odds-ratio-summary-primary-model-epoch-site-terms
+orsdat <- tibble(
+  Group = "Epoch",
+  Parameter = fct_inorder(names(rvs_epoch)),
+  posterior = rvs_epoch
+)
+p_epoch <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
+  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
+  geom_vline(xintercept = 1, linetype = 2) +
+  scale_x_log10("Odds ratio (log scale)") +
+  labs(y = "Epoch")
 
+orsdat <- tibble(
+  Group = "Site",
+  Country = factor(dat_full$region_by_site, labels = c("India", "Australia", "Nepal", "New\nZealand")),
+  Parameter = fct_inorder(names(rvs_site)),
+  posterior = rvs_site
+)
+p_site <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
+  facet_grid(Country ~ ., scales = "free_y", space = "free_y") +
+  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
+  geom_vline(xintercept = 1, linetype = 2) +
+  scale_x_log10("Odds ratio (log scale)") +
+  labs(y = "Site") +
+  theme(panel.border = element_rect(fill = NA))
+
+p <- p_epoch | p_site
+p
+```
+
+```{r}
+pth <- file.path("outputs", "figures", "outcomes", "secondary", "7-3-primary-model-epoch-site-terms.pdf")
+ggsave(pth, p, width = 6, height = 4.5)
+```
