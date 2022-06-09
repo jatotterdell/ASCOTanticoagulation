@@ -463,7 +463,17 @@ knitr::include_graphics(
 
 \clearpage
 
-### Days alive and free of hospital
+### Days alive and free of hospital (DAFH)
+
+```{r}
+#| label: tbl-7-4-summary
+#| tbl-cap: |
+#|   Summary of days alive and free of hospital to day 28 by treatment group.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", "7-4-anticoagulation-summary.tex"))
+writeLines(tab)
+```
 
 ```{r}
 #| label: fig-7-4-descriptive
@@ -471,6 +481,36 @@ knitr::include_graphics(
 #|   Observed distribution of days alive and free of hospital at day 28 by treatment group.
 knitr::include_graphics(
   "../outputs/figures/outcomes/secondary/outcome-7-4-descriptive.pdf"
+)
+```
+
+```{r}
+#| label: fig-7-4-descriptive2
+#| fig-cap: |
+#|   Observed cumulative distribution of days alive and free of hospital at day 28 by treatment group.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-4-descriptive2.pdf"
+)
+```
+
+```{r}
+#| label: tbl-7-4-primary-model-acs-itt-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios) 
+#|   for days alive and free of hospital to day 28 primary model fit to the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-4-primary-model-acs-itt-summary-table.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-7-4-primary-model-acs-itt-site-epoch-parameters
+#| fig-cap: |
+#|   Posterior Summaries (point - median, block - 75% CrI, line - 95% CrI) 
+#|   of odds ratio for epoch and site effects on days alive and free of 
+#|   hospital to day 28 for the primary model fit to the ACS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-4-primary-model-epoch-site-terms.pdf"
 )
 ```
 
@@ -616,5 +656,17 @@ knitr::include_graphics(
 #|   by calendar time (month) of randomisation.
 knitr::include_graphics(
   "../outputs/figures/outcomes/secondary/7-3-calendar-time.pdf"
+)
+```
+
+## Days alive and free of hospital to day 28 by Model Covariates (ACS-ITT) {#sec-app-7-4-model-cov}
+
+```{r}
+#| label: fig-7-4-calendar-time
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital to day 28
+#|   by calendar time (month) of randomisation.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-4-calendar-time.pdf"
 )
 ```
