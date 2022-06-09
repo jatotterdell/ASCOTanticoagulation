@@ -135,7 +135,7 @@ make_model_data <- function(dat) {
 
 make_reduced_model_data <- function(dat) {
   X <- model.matrix(
-    ~ CAssignment + AAssignment + agegte60_c + inelgc3 + ctry,
+    ~ CAssignment + AAssignment + agegte60 + inelgc3 + ctry,
     data = dat,
     contrast = list(
       AAssignment = contr.orthonorm,
@@ -171,30 +171,6 @@ add_treatment_rvs <- function(rvs, mdat) {
   rvs$OR <- c(rvs$OR, "C2 vs C4" = rvs$OR[1] / rvs$OR[3])
   return(rvs)
 }
-
-odds_ratio_summary_table <- function(OR, format = "html", fn = NULL, ...) {
-  out <- tibble(
-    Parameter = names(OR),
-    Median = median(OR),
-    Mean = E(OR),
-    `95% CrI` = apply(
-      quantile(OR, c(0.025, 0.975)), 2, 
-      function(x) sprintf("(%.2f, %.2f)", x[1], x[2])),
-    `Pr(OR > 1)` = Pr(OR > 1),
-  ) %>%
-  kable(
-    format = format, 
-    digits = 2, 
-    align = "lrrrr",
-    booktabs = TRUE,
-    ...) %>%
-  kable_styling(bootstrap_options = "striped", latex_options = "HOLD_position")
-  if (!is.null(fn) & format == "latex") {
-    save_tex_table(out, fn)
-  } else {
-    return(out)
-  }
-}
 ```
 
 
@@ -228,9 +204,10 @@ ggplot(pdat, aes(D28_day, DIS_day)) +
   scale_y_continuous("Day of discharge from index admission",
                      breaks = seq(0, 30, 2)) +
   labs(size = "Count")
+pdat
 ```
 
-The overall distribution of days alive and free of hospital are reported in @fig-dafh-dist for all participants in the ACS-ITT set.
+The overall distribution of days alive and free of hospital (DAFH) are reported in @fig-dafh-dist for all participants in the ACS-ITT set.
 
 ```{r}
 #| label: fig-dafh-dist
@@ -248,6 +225,51 @@ ggplot(pdat, aes(dafh, p)) +
     y = "Proportion"
   )
 ```
+
+```{r}
+tdat <- acs_itt_dat %>%
+  group_by(CAssignment = factor(CAssignment, labels = intervention_labels2()$CAssignment[-1])) %>%
+  summarise(
+    Patients = n(),
+    Known = sum(!is.na(out_dafh)),
+    Deaths = sprintf("%i (%.0f%%)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
+    `DAFH, Median (Q1, Q3)` = sprintf(
+      "%.0f (%.0f, %.0f)", 
+      median(out_dafh, na.rm = T), 
+      quantile(out_dafh, 0.25, na.rm = TRUE), 
+      quantile(out_dafh, 0.75, na.rm = TRUE))
+  ) %>%
+  bind_rows(
+    acs_itt_dat %>%
+  group_by(CAssignment = "Overall") %>%
+  summarise(
+    Patients = n(),
+    Known = sum(!is.na(out_dafh)),
+    Deaths = sprintf("%i (%.0f%%)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
+    `DAFH, Median (Q1, Q3)` = sprintf(
+      "%.0f (%.0f, %.0f)", 
+      median(out_dafh, na.rm = T), 
+      quantile(out_dafh, 0.25, na.rm = TRUE), 
+      quantile(out_dafh, 0.75, na.rm = TRUE))
+  )
+  ) %>%
+  rename(`Anticoagulation\nintervention` = CAssignment)
+tab <- kable(
+  tdat,
+  format = "latex",
+  align = "lrrrr",
+  booktabs = TRUE,
+  linesep = ""
+) %>%
+  kable_styling(
+    font_size = 9,
+    latex_options = "HOLD_position"
+  ) %>%
+  row_spec(5, bold = T)
+save_tex_table(tab, file.path("outcomes", "secondary", "7-4-anticoagulation-summary"))
+```
+
+
 
 ## Age
 
@@ -283,12 +305,58 @@ pdat <- acs_itt_nona_dat %>%
     dafh = ordered(out_dafh, levels = 0:27), 
     .drop = F) %>%
   group_by(ctry) %>%
-  mutate(p = n / sum(n))
-ggplot(pdat, aes(ctry, p)) +
+  mutate(p = n / sum(n)) %>%
+  mutate(cp = cumsum(p)) %>%
+  ungroup()
+p <- ggplot(pdat, aes(ctry, p)) +
   geom_col(aes(fill = fct_rev(dafh))) +
-  labs(x = "Country", y = "Cumulative proportion") +
+  labs(x = "Anticoagulation intervention", y = "Cumulative proportion") +
   scale_fill_viridis_d("Days alive and\nfree of hospital", option = "A", direction = -1) +
-  guides(fill = guide_legend(reverse = TRUE))
+  guides(fill = guide_legend(reverse = TRUE)) +
+  theme(legend.key.size = unit(0.75, "lines"))
+p
+```
+
+## Calendar Time
+
+```{r}
+#| label: fig-dafh-dist-calendar
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital by calendar time.
+#| fig-height: 4
+pdat <- acs_itt_nona_dat %>%
+  dplyr::count(
+    yr = year(RandDate), mth = month(RandDate),
+    dafh = ordered(out_dafh, levels = 0:27), 
+    .drop = F) %>%
+  group_by(yr, mth) %>%
+  mutate(p = n / sum(n)) %>%
+  mutate(cp = cumsum(p)) %>%
+  ungroup()
+p1 <- pdat %>%
+  group_by(yr, mth) %>%
+  summarise(n = sum(n)) %>%
+  ggplot(., aes(mth, n))  +
+  facet_grid( ~ yr, drop = T, scales = "free_x", space = "free") +
+    geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "Calendar date (month of year)") +
+  scale_x_continuous(breaks = 1:12)
+p2 <- ggplot(pdat, aes(mth, p)) +
+  facet_grid( ~ yr, drop = T, scales = "free_x", space = "free") +
+  geom_col(aes(fill = fct_rev(dafh))) +
+  labs(x = "Calendar date (month of year)", y = "Cumulative proportion") +
+  scale_fill_viridis_d("Days alive and\nfree of hospital", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = TRUE)) +
+  theme(legend.key.size = unit(0.5, "lines"))
+p <- p1 | p2
+p
+```
+
+```{r}
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-4-calendar-time.pdf"), p, height = 2, width = 6)
 ```
 
 ## Anti-coagulation
@@ -327,12 +395,18 @@ ggsave(file.path(pth, "outcome-7-4-descriptive.pdf"), p, height = 3, width = 6)
 #| fig-cap: |
 #|   Cumulative distribution of days alive and free of hospital by anti-coagulation intervention.
 #| fig-height: 4
-ggplot(pdat, aes(dafh, cp)) +
+p <- ggplot(pdat, aes(dafh, cp)) +
   geom_step(aes(colour = CAssignment, group = CAssignment)) +
   labs(x = "Days alive and free of ventilation", y = "Cumulative proportion") +
   scale_colour_viridis_d(
     "Days alive and\nfree of hospital", option = "A", begin = 0, end = 0.8) +
   guides(fill = guide_legend(reverse = TRUE))
+p
+```
+
+```{r}
+pth <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(pth, "outcome-7-4-descriptive2.pdf"), p, height = 3, width = 6)
 ```
 
 # Modelling
@@ -424,25 +498,31 @@ fit_primary_model <- function(dat) {
   snk <- capture.output(mfit <- ordmod$sample(
     data = mdat,
     seed = 813508,
-    chains = 4,
-    parallel_chains = 4,
-    iter_sampling = 1000,
+    chains = 8,
+    parallel_chains = 8,
+    iter_warmup = 1000,
+    iter_sampling = 2500,
     refresh = 0,
-    adapt_delta = 0.97
+    adapt_delta = 0.98
   ))
   mdrws <- as_draws_rvars(mfit$draws())
-  mdrws <- add_treatment_rvs(mdrws, mdat)
   
+  # Add names
   epoch_map <- dat %>% dplyr::count(epoch, epoch_lab)
   site_map <- dat %>% dplyr::count(site_num, site)
+  names(mdrws$beta) <- colnames(mdat$X)
+  names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
+  names(mdrws$gamma_site) <- site_map$site
   
+  mdrws <- add_treatment_rvs(mdrws, mdat)
+
   mdrws$OR <- c(
     mdrws$OR, 
     "Age 60+" = exp(mdrws$beta[which(grepl("age", colnames(mdat$X)))]),
-    "Ineligible C3" = exp(mdrws$beta[which(grepl("inelg", colnames(mdat$X)))]),
+    "Ineligible aspirin" = exp(mdrws$beta[which(grepl("inelg", colnames(mdat$X)))]),
     setNames(exp(mdrws$beta_region[-1]), c("AU", "NP", "NZ")),
-    setNames(exp(mdrws$gamma_epoch), epoch_map$epoch_lab),
-    setNames(exp(mdrws$gamma_site), site_map$site)
+    exp(mdrws$gamma_epoch),
+    exp(mdrws$gamma_site)
   )
   return(list(dat = mdat, fit = mfit, drws = mdrws))
 }
@@ -453,6 +533,52 @@ res <- fit_primary_model(acs_itt_nona_dat)
 ```{r}
 #| label: posterior-summary-table-primary
 #| tbl-cap: Posterior summaries for model parameters.
-odds_ratio_summary_table(res$drws$OR)
+odds_ratio_summary_table_rev(res$drws$OR)
 ```
 
+```{r}
+#| label: odds-ratio-summary-table-primary-model-save
+save_tex_table(
+  odds_ratio_summary_table_rev(res$drws$OR[1:9], "latex"),
+  "outcomes/secondary/7-4-primary-model-acs-itt-summary-table")
+```
+
+
+```{r}
+#| label: odds-ratio-summary-primary-model-epoch-site-terms
+rvs_epoch <- exp(res$drws$gamma_epoch)
+rvs_site <- exp(res$drws$gamma_site)
+
+orsdat <- tibble(
+  Group = "Epoch",
+  Parameter = fct_inorder(names(rvs_epoch)),
+  posterior = rvs_epoch
+)
+p_epoch <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
+  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
+  geom_vline(xintercept = 1, linetype = 2) +
+  scale_x_log10("Odds ratio (log scale)") +
+  labs(y = "Epoch")
+
+orsdat <- tibble(
+  Group = "Site",
+  Country = factor(res$dat$region_by_site, labels = c("India", "Australia", "Nepal", "New\nZealand")),
+  Parameter = fct_inorder(names(rvs_site)),
+  posterior = rvs_site
+)
+p_site <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
+  facet_grid(Country ~ ., scales = "free_y", space = "free_y") +
+  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
+  geom_vline(xintercept = 1, linetype = 2) +
+  scale_x_log10("Odds ratio (log scale)") +
+  labs(y = "Site") +
+  theme(panel.border = element_rect(fill = NA))
+
+p <- p_epoch | p_site
+p
+```
+
+```{r}
+pth <- file.path("outputs", "figures", "outcomes", "secondary", "7-4-primary-model-epoch-site-terms.pdf")
+ggsave(pth, p, width = 6, height = 4.5)
+```
