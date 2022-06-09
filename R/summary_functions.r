@@ -1,6 +1,68 @@
 library(tidyverse)
 library(kableExtra)
 
+# Outcome summary functions - model outputs ----
+
+#' odds_ratio_summary_table
+#'
+#' @param OR A vector of rvars which represent posterior odds ratio draws
+#' @param format Either html or latex
+#' @param fn Optional file name if saving the latex table.
+#'  Note that this uses `save_tex_table` which prepends `outputs/tables`
+#'  to the file path and appends .tex  e.g. should just use fn = "outcomes/primary/filename"
+#'  to save a file to outputs/tables/outcomes/primary/filename.tex
+#' @return A kable object
+odds_ratio_summary_table <- function(OR, format = "html", fn = NULL) {
+  out <- tibble(
+    Parameter = names(OR),
+    Median = median(OR),
+    `95% CrI` = apply(
+      quantile(OR, c(0.025, 0.975)), 2,
+      function(x) sprintf("(%.2f, %.2f)", x[1], x[2])),
+    `Mean (SD)` = sprintf("%.2f (%.2f)", E(OR), sd(OR)),
+    `Pr(OR < 1)` = Pr(OR < 1),
+  ) %>%
+    kable(
+      format = format,
+      digits = 2,
+      align = "lrrrr",
+      linesep = "",
+      booktabs = TRUE) %>%
+    kable_styling(
+      font_size = 9,
+      bootstrap_options = "striped",
+      latex_options = "HOLD_position")
+  if (!is.null(fn) & format == "latex") {
+    save_tex_table(out, fn)
+  } else {
+    return(out)
+  }
+}
+
+
+plot_or_densities <- function(rvs) {
+  tibble(Contrast = fct_inorder(names(rvs)), RV = rvs) %>%
+    ggplot(., aes(y = Contrast, xdist = RV)) +
+    stat_halfeye(
+      aes(fill =
+            stat(cut_cdf_qi(
+              cdf,
+              .width = c(.5, .8, .95, 0.99),
+              labels = scales::percent_format()))),
+      adjust = 1, n = 1001, .width = c(0.5, 0.8, 0.95)
+    ) +
+    scale_fill_brewer(
+      palette = "Reds",
+      direction = -1,
+      na.translate = FALSE) +
+    labs(
+      x = "Odds ratio contrast",
+      fill = "Interval"
+    ) +
+    scale_x_log10(breaks = c(0.1, 0.25, 0.5, 1, 2, 4, 10)) +
+    geom_vline(xintercept = 1)
+}
+
 # Baseline summary - demographics  ----
 
 #' Generate baseline demographics summary by a grouping variable
