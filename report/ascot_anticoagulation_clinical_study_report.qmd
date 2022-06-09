@@ -1,6 +1,6 @@
 ---
 title: "ASCOT Anticoagulation Clinical Study Report"
-date: '2022-06-30'
+date: '2022-06-09'
 author:
   - name: James Totterdell
     affiliation: University of Sydney
@@ -32,11 +32,12 @@ execute:
 
 ## Purpose
 
-The trial steering committee (TSC) closed randomisation to the anticoagulation domain on xx xxx 2022. The blinded statistical analysis workin group prepared a statistical analysis plan (SAP) for reporting the results of the anticoagulation domain. The unblinded team of statisticians undertook these analysis using the relevant records as extracted from the database on 2022-06-06.
+The trial steering committee (TSC) closed randomisation to the anticoagulation domain on 8 April 2022. The blinded statistical analysis working group prepared a statistical analysis plan (SAP) for reporting the results of the anticoagulation domain. The unblinded team of statisticians undertook these analysis using the relevant records as extracted from the database on 2022-06-06.
 
 This report summarises the data and results for the anticoagulation domain. The report restricts these summaries and analyses to the interventions available in the anticoagulation domain and does not report on the interventions in the antiviral domain.
 
 ## Trial Status
+
 
 
 # Results
@@ -49,7 +50,7 @@ At the time of database lock for the anticoagulation domain, 1,599 participants 
 
 ### Disposition
 
-Of the 1,574 participants randomised to the anticoagulation domain, 18 withdrew consent for follow-up leaving 1,556 participants continuing to study day 28. The analyses and summaries included in this report exclude only data on participants who withdrew consent for follow-up.
+Of the 1,574 participants randomised to the anticoagulation domain, 18 withdrew consent for follow-up leaving 1,556 participants continuing to study day 28. The analyses and summaries included in this report exclude data on participants who withdrew consent for follow-up.
 
 Platform and domain specific flow diagrams are included in @fig-platform-flow and @fig-anticoagulation-flow respectively.
 
@@ -119,19 +120,21 @@ Due to the trial progression, response adaptive randomisation was never activate
 
 ### Deviations
 
-{{< pagebreak >}}
+\clearpage
 
 ### Analysis Sets
 
-The primary analysis population includes all participants who were randomised to the anticoagulation domain. For the intention-to-treat (ITT) analysis, all participants randomised to the anticoagulation domain were analysed according to their aside regimen irrespective of deviations or non-adherence.
+The primary analysis population includes all participants who were randomised to the anticoagulation domain. For the intention-to-treat (ITT) analyses, all participants randomised to the anticoagulation domain were analysed according to their aside regimen irrespective of deviations or non-adherence. This set is referred to as the anticoagulation ITT set (ACS-ITT).
 
-Secondary analyses expand the analysis set to include all participants randomised to the platform including those who were not randomised to the anticoagulation domain for the purpose of additional covariate information.
+Secondary analyses expand the analysis set to include all participants randomised to the platform including those who were not randomised to the anticoagulation domain for the purpose of additional covariate information. This is referred to as the full analysis set ITT (FAS-ITT)
 
-Per-protocol (PP) analyses restrict both of analysis sets to only those participants who sufficiently adhered to the protocol as determined by blinded review. Participants who were not PP had their outcomes set to missing.
+Per-protocol (PP) analyses restrict both of the analysis sets to only those participants who sufficiently adhered to the protocol as determined by blinded review. Participants who were not PP had their outcomes set to missing, (ACS-PP and FAS-PP).
+
+\clearpage
 
 ### Baseline Characteristics
 
-As previously mentioned, the following summaries exclude participants who withdrew consent for follow-up.
+The following baseline summaries exclude participants who withdrew consent for follow-up.
 
 #### Demographics
 
@@ -208,6 +211,7 @@ tab <- readLines(file.path("..", "outputs", "tables", "baseline", "drugs.tex"))
 writeLines(tab[-which(grepl("caption", tab))])
 ```
 
+\clearpage
 
 ### Adherence
 
@@ -315,6 +319,64 @@ Domain-specific subgroups were additionally specified as:
 
 For each sub-group analysis, the primary model was extended to include an interaction term between the covariate of interest and the anticoagulation interventions.
 
+#### Country
+
+A subgroup analysis of country is undertaken using the ACS-ITT set. A summary of the primary outcome by country and intervention is reported in @tbl-descriptive-acs-itt-subgroup-country. Note that no participants enrolled in Nepal or New Zealand received standard dose plus aspirin, and very few in Australia received it, due to the timing of its removal from the domain. Despite this, an interaction term for country and standard dose plus aspirin was retained in the model, however, the associated effect corresponds to the assumed prior given there is no data available.
+
+```{r}
+#| label: tbl-descriptive-acs-itt-subgroup-country
+#| tbl-cap: |
+#|   Summary of participant outcomes by country of enrolment in
+#|   the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", 
+  "descriptive-acs-itt-subgroup-country-descriptive.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-subgroup-acs-itt-country
+#| eval: false
+#| fig-cap: |
+#|   Posterior Summaries (point - median, block - 0.75 CrI, line - 0.95 CrI) 
+#|   of odds ratio for anticoagulation interventions by country subgruop using
+#|   ACS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/subgroup-country-hte.pdf"
+)
+```
+
+The primary model was extended to include an interaction between country and anticoagulation intervention.
+
+#### Age group
+
+```{r}
+#| label: tbl-descriptive-acs-itt-subgroup-age
+#| tbl-cap: |
+#|   Summary of participant outcomes by age group at enrolment in
+#|   the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", 
+  "descriptive-acs-itt-subgroup-age-descriptive.tex"))
+writeLines(tab)
+```
+
+#### Days since symptom onset
+
+```{r}
+#| label: tbl-descriptive-acs-itt-subgroup-dsfs
+#| tbl-cap: |
+#|   Summary of participant outcomes by days since symptom onset in
+#|   the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", 
+  "descriptive-acs-itt-subgroup-dsfs-descriptive.tex"))
+writeLines(tab)
+```
+
 \clearpage
 
 ### Sensitivity
@@ -333,28 +395,94 @@ tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "pr
 writeLines(tab)
 ```
 
-
 \clearpage
 
 ## Secondary Outcomes
 
-For all secondary outcomes, the primary model (adjusting for interventions, age group, country, site, and epoch using the relevant outcome model) was fit to the ACS-ITT set. The only sensitivity analysis conducted was to repeat the analysis restricted to contemporaneous controls without the epoch term.
+For all secondary outcomes, the primary model (adjusting for interventions, age group, country, site, and epoch using the relevant outcome model) was fit to the ACS-ITT set. The only sensitivity analysis conducted was to repeat the analyses restricted to contemporaneous controls without the epoch term.
 
 ### Time to clinical recovery
+
+```{r}
+#| label: fig-7-1-descriptive
+#| fig-cap: |
+#|   Observed progression of patients with respect to death and recovery.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-1-descriptive.pdf"
+)
+```
+
+\clearpage
+
+### WHO 8-point ordinal outcome scale at day 28
 
 \clearpage
 
 ### All-cause mortality
 
-All-cause mortality to day 28 was modelled using the same method as for the primary outcome.
 
-### WHO outcome scale
+```{r}
+#| label: tbl-mortality-summary
+#| tbl-cap: |
+#|   Summary of mortality by day 28 by treatment group.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", "anticoagulation-summary-mortality.tex"))
+writeLines(tab)
+```
 
-### Days free of hospitalisation
+\clearpage
+
+### Days alive and free of hospital
+
+```{r}
+#| label: fig-7-4-descriptive
+#| fig-cap: |
+#|   Observed distribution of days alive and free of hospital at day 28 by treatment group.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-4-descriptive.pdf"
+)
+```
+
+\clearpage
+
+### Days alive and free of invasive or non-invasive ventilation
+
+\clearpage
+
+### Presence of patient reported outcome of shortness of breath
+
+\clearpage
+
+### Modified Medical Research Council (mMRC) breathlessness scale
+
+\clearpage
+
+###  Quality of life as measured by EQ-5D-5L questionnaire
 
 \clearpage
 
 ## Domain Specific Outcomes
+
+### Any thrombotic event (or death) to day 28
+
+### Confirmed deep venous thrombosis 
+
+### Confirmed pulmonary embolus
+
+### Confirmed acute myocardial infarction 
+
+### Confirmed ischemic cerebrovascular event
+
+### Any clinically relevant bleeding (non-major or worse)
+
+### Major bleeding (as defined by ISTH) 
+
+### Clinically relevant non-major bleeding
+
+### Heparin-induced thrombocytopenia
+
+### Other confirmed thrombotic
 
 \clearpage
 
