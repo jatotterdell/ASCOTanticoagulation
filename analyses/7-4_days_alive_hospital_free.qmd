@@ -346,10 +346,11 @@ p1 <- pdat %>%
 p2 <- ggplot(pdat, aes(mth, p)) +
   facet_grid( ~ yr, drop = T, scales = "free_x", space = "free") +
   geom_col(aes(fill = fct_rev(dafh))) +
-  labs(x = "Calendar date (month of year)", y = "Cumulative proportion") +
-  scale_fill_viridis_d("Days alive and\nfree of hospital", option = "A", direction = -1) +
+  labs(x = "Calendar date (month of year)", y = "Cumulative\nproportion") +
+  scale_fill_viridis_d("DAFH", option = "A", direction = -1) +
   guides(fill = guide_legend(reverse = TRUE)) +
-  theme(legend.key.size = unit(0.5, "lines"))
+  theme(legend.key.size = unit(0.25, "lines")) +
+  scale_x_continuous(breaks = 1:12)
 p <- p1 | p2
 p
 ```

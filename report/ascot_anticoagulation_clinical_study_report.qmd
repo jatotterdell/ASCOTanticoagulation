@@ -659,6 +659,8 @@ knitr::include_graphics(
 )
 ```
 
+\clearpage
+
 ## Days alive and free of hospital to day 28 by Model Covariates (ACS-ITT) {#sec-app-7-4-model-cov}
 
 ```{r}
