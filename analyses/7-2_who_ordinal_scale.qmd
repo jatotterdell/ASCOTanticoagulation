@@ -19,8 +19,15 @@ library(posterior)
 library(bayestestR)
 library(bayesplot)
 library(matrixStats)
+library(ggdist)
+library(patchwork)
 
-theme_set(theme_minimal(base_size = 11))
+theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank()))
+bayesplot_theme_set(theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank())))
 ```
 
 ```{r}
@@ -39,7 +46,20 @@ ordered_logit <- function(x) {
 #| label: data
 #| code-summary: Prepare dataset
 devtools::load_all()
-dat <- read_all_no_daily()
+all_dat <- read_all_no_daily()
+
+acs_itt_dat <- all_dat %>% 
+  filter_acs_itt() %>%
+  transmute_model_cols() %>%
+  left_join(
+    all_dat %>% 
+      select(
+        StudyPatientID, 
+        D28_who,
+        D28_death),
+    by = "StudyPatientID")
+acs_itt_nona_dat <- acs_itt_dat %>%
+  filter(!is.na(D28_who))
 ```
 
 ## Descriptive {#descriptive}
@@ -47,15 +67,13 @@ dat <- read_all_no_daily()
 ### Day 28
 
 ```{r}
-ovr_counts <- dat %>%
-  filter(ENR_rec == 1, WTH_FU == 0, ACS_ITT == 1) %>%
+ovr_counts <- acs_itt_dat %>%
   dplyr::count(D28_who, D28_death) %>%
   mutate(
     p = n / sum(n),
     p_ex_miss = c(n[!is.na(D28_who)] / sum(n * !is.na(D28_who)), NA)
   )
-trt_counts <- dat %>%
-  filter(ENR_rec == 1, WTH_FU == 0, ACS_ITT == 1, !is.na(D28_who)) %>%
+trt_counts <- acs_itt_nona_dat %>%
   dplyr::count(CAssignment, D28_who = factor(as.integer(D28_who))) %>%
   complete(CAssignment, D28_who, fill = list(n = 0)) %>%
   group_by(CAssignment) %>%
@@ -64,26 +82,34 @@ ovr_counts
 ```
 
 ```{r}
-dat %>%
-  filter(ENR_rec == 1, WTH_FU == 0, ACS_ITT == 1) %>%
+acs_itt_dat %>%
   dplyr::count(CAssignment, D28_who, D28_death) %>%
   spread(CAssignment, n, fill = 0)
 ```
 
 ```{r}
-dat %>%
-  filter(ENR_rec == 1, WTH_FU == 0, ACS_ITT == 1, !is.na(D28_who)) %>%
-  dplyr::count(CAssignment, D28_who = factor(as.integer(D28_who))) %>%
+p <- acs_itt_nona_dat %>%
+  dplyr::count(
+    CAssignment = factor(CAssignment, labels = str_replace(intervention_labels()$CAssignment[-1], "<br>", "\n")), 
+    D28_who = ordered(as.integer(D28_who), levels = 1:8)
+  ) %>%
   group_by(CAssignment) %>%
   mutate(p = n / sum(n)) %>%
   ggplot(., aes(CAssignment, p)) +
   geom_col(aes(fill = D28_who)) +
-  scale_fill_viridis_d(option = "B")
+  scale_fill_viridis_d(option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = F)) +
+  labs(fill = "WHO scale", y = "Cumulative proportion", x = "Anticoagulation intervention")
+p
 ```
 
 ```{r}
-dat %>%
-  filter(ENR_rec == 1, WTH_FU == 0, ACS_ITT == 1, !is.na(D28_who)) %>%
+pth <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(pth, "outcome-7-2-descriptive.pdf"), p, height = 3, width = 6)
+```
+
+```{r}
+acs_itt_nona_dat %>%
   dplyr::count(CAssignment, D28_who = factor(as.integer(D28_who))) %>%
   complete(CAssignment, D28_who, fill = list(n = 0)) %>%
   group_by(CAssignment) %>%
@@ -123,7 +149,7 @@ trt_counts %>%
 seed <- 81350
 mod <- cmdstan_model("stan/logistic_cumulative_ordinal.stan")
 
-mdat <- dat %>%
+mdat <- all_dat %>%
   filter(ENR_rec == 1, WTH_FU == 0, ACS_ITT == 1, !is.na(D28_who)) %>%
   select(CAssignment, D28_who)
 
@@ -187,7 +213,7 @@ p_df <- expand_grid(
 #| fig-cap: |
 #|   Posterior probability of outcome levels by treatment group
 #|   compared to observed proportions.
-obs <- dat %>%
+obs <- all_dat %>%
   filter(ENR_rec == 1, WTH_FU == 0, ACS_ITT == 1, !is.na(D28_who)) %>%
   dplyr::count(CAssignment, D28_who = as.integer(D28_who)) %>%
   complete(CAssignment, D28_who, fill = list(n = 0)) %>%
