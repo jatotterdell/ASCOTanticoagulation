@@ -51,10 +51,64 @@ acs_itt_nona_dat <- acs_itt_dat %>%
 # Data checking
 
 ```{r}
-
 with(acs_itt_nona_dat, table(D28_death, CAssignment))
-
 ```
+
+## Descriptive
+
+```{r}
+make_mortality_table <- function(dat, format = "html") {
+  tab <- dat %>%
+    mutate(CAssignment = factor(CAssignment, labels = intervention_labels()$CAssignment[-1])) %>%
+    group_by(CAssignment) %>%
+    summarise(
+      Randomised = n(),
+      `Outcome missing` = sprintf(
+        "%i (%.1f)", sum(is.na(D28_death)), 100 * mean(is.na(D28_death))),
+      `Outcome observed` = sprintf(
+        "%i (%.1f)", sum(!is.na(D28_death)), 100 * mean(!is.na(D28_death))),
+      `Died by day 28` = sprintf(
+        "%i (%.1f)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
+    ) %>%
+    bind_rows(
+      dat  %>%
+        group_by(CAssignment = "Overall") %>%
+        summarise(
+          Randomised = n(),
+          `Outcome missing` = sprintf(
+            "%i (%.1f)", sum(is.na(D28_death)), 100 * mean(is.na(D28_death))),
+          `Outcome observed` = sprintf(
+            "%i (%.1f)", sum(!is.na(D28_death)), 100 * mean(!is.na(D28_death))),
+          `Died by day 28` = sprintf(
+            "%i (%.1f)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
+      )
+    ) %>%
+    mutate(CAssignment = fct_inorder(CAssignment)) %>%
+    gather(key, value, -CAssignment, factor_key = T) %>%
+    spread(CAssignment, value)
+  colnames(tab)[1] <- "n (\\%)"
+  if(format == "latex") {
+    colnames(tab) <- linebreak(colnames(tab), align = "c", linebreaker = "<br>")
+  }
+    kable(tab,
+      format = format,
+      align = "lrrrrr",
+      escape = FALSE,
+      booktabs = TRUE
+    ) %>%
+    kable_styling(font_size = 10, latex_options = "HOLD_position")  
+}
+make_mortality_table(
+    all_dat %>%
+      filter_acs_itt()
+)
+save_tex_table(make_mortality_table(
+      all_dat %>%
+      filter_acs_itt(),
+      "latex"), 
+      "outcomes/secondary/anticoagulation-summary-mortality")
+```
+
 
 # Modelling
 

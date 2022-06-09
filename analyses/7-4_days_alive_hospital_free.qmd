@@ -35,8 +35,13 @@ library(lubridate)
 library(ggdist)
 library(patchwork)
 
-theme_set(theme_minimal(base_size = 10, base_family = "Palatino"))
-bayesplot_theme_set(theme_minimal(base_size = 12))
+theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank()))
+bayesplot_theme_set(theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank())))
+
 color_scheme_set("red")
 options(digits = 4)
 ```
@@ -127,9 +132,6 @@ make_model_data <- function(dat) {
        p_par = 2 * rep(1 / unique_y, unique_y),
        beta_sd = c(rep(1, nXassign), 2.5, 10))  
 }
-
-
-
 
 make_reduced_model_data <- function(dat) {
   X <- model.matrix(
@@ -241,7 +243,10 @@ pdat <- acs_itt_dat %>%
   mutate(p = n / sum(n))
 ggplot(pdat, aes(dafh, p)) +
   geom_col() +
-  labs(x = "Days alive and free of hospital", y = "Proportion")
+  labs(
+    x = "Days alive and free of hospital", 
+    y = "Proportion"
+  )
 ```
 
 ## Age
@@ -295,19 +300,27 @@ ggplot(pdat, aes(ctry, p)) +
 #| fig-height: 4
 pdat <- acs_itt_nona_dat %>%
   dplyr::count(
-    CAssignment,
+    CAssignment = factor(CAssignment, labels = str_replace(intervention_labels()$CAssignment[-1], "<br>", "\n")),
     dafh = ordered(out_dafh, levels = 0:27), 
     .drop = F) %>%
   group_by(CAssignment) %>%
   mutate(p = n / sum(n)) %>%
   mutate(cp = cumsum(p)) %>%
   ungroup()
-ggplot(pdat, aes(CAssignment, p)) +
+p <- ggplot(pdat, aes(CAssignment, p)) +
   geom_col(aes(fill = fct_rev(dafh))) +
   labs(x = "Anticoagulation intervention", y = "Cumulative proportion") +
   scale_fill_viridis_d("Days alive and\nfree of hospital", option = "A", direction = -1) +
-  guides(fill = guide_legend(reverse = TRUE))
+  guides(fill = guide_legend(reverse = TRUE)) +
+  theme(legend.key.size = unit(0.75, "lines"))
+p
 ```
+
+```{r}
+pth <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(pth, "outcome-7-4-descriptive.pdf"), p, height = 3, width = 6)
+```
+
 
 ```{r}
 #| label: fig-dafh-dist-anticoagulation2
@@ -321,7 +334,6 @@ ggplot(pdat, aes(dafh, cp)) +
     "Days alive and\nfree of hospital", option = "A", begin = 0, end = 0.8) +
   guides(fill = guide_legend(reverse = TRUE))
 ```
-
 
 # Modelling
 
