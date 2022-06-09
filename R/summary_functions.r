@@ -39,6 +39,36 @@ odds_ratio_summary_table <- function(OR, format = "html", fn = NULL) {
   }
 }
 
+#' odds_ratio_summary_table_rev
+#'
+#' As for odds_ratio_summary_table but usin Pr(OR > 1) instead of Pr(OR < 1)
+odds_ratio_summary_table_rev <- function(OR, format = "html", fn = NULL) {
+  out <- tibble(
+    Parameter = names(OR),
+    Median = median(OR),
+    `95% CrI` = apply(
+      quantile(OR, c(0.025, 0.975)), 2,
+      function(x) sprintf("(%.2f, %.2f)", x[1], x[2])),
+    `Mean (SD)` = sprintf("%.2f (%.2f)", E(OR), sd(OR)),
+    `Pr(OR > 1)` = Pr(OR > 1),
+  ) %>%
+    kable(
+      format = format,
+      digits = 2,
+      align = "lrrrr",
+      linesep = "",
+      booktabs = TRUE) %>%
+    kable_styling(
+      font_size = 9,
+      bootstrap_options = "striped",
+      latex_options = "HOLD_position")
+  if (!is.null(fn) & format == "latex") {
+    save_tex_table(out, fn)
+  } else {
+    return(out)
+  }
+}
+
 
 plot_or_densities <- function(rvs) {
   tibble(Contrast = fct_inorder(names(rvs)), RV = rvs) %>%

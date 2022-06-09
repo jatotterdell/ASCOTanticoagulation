@@ -60,6 +60,24 @@ intervention_labels <- function() {
   )
 }
 
+intervention_labels2 <- function() {
+  list(
+    AAssignment = c(
+      "A0" = "Not randomised to antiviral",
+      "A1" = "No specific antiviral",
+      "A2" = "Nafamostat"
+    ),
+    CAssignment = c(
+      "C0" = "Not randomised to anticoagulation",
+      "C1" = "Standard dose",
+      "C2" = "Intermediate dose",
+      "C3" = "Standard dose plus aspirin",
+      "C4" = "Therapeutic dose"
+    )
+  )
+}
+
+
 
 get_intervention_dates <- function() {
   tribble(
