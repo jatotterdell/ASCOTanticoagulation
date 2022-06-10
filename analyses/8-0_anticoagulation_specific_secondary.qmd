@@ -1,0 +1,478 @@
+---
+title: Domain-specific secondary outcomes
+subtitle: |
+  - any thrombotic event to day 28
+  - confirmed deep venous thrombosis to day 28
+description: |
+  This file runs through the descriptive summaries and analyses
+  of the domain-specific secondary outcomes.
+author:
+  - name: James Totterdell
+    affiliation: University of Sydney
+  - name: Rob Mahar
+    affiliation: University of Melbourne
+date: last-modified
+---
+
+# Preamble
+
+```{r}
+#| label: pkgs
+#| code-summary: Load packages
+library(tidyverse)
+library(labelled)
+library(kableExtra)
+library(cmdstanr)
+library(posterior)
+library(bayestestR)
+library(bayesplot)
+library(matrixStats)
+library(plotly)
+library(lubridate)
+library(ggdist)
+library(patchwork)
+
+theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank()))
+bayesplot_theme_set(theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank())))
+
+color_scheme_set("red")
+options(digits = 4)
+```
+
+```{r}
+#| label: model
+logistic_mod <- cmdstan_model("stan/logistic_bernoulli.stan")
+primary_mod2 <- cmdstan_model("stan/primary_logistic_model_site_epoch2.stan")
+primary_mod3 <- cmdstan_model("stan/primary_logistic_model_site_epoch3.stan")
+```
+
+
+```{r}
+#| label: data
+#| code-summary: Prepare dataset
+devtools::load_all()
+all_dat <- read_all_no_daily()
+all_dat_daily <- read_all_daily()
+
+acs_itt_dat <- all_dat %>% 
+  filter_acs_itt() %>%
+  mutate(
+    # 8.0 death
+    out_dth = D28_death,
+    # 8.2 deep vein thrombosis
+    out_dvt = case_when(
+      D28_ABEventNone == "Yes" ~ 0,
+      D28_ABEventUnknown == "Yes" ~ NA_real_,
+      D28_ABDeepVein == "Yes" ~ 1,
+      TRUE ~ 0
+    ),
+    # 8.3 - pulmonary embolism
+    out_pe = case_when(
+      D28_ABEventNone == "Yes" ~ 0,
+      D28_ABEventUnknown == "Yes" ~ NA_real_,
+      D28_ABPulmonaryEmbolism == "Yes" ~ 1,
+      TRUE ~ 0
+    ),
+    # 8.4 - acute myocardial infarction
+    out_ami = case_when(
+      D28_ABEventNone == "Yes" ~ 0,
+      D28_ABEventUnknown == "Yes" ~ NA_real_,
+      D28_ABAcuteMyocardinalInfarction == "Yes" ~ 1,
+      TRUE ~ 0
+    ),
+    # 8.5 - ischemic cerebrovascular event
+    out_ice = case_when(
+      D28_ABEventNone == "Yes" ~ 0,
+      D28_ABEventUnknown == "Yes" ~ NA_real_,
+      D28_ABIschemicCerebrovascularEvent == "Yes" ~ 1,
+      TRUE ~ 0
+    ),
+    # 8.10 - other confirmed thrombotic event
+    out_ote = case_when(
+      D28_ABEventNone == "Yes" ~ 0,
+      D28_ABEventUnknown == "Yes" ~ NA_real_,
+      D28_ABOtherThromboEvent == "Yes" ~ 1,
+      TRUE ~ 0
+    ),
+    # 8.1 - any thrombotic event or death
+    out_ated = case_when(
+      out_dth == 1 | out_dvt == 1 | out_pe == 1 | out_ami == 1  | out_ice == 1 | out_ote == 1 ~ 1,
+      is.na(out_dth) | is.na(out_dvt) | is.na(out_pe) | is.na(out_ami) | is.na(out_ice) | is.na(out_ote) ~ NA_real_,
+      out_dth == 0 & out_dvt == 0 & out_pe == 0 & out_ami == 0  & out_ice == 0 & out_ote == 0 ~ 0
+    ),
+    # 8.7 - major bleeding
+    out_mb = case_when(
+      D28_AECNone == "Yes" ~ 0,
+      D28_AECMajorBleeding == "No" ~ 0,
+      D28_AECMajorBleeding == "Yes" ~ 1,
+      D28_AECUnknown == "Yes" ~ NA_real_,
+      TRUE ~ 0 
+    ),
+    # 8.8 - non-major bleeding
+    out_nmb = case_when(
+      D28_ABNonMajorBleeding == "Yes" ~ 1,
+      D28_ABNonMajorBleeding == "No" ~ 0,
+      D28_ABNonMajorBleeding == "Unknown" ~ NA_real_
+    ),
+    # 8.6 - any clinically relevant bleeding
+    out_crb = case_when(
+      out_mb == 1 | out_nmb == 1 ~ 1,
+      is.na(out_mb) | is.na(out_nmb) ~ NA_real_,
+      out_mb == 0 & out_nmb == 0 ~ 0
+    ),
+    # 8.9 - heparain-induced thrombocytopenia
+    out_hit = case_when(
+      D28_AECNone == "Yes" ~ 0,
+      D28_AECUnknown == "Yes" ~ NA_real_,
+      D28_AECHIT == "Yes" ~ 1,
+      TRUE ~ 0 
+    )
+  )
+```
+
+```{r}
+#| label: cross-check-derived-variables
+acs_itt_dat %>% dplyr::count(out_dvt, D28_ABDeepVein, D28_ABEventNone, D28_ABEventUnknown)
+acs_itt_dat %>% dplyr::count(out_pe, D28_ABPulmonaryEmbolism, D28_ABEventNone, D28_ABEventUnknown)
+acs_itt_dat %>% dplyr::count(out_ami, D28_ABAcuteMyocardinalInfarction, D28_ABEventNone, D28_ABEventUnknown)
+acs_itt_dat %>% dplyr::count(out_ice, D28_ABIschemicCerebrovascularEvent, D28_ABEventNone, D28_ABEventUnknown)
+acs_itt_dat %>% dplyr::count(out_ote, D28_ABOtherThromboEvent, D28_ABEventNone, D28_ABEventUnknown)
+acs_itt_dat %>% dplyr::count(out_ated, out_dth, out_dvt, out_pe, out_ami, out_ice, out_ote)
+
+acs_itt_dat %>% dplyr::count(D28_AECHIT, D28_AECMajorBleeding, D28_AECNone, D28_AECUnknown)
+acs_itt_dat %>% dplyr::count(out_mb, D28_AECMajorBleeding, D28_AECNone, D28_AECUnknown)
+acs_itt_dat %>% dplyr::count(out_nmb, D28_ABNonMajorBleeding)
+acs_itt_dat %>% dplyr::count(out_crb, out_mb, out_nmb)
+
+acs_itt_dat %>% dplyr::count(out_hit, D28_AECHIT, D28_AECNone, D28_AECUnknown)
+```
+
+# Descriptive
+
+## Anticoagulation
+
+The following table describes the anticoagulation domain-specific outcomes by anticoagulation intervention.
+
+```{r}
+gtab <- acs_itt_dat %>%
+  select(CAssignment, out_dth, 
+         out_ated, out_dvt, out_pe, out_ami, out_ice, out_ote, 
+         out_crb, out_mb, out_nmb, out_hit) %>%
+  group_by(CAssignment) %>%
+  summarise(
+    Randomised_ = n(),
+    `Mortality_Died by day 28` = sprintf("%i (%.0f)", sum(out_dth, na.rm = TRUE), 100 * mean(out_dth, na.rm = TRUE)),
+    `Mortality_Unknown` = sprintf("%i (%.0f)", sum(is.na(out_dth)), 100 * mean(is.na(out_dth))),
+    `Thrombotic events_Unknown` = 
+        sprintf("%i (%.0f)", sum(is.na(out_dvt)), 100 * mean(is.na(out_dvt))),
+    `Thrombotic events_Deep vein thrombosis` = 
+      sprintf("%i (%.0f)", sum(out_dvt, na.rm = TRUE), 100 * mean(out_dvt, na.rm = TRUE)),
+    `Thrombotic events_Pulmonary embolus` = 
+      sprintf("%i (%.0f)", sum(out_pe, na.rm = TRUE), 100 * mean(out_pe, na.rm = TRUE)),
+    `Thrombotic events_Acute myocardial infarction` = 
+      sprintf("%i (%.0f)", sum(out_ami, na.rm = TRUE), 100 * mean(out_ami, na.rm = TRUE)),
+    `Thrombotic events_Ischemic cerebrovascular event` = 
+      sprintf("%i (%.0f)", sum(out_ice, na.rm = TRUE), 100 * mean(out_ice, na.rm = TRUE)),
+    `Thrombotic events_Other confirmed thrombotic event` = 
+      sprintf("%i (%.0f)", sum(out_ote, na.rm = TRUE), 100 * mean(out_ote, na.rm = TRUE)),
+    `Thrombotic events_Any thrombotic event or death` = 
+      sprintf("%i (%.0f)", sum(out_ated, na.rm = TRUE), 100 * mean(out_ated, na.rm = TRUE)),
+    `Bleeding_Unknown` = 
+      sprintf("%i (%.0f)", sum(is.na(out_crb)), 100 * mean(is.na(out_crb))),
+    `Bleeding_Major bleeding (as defined by ISTH)` = 
+      sprintf("%i (%.0f)", sum(out_mb, na.rm = TRUE), 100 * mean(out_mb, na.rm = TRUE)),
+    `Bleeding_Clinically relevant non-major bleeding` = 
+      sprintf("%i (%.0f)", sum(out_nmb, na.rm = TRUE), 100 * mean(out_nmb, na.rm = TRUE)),
+    `Bleeding_Any clinically relevant bleeding` = 
+      sprintf("%i (%.0f)", sum(out_crb, na.rm = TRUE), 100 * mean(out_crb, na.rm = TRUE)),
+    `Bleeding_Heparin-induced thrombocytopenia` = 
+      sprintf("%i (%.0f)", sum(out_hit, na.rm = TRUE), 100 * mean(out_hit, na.rm = TRUE)),
+  ) %>%
+  gather(key, value, -CAssignment, factor_key = TRUE) %>%
+  spread(CAssignment, value) %>%
+  separate(key, c("Type", "Outcome"), sep = "_")
+colnames(gtab)[-(1:2)] <- paste0(intervention_labels()$CAssignment[-1], "<br>(n = ", gtab[1, -(1:2)], ")")
+gtab <- gtab[-1, ]
+
+otab <- acs_itt_dat %>%
+  select(CAssignment, out_dth, 
+         out_ated, out_dvt, out_pe, out_ami, out_ice, out_ote, 
+         out_crb, out_mb, out_nmb, out_hit) %>%
+  group_by(CAssignment = "Overall") %>%
+  summarise(
+    Randomised_ = n(),
+    `Mortality_Died by day 28` = sprintf("%i (%.0f)", sum(out_dth, na.rm = TRUE), 100 * mean(out_dth, na.rm = TRUE)),
+    `Mortality_Unknown` = sprintf("%i (%.0f)", sum(is.na(out_dth)), 100 * mean(is.na(out_dth))),
+    `Thrombotic events_Unknown` = 
+        sprintf("%i (%.0f)", sum(is.na(out_dvt)), 100 * mean(is.na(out_dvt))),
+    `Thrombotic events_Deep vein thrombosis` = 
+      sprintf("%i (%.0f)", sum(out_dvt, na.rm = TRUE), 100 * mean(out_dvt, na.rm = TRUE)),
+    `Thrombotic events_Pulmonary embolus` = 
+      sprintf("%i (%.0f)", sum(out_pe, na.rm = TRUE), 100 * mean(out_pe, na.rm = TRUE)),
+    `Thrombotic events_Acute myocardial infarction` = 
+      sprintf("%i (%.0f)", sum(out_ami, na.rm = TRUE), 100 * mean(out_ami, na.rm = TRUE)),
+    `Thrombotic events_Ischemic cerebrovascular event` = 
+      sprintf("%i (%.0f)", sum(out_ice, na.rm = TRUE), 100 * mean(out_ice, na.rm = TRUE)),
+    `Thrombotic events_Other confirmed thrombotic event` = 
+      sprintf("%i (%.0f)", sum(out_ote, na.rm = TRUE), 100 * mean(out_ote, na.rm = TRUE)),
+    `Thrombotic events_Any thrombotic event or death` = 
+      sprintf("%i (%.0f)", sum(out_ated, na.rm = TRUE), 100 * mean(out_ated, na.rm = TRUE)),
+    `Bleeding_Unknown` = 
+      sprintf("%i (%.0f)", sum(is.na(out_crb)), 100 * mean(is.na(out_crb))),
+    `Bleeding_Major bleeding (as defined by ISTH)` = 
+      sprintf("%i (%.0f)", sum(out_mb, na.rm = TRUE), 100 * mean(out_mb, na.rm = TRUE)),
+    `Bleeding_Clinically relevant non-major bleeding` = 
+      sprintf("%i (%.0f)", sum(out_nmb, na.rm = TRUE), 100 * mean(out_nmb, na.rm = TRUE)),
+    `Bleeding_Any clinically relevant bleeding` = 
+      sprintf("%i (%.0f)", sum(out_crb, na.rm = TRUE), 100 * mean(out_crb, na.rm = TRUE)),
+    `Bleeding_Heparin-induced thrombocytopenia` = 
+      sprintf("%i (%.0f)", sum(out_hit, na.rm = TRUE), 100 * mean(out_hit, na.rm = TRUE)),
+  ) %>%
+  gather(key, value, -CAssignment, factor_key = TRUE) %>%
+  spread(CAssignment, value) %>%
+  separate(key, c("Type", "Outcome"), sep = "_")
+colnames(otab)[-(1:2)] <- paste0("Overall<br>(n = ", otab[1, -(1:2)], ")")
+otab <- otab[-1, ]
+
+tab <- left_join(gtab, otab, by = c("Type", "Outcome"))
+
+kable(
+  tab[, -1],
+  booktabs = TRUE,
+  align = "lrrrr",
+  escape = T
+) %>%
+  kable_styling(
+    latex_options = "HOLD_position"
+  ) %>%
+  pack_rows("Mortality", 1, 2) %>%
+  pack_rows("Thrombotic events", 3, 9) %>%
+  pack_rows("Bleeding", 10, 14)
+```
+
+```{r}
+colnames(tab) <- linebreak(colnames(tab), align = "c", linebreaker = "<br>")
+out <- kable(
+  tab[, -1],
+  format = "latex",
+  booktabs = TRUE,
+  align = "lrrrrr",
+  escape = FALSE
+) %>%
+  kable_styling(
+    font_size = 9,
+    latex_options = "HOLD_position"
+  ) %>%
+  pack_rows("Mortality", 1, 2) %>%
+  pack_rows("Thrombotic events", 3, 9) %>%
+  pack_rows("Bleeding", 10, 14)
+save_tex_table(out, file.path("outcomes", "secondary", "8-0-anticoagulation-specific-summary"))
+```
+
+
+# Modelling
+
+The SAP only requests formal analyses of the two composite outcomes:
+
+- any thrombotic event or death
+- any clinically relevant bleeding
+
+Due to small numbers (6 events from 1,521 cases ~ 0.4%), the analysis of "any clinically relevant bleeding" has not been undertaken.
+
+The analysis of any thrombotic event or death will largely be driven by death due to the small number of thrombotic events. Therefore, the result is likely to be similar to that obtained for all-cause mortality. In any event, this analysis is undertaken below.
+
+## Primary Model
+
+```{r}
+acs_itt_nona_dat <- acs_itt_dat %>%
+  filter(!is.na(out_ated)) %>%
+  transmute_model_cols_grp_aus_nz() %>%
+  left_join(acs_itt_dat %>% 
+              select(StudyPatientID, out_ated), 
+            by = "StudyPatientID")
+
+ctr <- contr.orthonorm
+X <- model.matrix(
+  ~ CAssignment + AAssignment + agegte60 + inelgc3 + ctry,
+  data = acs_itt_nona_dat,
+  contrasts.arg = list(CAssignment = ctr, AAssignment = ctr)
+)
+nXassign <- sum(grepl("Assignment", colnames(X)))
+epoch  <- acs_itt_nona_dat$epoch
+M_epoch  <- max(acs_itt_nona_dat$epoch)
+region <- acs_itt_nona_dat[["ctry_num"]]
+M_region <- max(region)
+site <- acs_itt_nona_dat[["site_num"]]
+M_site <- max(site)
+region_by_site <- region_by_site <- acs_itt_nona_dat %>% 
+  dplyr::count(ctry_num, site_num) %>% 
+  pull(ctry_num)
+epoch_map <- acs_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)
+site_map <- acs_itt_nona_dat %>% dplyr::count(site_num, site)
+
+mdat <- list(N = nrow(X), K = ncol(X), X = X, y = acs_itt_nona_dat$out_ated,
+       M_region = M_region, M_site = M_site, site = site,
+       M_epoch = M_epoch, epoch = epoch,
+       region_by_site = region_by_site,
+       beta_mu = c(0, rep(0, 9)),
+       beta_sd = c(2.5, rep(1, nXassign), 2.5, 10, rep(1, 2)))
+
+snk <- capture.output(
+  mfit <- primary_mod3$sample(
+    data = mdat,
+    seed = 28497,
+    refresh = 0,
+    iter_warmup = 1000,
+    iter_sampling = 2500,
+    chains = 8,
+    parallel_chains = 8,
+    adapt_delta = 0.98
+))
+drws <- as_draws_rvars(mfit$draws(c("beta", "gamma_epoch", "gamma_site", "tau_epoch", "tau_site")))
+
+names(drws$beta) <- colnames(X)
+names(drws$gamma_epoch) <- epoch_map$epoch_lab
+names(drws$gamma_site) <- site_map$site
+
+drws$treat <- (transform_coding(cbind(1, contr.orthonorm(4)), cbind(1, contr.treatment(4))) %**%
+  drws$beta[1:4])[2:4]
+
+drws$OR <- exp(c(rvar(0), drws$treat, rvar(0), drws$beta[7], rvar(0), drws$beta[8], rvar(0), drws$beta[9:10]))
+names(drws$OR) <- c(
+  "Standard (ref)", "Intermediate", "Standard plus aspirin", "Therapeutic", 
+  "Age < 60 (ref)", "Age 60+", "Eligible aspirin (ref)", "Ineligible aspirin", 
+  "India (ref)", "Australia/NZ", "Nepal")
+```
+
+```{r}
+odds_ratio_summary_table(drws$OR)
+```
+
+```{r}
+epoch_rvs <- exp(drws$gamma_epoch)
+site_rvs <- exp(drws$gamma_site)
+
+orsdat <- tibble(
+  Group = "Epoch",
+  Parameter = fct_inorder(names(epoch_rvs)),
+  posterior = epoch_rvs
+)
+p_epoch <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
+  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
+  geom_vline(xintercept = 1, linetype = 2) +
+  scale_x_log10("Odds ratio (log scale)") +
+  labs(y = "Epoch")
+
+orsdat <- tibble(
+  Group = "Site",
+  Region = factor(mdat$region_by_site, labels = c("India", "Australia/NZ", "Nepal")),
+  Parameter = fct_inorder(names(site_rvs)),
+  posterior = site_rvs
+)
+p_site <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
+  facet_grid(Region ~ ., scales = "free_y", space = "free_y") +
+  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
+  geom_vline(xintercept = 1, linetype = 2) +
+  scale_x_log10("Odds ratio (log scale)") +
+  labs(y = "Site") +
+  theme(panel.border = element_rect(fill = NA))
+
+p <- p_epoch | p_site
+p
+```
+
+### Prior Sensitivity
+
+The analysis is repeated using treatment coding rather than the orthonormal coding. Due to the change in prior, the is a slight shift in the estimated treatment effects, however this does not alter the result of weak evidence for any difference.
+
+```{r}
+ctr <- contr.treatment
+X <- model.matrix(
+  ~ CAssignment + AAssignment + agegte60 + inelgc3 + ctry,
+  data = acs_itt_nona_dat,
+  contrasts.arg = list(CAssignment = ctr, AAssignment = ctr)
+)
+nXassign <- sum(grepl("Assignment", colnames(X)))
+epoch  <- acs_itt_nona_dat$epoch
+M_epoch  <- max(acs_itt_nona_dat$epoch)
+region <- acs_itt_nona_dat[["ctry_num"]]
+M_region <- max(region)
+site <- acs_itt_nona_dat[["site_num"]]
+M_site <- max(site)
+region_by_site <- region_by_site <- acs_itt_nona_dat %>% 
+  dplyr::count(ctry_num, site_num) %>% 
+  pull(ctry_num)
+epoch_map <- acs_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)
+site_map <- acs_itt_nona_dat %>% dplyr::count(site_num, site)
+
+mdat <- list(N = nrow(X), K = ncol(X), X = X, y = acs_itt_nona_dat$out_ated,
+       M_region = M_region, M_site = M_site, site = site,
+       M_epoch = M_epoch, epoch = epoch,
+       region_by_site = region_by_site,
+       beta_mu = c(0, rep(0, 9)),
+       beta_sd = c(2.5, rep(1, nXassign), 2.5, 10, rep(1, 2)))
+
+snk <- capture.output(
+  mfit <- primary_mod3$sample(
+    data = mdat,
+    seed = 28497,
+    refresh = 0,
+    iter_warmup = 1000,
+    iter_sampling = 2500,
+    chains = 8,
+    parallel_chains = 8,
+    adapt_delta = 0.98
+))
+drws <- as_draws_rvars(mfit$draws(c("beta", "gamma_epoch", "gamma_site", "tau_epoch", "tau_site")))
+
+names(drws$beta) <- colnames(X)
+names(drws$gamma_epoch) <- epoch_map$epoch_lab
+names(drws$gamma_site) <- site_map$site
+
+drws$OR <- exp(c(rvar(0), drws$beta[2:4], rvar(0), drws$beta[7], rvar(0), drws$beta[8], rvar(0), drws$beta[9:10]))
+names(drws$OR) <- c(
+  "Standard (ref)", "Intermediate", "Standard plus aspirin", "Therapeutic", 
+  "Age < 60 (ref)", "Age 60+", "Eligible aspirin (ref)", "Ineligible aspirin", 
+  "India (ref)", "Australia/NZ", "Nepal")
+```
+
+```{r}
+odds_ratio_summary_table(drws$OR)
+```
+
+```{r}
+epoch_rvs <- exp(drws$gamma_epoch)
+site_rvs <- exp(drws$gamma_site)
+
+orsdat <- tibble(
+  Group = "Epoch",
+  Parameter = fct_inorder(names(epoch_rvs)),
+  posterior = epoch_rvs
+)
+p_epoch <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
+  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
+  geom_vline(xintercept = 1, linetype = 2) +
+  scale_x_log10("Odds ratio (log scale)") +
+  labs(y = "Epoch")
+
+orsdat <- tibble(
+  Group = "Site",
+  Region = factor(mdat$region_by_site, labels = c("India", "Australia/NZ", "Nepal")),
+  Parameter = fct_inorder(names(site_rvs)),
+  posterior = site_rvs
+)
+p_site <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
+  facet_grid(Region ~ ., scales = "free_y", space = "free_y") +
+  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
+  geom_vline(xintercept = 1, linetype = 2) +
+  scale_x_log10("Odds ratio (log scale)") +
+  labs(y = "Site") +
+  theme(panel.border = element_rect(fill = NA))
+
+p <- p_epoch | p_site
+p
+```
