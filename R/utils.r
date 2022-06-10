@@ -227,6 +227,89 @@ transmute_model_cols <- function(dat) {
   return(dat)
 }
 
+
+#' transmute_model_cols_grp_aus_nz
+#'
+#' Same as transmute_model_cols, but join Australia and new zealand
+#' together as one "region" with nested sites
+transmute_model_cols_grp_aus_nz <- function(dat) {
+  site_counts <- dat %>%
+    dplyr::count(
+      Region = fct_collapse(
+        factor(Country, levels = c("IN", "AU", "NP", "NZ")),
+        "AU/NZ" = c("AU", "NZ")),
+      Location)
+  merge_ausnz <- site_counts %>%
+    filter(Region == "AU/NZ", n < 5) %>%
+    pull(Location)
+  dat <- dat %>%
+    mutate(
+      ctry = fct_collapse(
+        factor(Country, levels = c("IN", "AU", "NP", "NZ")),
+        "AU/NZ" = c("AU", "NZ")),
+      # group sites with < 5 counts
+      site = fct_collapse(
+        factor(Location, levels = site_counts$Location),
+        `AU/NZ other` = merge_ausnz
+      )
+    )
+  region_site <- dat %>%
+    dplyr::count(ctry, site) %>%
+    mutate(
+      ctry_num = as.numeric(ctry),
+      site_num = as.numeric(fct_inorder(site))
+    )
+  dat <- dat %>%
+    left_join(region_site %>% select(-n), by = c("ctry", "site")) %>%
+    transmute(
+      StudyPatientID,
+      Sex,
+      AAssignment= droplevels(factor(
+        AAssignment, levels = c("A0", "A1", "A2"))),
+      CAssignment = droplevels(factor(
+        CAssignment, levels = c("C1", "C0", "C2", "C3", "C4"))),
+      RandDate,
+      PO,
+      AgeAtEntry,
+      weight = BAS_Weight,
+      weightgt120 = as.numeric(weight > 120),
+      oxygen_sat = if_else(BAS_PeripheralOxygen < 10, NA_real_, BAS_PeripheralOxygen),
+      dsfs = as.numeric(RandDate - EL_FirstSymptoms),
+      dsfsgt7 = as.numeric(dsfs > 7),
+      age_c = AgeAtEntry - mean(AgeAtEntry),
+      agegte60,
+      agegte60_c = agegte60 - mean(agegte60),
+      country = factor(Country, levels = c("IN", "AU", "NP", "NZ")),
+      inelgc3 = if_else(EL_inelg_c3 == 0 | is.na(EL_inelg_c3), 0, 1),
+      ctry = fct_collapse(
+        factor(Country, levels = c("IN", "AU", "NP", "NZ")),
+        "AU/NZ" = c("AU", "NZ")),
+      ctry_num,
+      # group sites with < 5 counts
+      site = fct_collapse(
+        factor(Location, levels = site_counts$Location),
+        `AU/NZ other` = merge_ausnz
+      ),
+      site_num,
+      relRandDate = as.numeric(max(RandDate) - RandDate),
+      epoch_raw = floor(relRandDate / 28),
+      # Manual merge after check of count(epoch)
+      epoch = case_when(
+        epoch_raw %in% 0:1 ~ 2,
+        epoch_raw == 14 ~ 13,
+        TRUE ~ epoch_raw
+      ) - 1,
+    ) %>%
+    group_by(epoch) %>%
+    mutate(epoch_lab = paste(
+      format(min(RandDate), "%d%b%y"),
+      format(max(RandDate), "%d%b%y"),
+      sep = "-")
+    ) %>%
+    ungroup()
+  return(dat)
+}
+
 # Model helpers ----
 
 logit <- function(x) log(x) - log(1 - x)
