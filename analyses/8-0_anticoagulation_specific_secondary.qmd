@@ -1,8 +1,5 @@
 ---
 title: Domain-specific secondary outcomes
-subtitle: |
-  - any thrombotic event to day 28
-  - confirmed deep venous thrombosis to day 28
 description: |
   This file runs through the descriptive summaries and analyses
   of the domain-specific secondary outcomes.
@@ -353,6 +350,14 @@ odds_ratio_summary_table(drws$OR)
 ```
 
 ```{r}
+#| label: odds-ratio-summary-table-primary-model-save
+save_tex_table(
+  odds_ratio_summary_table(drws$OR, "latex"),
+  "outcomes/secondary/8-1-primary-model-acs-itt-summary-table")
+```
+
+
+```{r}
 epoch_rvs <- exp(drws$gamma_epoch)
 site_rvs <- exp(drws$gamma_site)
 
@@ -383,6 +388,11 @@ p_site <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
 
 p <- p_epoch | p_site
 p
+```
+
+```{r}
+pth <- file.path("outputs", "figures", "outcomes", "secondary", "8-1-primary-model-epoch-site-terms.pdf")
+ggsave(pth, p, width = 6, height = 4.5)
 ```
 
 ### Prior Sensitivity
