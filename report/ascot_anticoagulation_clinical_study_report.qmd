@@ -221,9 +221,11 @@ writeLines(tab[-which(grepl("caption", tab))])
 
 Bayesian models were computed using Stan via `cmdstanr` (0.5.2 and cmdstan version 2.29.2) in R (4.2.0). For each model, 8 chains were used with a warm-up of 1000 iterations and sampling for 2500 iterations per chain resulting in 20,000 posterior draws per model. Standard diagnostics were assessed for each model (divergent transitions, trace plots, R-hat). If an issue was identified (e.g. divergent transitions) then the default sampling parameters may have been adjusted (e.g. increasing target acceptance rate or increasing maximum tree depth). If any convergence issues resulted for the pre-specified models, then they are reported along with the model results. If the model was amended in any way to satisfy convergence criteria (e.g. aggregation of groups, removal of model terms) then this is reported in the relevant section. Sampling was run using a different (randomly selected) random seed for each model, and these were recorded for replication.
 
-Missing outcome data were not imputed for any of the models (with the exception of the deterministic imputation used in the best-case/worst-case sensitivity analyses).
+Due to the small number of enrolments at New Zealand sites, in models where country of enrolment were included as a term, Australia and New Zealand were combined into one region. The hierarchical site effects for centres in Australia and New Zealand were nested within this joint region rather than each country individually.
 
-For models where site was included as a random effect, sites with less than 5 participants were aggregated within country into an "other sites" grouping. Similarly, for models where epoch was included, epochs with less than 10 participants were aggregated with the adjacent epoch. 
+For models where site was included as a random effect, sites with less than 5 participants were aggregated within region into an "other sites" grouping. Similarly, for models where epoch was included, epochs with less than 10 participants were aggregated with the adjacent epoch. 
+
+Missing outcome data were not imputed for any of the models (with the exception of the deterministic imputation used in the best-case/worst-case sensitivity analyses).
 
 \clearpage
 
@@ -534,25 +536,43 @@ knitr::include_graphics(
 
 ## Domain Specific Outcomes
 
+The anticoagulation domain-specific outcomes are reported in @tbl-8-0-acs-itt-summary. The number of thrombotic and bleeding events were low across all interventions and overall.
+
+```{r}
+#| label: tbl-8-0-acs-itt-summary
+#| tbl-cap: |
+#|   Descriptive summary of anticoagulation-specific outcomes
+#|   (thrombotic and bleeding events).
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "8-0-anticoagulation-specific-summary.tex"))
+writeLines(tab)
+```
+
+The SAP described a formal analysis of the two composite outcomes: any thrombotic event (or death), and any clinical relevant bleeding. Due to the small number of bleeding events (6 of 1,521 known outcomes) this analysis was not undertaken. Similarly, for any thrombotic event or death, due to the majority of the events being due to death, the results were expected to be similar to those for all-cause mortality to day 28. Despite this, the analysis *was* performed for any thrombotic event or death and the results reported below.
+
 ### Any thrombotic event (or death) to day 28
 
-### Confirmed deep venous thrombosis 
+```{r}
+#| label: tbl-8-1-primary-model-acs-itt-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios) 
+#|   for any thrombotic event or death to day 28 
+#|   for primary model fit to the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "8-1-primary-model-acs-itt-summary-table.tex"))
+writeLines(tab)
+```
 
-### Confirmed pulmonary embolus
-
-### Confirmed acute myocardial infarction 
-
-### Confirmed ischemic cerebrovascular event
-
-### Any clinically relevant bleeding (non-major or worse)
-
-### Major bleeding (as defined by ISTH) 
-
-### Clinically relevant non-major bleeding
-
-### Heparin-induced thrombocytopenia
-
-### Other confirmed thrombotic
+```{r}
+#| label: fig-8-1-primary-model-acs-itt-site-epoch-parameters
+#| fig-cap: |
+#|   Posterior Summaries (point - median, block - 75% CrI, line - 95% CrI) 
+#|   of odds ratio for epoch and site effects for any thrombotic event or death
+#|   to day 28 for the primary model fit to the ACS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/8-1-primary-model-epoch-site-terms.pdf"
+)
+```
 
 \clearpage
 

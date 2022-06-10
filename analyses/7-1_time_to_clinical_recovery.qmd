@@ -8,6 +8,237 @@ author:
   - name: Rob Mahar
     affiliation: University of Melbourne
 date: last-modified
+execute:
+  eval: false
 ---
 
 # Preamble
+
+
+```{r}
+#| label: pkgs
+#| code-summary: Load packages
+library(tidyverse)
+library(labelled)
+library(kableExtra)
+library(cmdstanr)
+library(posterior)
+library(bayestestR)
+library(bayesplot)
+library(matrixStats)
+library(plotly)
+library(lubridate)
+library(ggdist)
+library(patchwork)
+
+theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank()))
+bayesplot_theme_set(theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank())))
+color_scheme_set("red")
+options(digits = 4)
+```
+
+```{r}
+#| label: data
+#| code-summary: Prepare dataset
+devtools::load_all()
+all_dat <- read_all_no_daily()
+
+acs_itt_dat <- all_dat %>% 
+  filter_acs_itt() %>%
+  transmute_model_cols() %>%
+  left_join(
+    all_dat %>% 
+      select(
+        StudyPatientID, 
+        out_rec,
+        out_ttr),
+    by = "StudyPatientID")
+acs_itt_nona_dat <- acs_itt_dat %>% 
+  filter(!is.na(out_ttr))
+
+ttr_seq <- expand_grid(
+  StudyPatientID = unique(acs_itt_nona_dat$StudyPatientID),
+  time = 1:28)
+acs_itt_outdat <- acs_itt_nona_dat %>%
+  select(StudyPatientID, out_rec, out_ttr, CAssignment, AAssignment, agegte60) %>%
+  left_join(ttr_seq, by = "StudyPatientID") %>%
+  filter(time <= out_ttr) %>%
+  mutate(
+    y = if_else(out_ttr == time, out_rec, 0),
+    y0 = if_else(out_ttr > time | out_ttr == time & out_rec == 0, 1, 0),
+    y1 = if_else(out_ttr == time & out_rec == 1, 1, 0),
+    y2 = if_else(out_ttr == time & out_rec == 2, 1, 0)
+  )
+acs_itt_outdat_agg <- acs_itt_outdat %>%
+  complete(CAssignment, time, fill = list(y = 0)) %>%
+  group_by(CAssignment, time) %>%
+  summarise(n = n(), y1 = sum(y == 1), y2 = sum(y == 2), .groups = "drop") %>%
+  group_by(CAssignment) %>%
+  mutate(cy1 = cumsum(y1), 
+         cp1 = cy1 / n[1],
+         cy2 = cumsum(y2),
+         cp2 = cy2 / n[1],
+         cpn = (n[1] - cy1 - cy2) / n[1]) %>%
+  ungroup() %>%
+  mutate(CAssignment = factor(
+    CAssignment, labels = str_replace(intervention_labels()$CAssignment[-1], "<br>", " ")))
+```
+
+# Derivation
+
+Time to clinical recovery is taken as the first day from the index admission at which the patient had a WHO outcome score of 3 or less. If a participant died before recovery, then they are treated as censored at the day of death. No allowance is made for participants who recovered but then subsequently died (i.e. they are just counted as recovered on the relevant day). If recovery and death reportedly occurred on the same day (e.g. daily status WHO scale < 4 but discharge outcome of death on same day), then the patient is considered to have not recovered. For participants whose WHO outcome score was greater than 3 on the day of discharge, their day of recovery was counted as the first day after discharge.
+
+**Question: Should probably set this up with death as competing risk, i.e. cause specific hazard time to first of death or recovery with censoring at 28 days.**
+
+# Descriptive
+
+```{r}
+#| label: fig-ttr-dist
+#| fig-cap: |
+#|   Distribution of time to recovery. 
+acs_itt_nona_dat %>%
+  dplyr::count(out_rec, out_ttr) %>%
+  ggplot(., aes(out_ttr, n, fill = factor(out_rec, labels = c("censored", "recovered", "died")))) +
+  geom_col() +
+  scale_x_continuous(breaks = 1:28) +
+  scale_fill_viridis_d(option = "A", begin = 0.2, end = 0.8) +
+  labs(x = "Time to recovery (to day 28)", y = "Count", fill = "Outcome")
+```
+
+## Anticoagulation
+
+```{r}
+#| label: fig-rec-prog-anticoagulation
+#| fig-cap: |
+#|   Progression to recovery by anticoagulation intervention.
+p <- acs_itt_outdat_agg %>% 
+  select(-y1, -y2, -cy1, -cy2) %>% 
+  pivot_longer(cp1:cpn) %>% 
+  mutate(name = factor(name, levels = c("cp1", "cp2", "cpn"), labels = c("Recovered", "Died", "Not recovered"))) %>%
+  ggplot(., aes(time, value, fill = name, colour = name)) + 
+  facet_wrap(~CAssignment) + 
+  geom_col(width = 1) +
+  scale_fill_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_colour_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_x_continuous(breaks = c(1, 7, 14, 21, 28)) +
+  labs(x = "Study day", y = "Cumulative proportion", fill = "Status", colour = "Status") +
+  theme(panel.grid.minor = element_blank())
+```
+
+```{r}
+path <- file.path("outputs", "figures", "outcomes")
+ggsave(file.path(path, "outcome-7-1-descriptive.pdf"), p, height = 3, width = 6)
+```
+
+# Modelling
+
+Time to clinical recovery will be analysed using a multinomial logit model for the cause-specific hazard functions where the events considered are recovery ($r=1$) or death by day 28 ($r=2$),
+$$
+\lambda_r(t) = \frac{\exp(\alpha_{tr} + x^{\mathsf{T}}\beta_r)}{1 + \sum_{j=1}^2 \exp(\alpha_{tj} + x^{\mathsf{T}}\beta_j)}, 
+\quad r=1,2, \quad t=1,...,T
+$$
+
+```{r}
+obs_pp <- acs_itt_outdat %>% 
+  group_by(CAssignment, time) %>% 
+  summarise(s0 = sum(y0), s1 = sum(y1), s2 = sum(y2)) %>% 
+  mutate(
+    p0 = s0 / (s0 + s1 + s2),
+    p1 = s1 / (s0 + s1 + s2),
+    p2 = s2 / (s0 + s1 + s2))
+```
+
+
+```{r}
+library(VGAM)
+
+mlogit <- function(x) exp(x) / (1 + rvar_sum(exp(x)))
+
+mod <- cmdstan_model("stan/time_to_event_competing_reduced.stan")
+sdat <- list(
+  N = nrow(acs_itt_outdat),
+  R = 2,
+  K = 3,
+  T = 28,
+  time = acs_itt_outdat$time,
+  X = model.matrix( ~ CAssignment, data = acs_itt_outdat)[, -1],
+  y = as.matrix(acs_itt_outdat[, c("y0", "y1", "y2")])
+)
+fit <- mod$sample(data = sdat, chains = 1, iter_sampling = 500, iter_warmup = 500)
+drws <- as_draws_rvars(fit$draws())
+
+pC1 <- t(do.call(cbind, apply(drws$alpha, 1, mlogit)))
+pC1 <- cbind(1 - (pC1[, 1] + pC1[, 2]), pC1)
+
+pC4 <- t(do.call(cbind, apply(sweep(drws$alpha, 2, drws$beta[3, ], "+"), 1, mlogit)))
+pC4 <- cbind(1 - (pC4[, 1] + pC4[, 2]), pC4)
+sC4 <- cumprod(pC4[, 1])
+probC4 <- rbind(pC4[1, -1], pC4[-1, -1] * sC4[-length(sC4)]) 
+cprobC4 <- do.call(cbind, apply(probC4, 2, cumsum))
+
+fit0 <- vgam(
+  cbind(y0, y1, y2) ~ s(time) + CAssignment, 
+  multinomial(refLevel = 1), 
+  data = acs_itt_outdat)
+
+fit1 <- vglm(
+  cbind(y0, y1, y2) ~ 0 + factor(time) + CAssignment, 
+  multinomial(refLevel = 1), 
+  data = acs_itt_outdat)
+
+plotvgam(fit0, overlay = T, which.term = "s(time)")
+
+nd <- expand_grid(time = 1:28, CAssignment = c("C1", "C2", "C3", "C4"))
+
+# These are the cause specific hazards, lambda_r(t|x)
+pp <- predict(fit1, newdata = nd, type = "response")
+
+plot(pp[seq(1, nrow(pp), 4), 2], 
+     median(t(do.call(cbind, apply(drws$alpha, 1, mlogit)))[, 1])[, 1])
+
+ndpp <- bind_cols(nd, pp) %>% 
+  group_by(CAssignment) %>%
+  mutate(
+    haz = y1 + y2,
+    surv = cumprod(y0),
+    prob1 = y1 * lag(surv, default = 1),
+    prob2 = y2 * lag(surv, default = 1),
+    cprob1 = cumsum(prob1),
+    cprob2 = cumsum(prob2)
+  )
+ndlng <- ndpp %>%
+  pivot_longer(y0:y2)
+
+ndpp <- ndpp %>% 
+  group_by(CAssignment) %>%
+  mutate(
+    haz = y1 + y2,
+    surv = cumprod(y0),
+    prob1 = y1 * lag(surv, default = 1),
+    prob2 = y2 * lag(surv, default = 1)
+  )
+
+# Probability of any death within 28 days
+ndpp %>% summarise(sum(prob2))
+# Probability of any recovery within 28 days
+ndpp %>% summarise(sum(prob1))
+
+# Cause specific hazard over time
+ggplot(ndlng, aes(time, value, colour = name)) +
+  facet_wrap( ~ CAssignment) +
+  geom_line() 
+
+ggplot(ndpp, aes(time, surv, colour = CAssignment)) +
+  geom_line()
+
+# Cumulative probability of recovery or death
+ggplot(ndpp, aes(time, cprob1, colour = CAssignment)) +
+  geom_line()
+ggplot(ndpp, aes(time, cprob2, colour = CAssignment)) +
+  geom_line()
+```
+

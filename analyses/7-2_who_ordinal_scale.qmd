@@ -135,6 +135,17 @@ trt_counts %>%
   facet_wrap( ~ D28_who) +
   geom_point() +
   labs(y = "Relative (to mean) sample cumulative logit")
+
+trt_counts %>% 
+  group_by(CAssignment) %>% 
+  mutate(clogit = logit(cumsum(p))) %>%
+  group_by(D28_who) %>%
+  mutate(rel_clogit = clogit - mean(clogit)) %>%
+  filter(D28_who != 8) %>%
+  ggplot(., aes(D28_who, rel_clogit)) +
+  facet_wrap( ~ CAssignment) +
+  geom_point() +
+  labs(y = "Relative (to mean) sample cumulative logit")
 ```
 
 ## Modelling (Day 28) {#modelling}
