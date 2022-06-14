@@ -1,0 +1,449 @@
+---
+title: "All Cause Mortality Day 28 and Day 90"
+description: |
+  Analyse of the all-cause mortality secondary outcome in ASCOT.
+author: "Robert Mahar"
+date: last-modified
+---
+
+# Preamble {#preamble}
+
+```{r}
+#| label: pkgs
+#| code-summary: Load packages
+library(tidyverse)
+library(labelled)
+library(kableExtra)
+library(cmdstanr)
+library(posterior)
+library(bayestestR)
+library(bayesplot)
+library(matrixStats)
+```
+
+```{r}
+#| label: kable-hack
+#| code-summary: Hack to make kable print in dark theme
+# https://stackoverflow.com/questions/53247896/the-contents-of-kableextra-table-invisible-if-rstudio-editor-theme-is-dark
+print.kableExtra <- function (x, ...) {
+  view_html <- getOption("kableExtra_view_html", TRUE)
+  if (view_html & interactive()) {
+    dep <- list(
+      rmarkdown::html_dependency_jquery(), 
+      rmarkdown::html_dependency_bootstrap(theme = "cosmo"), 
+      kableExtra::html_dependency_kePrint(), 
+      kableExtra::html_dependency_lightable()
+    )
+    
+    x <- sub('style="', 'style="color: black; ', as.character(x), fixed = TRUE)
+        
+    html_kable <- htmltools::browsable(
+      htmltools::HTML(
+        as.character(x), 
+        "<script type=\"text/x-mathjax-config\">MathJax.Hub.Config({tex2jax: {inlineMath: [[\"$\",\"$\"]]}})</script><script async src=\"https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML\"></script>"
+      )
+    )
+    htmltools::htmlDependencies(html_kable) <- dep
+    class(html_kable) <- "shiny.tag.list"
+    print(html_kable)
+  }
+  else {
+    cat(as.character(x))
+  }
+}
+```
+
+```{r}
+#| label: data
+#| code-summary: Prepare dataset
+devtools::load_all()
+all_dat <- read_all_no_daily()
+
+who_labels <-c("Not hospitalised, no limitations on activities",
+               "Not hospitalised, limitation on activities",
+               "Hospitalised, not requiring supplemental oxygen and no longer requiring ongoing medical care ",
+               "Hospitalised, not requiring supplemental oxygen but requiring ongoing medical care",
+               "Hospitalised, requiring supplemental oxygen",
+               "Hospitalised, on non-invasive ventilation or high flow oxygen devices",
+               "Hospitalised, on invasive mechanical ventilation or ECMO",
+               "Death")
+
+# Full analysis set (intention-to-treat, including missing)
+fas_itt_dat <- all_dat %>% 
+  filter_fas_itt() %>%
+  transmute_model_cols() %>% 
+  left_join(all_dat %>% select(StudyPatientID, D28_who, D28_death), by = "StudyPatientID") %>%
+  mutate(D28_who = factor(D28_who, 
+                          levels = c(1, 2, 3, 4, 5, 6, 7, 8),
+                          labels = who_labels))
+
+# Full analysis set (intention-to-treat, excluding missing)
+fas_itt_nona_dat <- fas_itt_dat %>% 
+  filter(!is.na(D28_who)) 
+
+# Anticoagulation set (intention-to-treat, including missing)
+acs_itt_dat <- all_dat %>% 
+  filter_acs_itt() %>%
+  transmute_model_cols() %>% 
+  left_join(all_dat %>% select(StudyPatientID, D28_who, D28_death), by = "StudyPatientID") %>%
+  mutate(D28_who = factor(D28_who, 
+                          levels = c(1, 2, 3, 4, 5, 6, 7, 8),
+                          labels = who_labels))
+
+# Anticoagulation set (intention-to-treat, excluding missing)
+acs_itt_nona_dat <- acs_itt_dat %>% 
+  filter(!is.na(D28_who))  %>%
+  mutate(country = case_when(country == "IN" ~ "IN",
+                             country == "NP" ~ "NP",
+                             country == "AU" ~ "AU/NZ",
+                             country == "NZ" ~ "AU/NZ")) %>%
+  mutate(country = as.factor(country)) %>%
+  mutate(country = relevel(country, ref = "IN")) %>%
+  mutate(ctry_num = as.integer(country))
+```
+
+# Descriptive
+
+```{r}
+#| label: po-component-ordinal
+#| code-summary: Summarise the ordinal component
+descriptive_table <- acs_itt_dat %>% 
+  mutate(D28_who = fct_explicit_na(D28_who)) %>%
+  dplyr::count(CAssignment, D28_who) %>%
+  spread(CAssignment, n, fill = 0) %>%
+  mutate(
+    Overall = C1 + C2 + C3 + C4,
+    across(C1:Overall, ~ sprintf("%i (%.0f)", .x, 100 * .x / sum(.x)))
+  )
+
+kable(
+  descriptive_table,
+  col.names = c("WHO 8-point disease severity scale (day 28)", names(descriptive_table)[-1]),
+  caption = "Composite secondary endpoint breakdown - WHO 8-point disease severity scale (day 28).",
+  align = "llrrrrr") %>%
+  kable_styling(font_size = 11) %>%
+  collapse_rows(1, valign = "top", latex_hline = 'custom', custom_latex_hline = 1)
+```
+
+```{r, fig.width=10, fig.height=4}
+#| label: graph-component-ordinal
+#| code-summary: Graph the ordinal component
+acs_itt_nona_dat %>%
+  dplyr::count(CAssignment, D28_who = D28_who) %>%
+  group_by(CAssignment) %>%
+  mutate(p = n / sum(n)) %>%
+  ggplot(., aes(CAssignment, p)) +
+  geom_col(aes(fill = D28_who)) + 
+  scale_fill_viridis_d(option = "B", name = "WHO 8-point severity score (day 28)") + 
+  theme(legend.position = "right", 
+        legend.direction = "vertical", aspect.ratio = 5/6) +
+  ylab("Proportion in each category") +
+  xlab("Treatment")
+```
+
+```{r, fig.width=10, fig.height=4}
+#| label: graph-clogits-ordinal
+#| code-summary: Graph the sample cumulative logits
+acs_itt_nona_dat %>% 
+  group_by(CAssignment, D28_who) %>%
+  summarise(n = n()) %>%
+  mutate(p = n/sum(n)) %>%
+  select(-n) %>%
+  spread(CAssignment, p, fill = 0) %>%
+  mutate(across(C1:C4, ~ logit(cumsum(.x )))) %>%
+  mutate(across(C2:C4, ~ .x/C1),
+         across(C2:C4, ~ ifelse(.x == Inf, NA, .x))) %>% 
+  select(-C1) %>%
+  mutate(across(C2:C4, ~ .x/(mean(.x, na.rm = TRUE)))) %>%
+  gather("id", "value", 2:4) %>%
+  rename(Treatment = id, `Cumulative odds ratio` = value) %>%
+  ggplot(., aes(reorder(D28_who, desc(D28_who)), `Cumulative odds ratio`, group = Treatment, col=Treatment)) + 
+  geom_line() + geom_point() +  
+  coord_flip() + 
+  xlab("") + ylab("Mean centred cumulative odds ratio") + 
+  labs(caption = "Note: cumulative odds for highest category do not exist.") +
+  theme(plot.caption=element_text(hjust = 0))
+
+```
+
+
+# TODO:look at individual logits.
+
+
+# Modelling
+
+The analysis for all cause mortality is specified equivalently to that for the primary outcome. It includes intervention as randomised, age category, country, site nested within country, epoch, and intervention eligibility. The main analysis restricts the population to only those participants randomised to the anticoagulation domain.
+
+```{r}
+#| label: load-models
+#| code-summary: Compiles stan models.
+seed <- 59579
+model_tx         <- cmdstan_model(file.path("stan", "ordinal.stan"))
+model_region     <- cmdstan_model(file.path("stan", "ordinal_region.stan"))
+model_site       <- cmdstan_model(file.path("stan", "ordinal_site.stan"))
+model_site_epoch <- cmdstan_model(file.path("stan", "ordinal_site_epoch.stan"))
+```
+
+```{r}
+#| label: functions-analysis.
+#| code-summary: Defines functions for analysis.
+
+# Makes stan data for ordinal outcome.
+make_stan_data <- function(dat, vars, outcome, beta_sd) 
+{
+  X <- model.matrix(
+     as.formula(paste("~", paste(vars, collapse = " + "))),
+    data = dat)
+  
+  X <- X[,-1]
+  y <- as.integer(dat[[outcome]])
+  N <- dim(X)[1]
+  K <- dim(X)[2]  
+  J <- max(y)
+  
+    epoch  <- dat[["epoch"]]
+  M_epoch  <- max(dat[["epoch"]])
+    region <- as.integer(dat[["country"]])
+  M_region <- max(region)
+    site <- dat[["site_num"]]
+  M_site <- max(site)
+
+  list(N = N, K = K, X = X, y = y, J = J, p_par = rep(1, J),
+       M_region = M_region, region = region,
+       M_site = M_site, site = site,
+       M_epoch = M_epoch, epoch = epoch,
+       beta_sd = beta_sd)
+}
+
+# Wrapper to run stan
+run_stan <- function(model, data)
+{
+  model[["sample"]](data = data,
+                    seed = seed,
+                    refresh = 0,
+                    iter_sampling = 750,
+                    chains = 8,
+                    parallel_chains = 8)
+}
+
+```
+
+```{r}
+# Relevel the antiviral assignment for stability.
+acs_itt_nona_dat[["AAssignment"]] <- relevel(acs_itt_nona_dat[["AAssignment"]], "A0")
+
+# Data with antiviral and anticoagulation assignment (and region, site, and epoch).
+dat_tx <- make_stan_data(dat = acs_itt_nona_dat,
+                           vars    = c("CAssignment", "AAssignment"),
+                           outcome = "D28_who", 
+                           beta_sd = c(1,1,1,1,1))
+
+# 'data_tx' and age category
+dat_tx_age <- make_stan_data(dat = acs_itt_nona_dat,
+                             vars    = c("CAssignment", "AAssignment", "agegte60_c"),
+                             outcome = "D28_who",
+                             beta_sd = c(1,1,1,1,1,2.5))
+
+# 'data_tx_age' and ineligibility.
+dat_full <- make_stan_data(dat = acs_itt_nona_dat,
+                            vars    = c("CAssignment", "AAssignment", "agegte60_c", "inelgc3"),
+                            outcome = "D28_who",
+                            beta_sd = c(1,1,1,1,1,2.5,10))
+```
+
+## Analysis models
+
+```{r}
+#| label: model-treatment
+#| code-summary: Treatment only model
+
+stan_tx <- run_stan(model_tx, dat_tx)
+stan_tx$cmdstan_diagnose()
+stan_tx$summary(variables = c("p",
+                              "alpha",
+                              "beta")) 
+
+```
+
+```{r}
+#| label: model-treatment-age
+#| code-summary: Treatment and age model
+
+stan_tx_age <- run_stan(model_tx, dat_tx_age)
+stan_tx_age$cmdstan_diagnose()
+stan_tx_age$summary(variables = c("p",
+                                  "alpha",
+                                  "beta")) 
+
+```
+
+```{r}
+#| label: model-treatment-age
+#| code-summary: Treatment, age, and ineligibility model
+
+stan_tx_age_inlg <- run_stan(model_tx, data_full)
+stan_tx_age_inlg$cmdstan_diagnose()
+stan_tx_age_inlg$summary(variables = c("p",
+                                       "alpha",
+                                       "beta")) 
+
+```
+
+```{r}
+#| label: model-site
+#| code-summary: Full design model plus site
+
+stan_region <- run_stan(model_region, dat_full)
+stan_region$cmdstan_diagnose()
+stan_region$summary(variables = c("p",
+                                "alpha",
+                                "beta",
+                                "beta_region"))
+
+```
+
+```{r}
+#| label: model-site
+#| code-summary: Full design model plus site
+
+stan_site <- run_stan(model_site, dat_full)
+stan_site$cmdstan_diagnose()
+stan_site$summary(variables = c("p",
+                                "alpha",
+                                "beta",
+                                "beta_region",
+                                "xi_site", "sigma_site"))
+
+```
+
+```{r}
+#| label: model-site-epoch
+#| code-summary: Full design model plus site and epoch
+
+stan_full <- run_stan(model_full, dat_full)
+stan_full$cmdstan_diagnose()
+stan_full$summary(variables = c("p",
+                                "alpha",
+                                "beta",
+                                "beta_region",
+                                "xi_site", "sigma_site",
+                                "gamma_epoch", "epsilon_epoch", "tau_epoch"))
+
+```
+
+
+
+```{r}
+#| label: model-trace
+#| code-summary: Trace plots
+mcmc_trace(stan_full$draws("p",             format = "matrix"))
+mcmc_trace(stan_full$draws("alpha",         format = "matrix"))
+mcmc_trace(stan_full$draws("beta",          format = "matrix"))
+mcmc_trace(stan_full$draws("beta_region",   format = "matrix"))
+mcmc_trace(stan_full$draws("gamma_site",    format = "matrix"))
+mcmc_trace(stan_full$draws("epsilon_site",  format = "matrix"))
+mcmc_trace(stan_full$draws("tau_site",      format = "matrix"))
+mcmc_trace(stan_full$draws("gamma_epoch",   format = "matrix"))
+mcmc_trace(stan_full$draws("epsilon_epoch", format = "matrix"))
+mcmc_trace(stan_full$draws("tau_epoch",     format = "matrix"))
+```
+
+```{r, eval = F}
+#| label: model-summaries
+#| code-summary: Model summaries
+
+# Transform treatment contrasts back.
+add_treatment_rvs <- function(rvs, mdat) {
+  
+  # Get the orthonormal contrasts.
+  Ca <- mdat[["Ca"]]
+  Cc <- mdat[["Cc"]]
+  nC <- ncol(Cc)
+  # Get the treatment contrasts.
+  Ct <-  cbind(1, contr.treatment(nC))
+  trt_rows <- which(rownames(Cc) != "C0")
+  
+  rvs$eta <- as.vector(Cc %**% rvs$beta[1:nC])
+  rvs$beta_uncon <- as.vector(Cc[, -1] %**% rvs$beta[2:nC])
+  rvs$prob <- 1 / (1 + exp(-rvs$eta))
+  rvs$beta_trt <- as.vector(transform_coding(Cc, Ct) %**% rvs$beta[1:nC])
+  # names_trt <- rownames(Cc)[-grep(rownames(Cc), pattern = "C1")]
+  rvs$OR <- setNames(exp(rvs$beta_trt[trt_rows][-1]), c("C2 vs C1", "C3 vs C1", "C4 vs C1"))
+  rvs$OR <- c(rvs$OR, "C2 vs C4" = rvs$OR[1] / rvs$OR[3])
+  return(rvs)
+}
+
+# Extract the betas as a random variable type (using 'posterior' package)
+rvs_p      <- as_draws_rvars(stan_full$draws(c("p")))
+rvs_alpha  <- as_draws_rvars(stan_full$draws(c("alpha")))
+rvs_beta   <- as_draws_rvars(stan_full$draws(c("beta")))
+rvs_trt    <- setNames(exp(rvs_beta[["beta"]][2:4]), c("C2 vs C1", "C3 vs C1", "C4 vs C1"))
+rvs_region <- as_draws_rvars(stan_full[["draws"]](c("beta_region")))[[1]]
+rvs_site   <- as_draws_rvars(stan_full[["draws"]](c("gamma_site")))[[1]]
+rvs_epoch  <- as_draws_rvars(stan_full[["draws"]](c("gamma_epoch")))[[1]]
+
+# Define names of random variables. 
+map_labels <- function(data, num, lab)
+{
+  lab_map <- paste0(data[[num]], "/", data[[lab]])
+  lab_map <- unique(lab_map)     
+  lab_map <- as.data.frame(str_split(lab_map, pattern = "/", simplify = T))
+  names(lab_map) <- c("number", "label")
+  lab_map[["number"]] <- as.numeric(lab_map[["number"]])
+  lab_map <- lab_map[order(lab_map[["number"]]),]
+}
+
+acs_itt_nona_dat[["site_nest"]] <- with(acs_itt_nona_dat, paste0(ctry,": ", site))
+
+epoch_lab  <- map_labels(acs_itt_nona_dat, "epoch", "epoch_lab")
+region_lab <- map_labels(acs_itt_nona_dat, "ctry_num", "ctry")
+site_lab   <- map_labels(acs_itt_nona_dat, "site_num", "site_nest")
+
+names_agegrp <- "60+"
+names_inlgc3 <- "Ineligible C3"
+
+# Set names and exponentiation.
+rvs_agegrp <- setNames(exp(rvs_beta[[1]][6]), names_agegrp)  
+rvs_inlgc3 <- setNames(exp(rvs_beta[[1]][7]), names_inlgc3)  
+rvs_region <- setNames(exp(rvs_region), region_lab[["label"]])
+rvs_site   <- setNames(exp(rvs_site),   site_lab[["label"]])
+rvs_epoch  <- setNames(exp(rvs_epoch),  epoch_lab[["label"]])
+
+# Combine random variables and tabulate.
+rvs_all <- c(rvs_trt, rvs_inlgc3, rvs_agegrp, rvs_region, rvs_site, rvs_epoch)
+
+# Put the outcome table together.
+make_outcome_table <- function(OR, format = "html", fn = NULL)
+{
+  out <- tibble(Parameter = names(OR),
+                Mean = sprintf("%.2f", E(OR)),
+                SD   = sprintf("%.2f", sd(OR)),
+                Median = sprintf("%.2f", median(OR)),
+                `95% CrI` = apply(quantile(OR, c(0.025, 0.975)), 2, function(x) 
+                sprintf("(%.2f, %.2f)", x[1], x[2])),
+                `Pr(OR < 1)` = sprintf("%.2f", Pr(OR < 1))) %>%
+    kable(caption = "Model-estimated odds ratios for the all-cause mortality at day 28.",
+          format = format, digits = 2, booktabs = TRUE, linesep = "", align = "lrrrrr", longtable = TRUE) %>%
+    kable_styling(latex_options = "HOLD_position", font_size = 8) %>%
+    group_rows("Anticoagulation treatment", 1, 5) %>%
+    group_rows("Age group", 6, 6) %>%
+    group_rows("Country", 7, 10) %>%
+    group_rows("Site", 11, 37) %>%
+    group_rows("Epoch", 38, 49) %>%
+    add_footnote("Note: Epoch is the 4-week interval relative to the most recently randomised participant.",
+                 notation = "none", escape = TRUE)
+  if (!is.null(fn) & format == "latex") {
+    out
+    save_tex_table(out, fn)
+  } else {
+    return(out)
+  }
+}
+
+make_outcome_table(rvs_all) %>% kable_styling()
+make_outcome_table(rvs_all, format = "latex", fn = "7-3_all_cause_mortality")
+
+
+
+# End of script.
+```
