@@ -11,7 +11,7 @@ data {
   vector<lower=0> [J] p_par; // dirichlet prior hyper-parameters
 
   array[N] int<lower=1> region;              // region indicator for individual
-  array[M_site] int<lower=1> region_by_site; // region indicator for each site
+  // array[M_site] int<lower=1> region_by_site; // region indicator for each site
   array[N] int<lower=1> site;                // site indicator
   array[N] int<lower=1> epoch;               // epoch indicator
 }
