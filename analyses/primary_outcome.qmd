@@ -2312,7 +2312,7 @@ save_tex_table(
 
 ### Standard plus aspirin
 
-In what follows, the analysis set is restricted to participants in the ACS-ITT set who were randomised between study start and 2021-09-10. A sumamry of the number of participants randomised and meeting the primary outcome are provided in @tbl-acs-itt-c3-summary-table, noting that 35 participants were ineligible for the standard dose plus aspirin intervention.
+In what follows, the analysis set is restricted to participants in the ACS-ITT set who were randomised between study start and 2021-09-10. A summary of the number of participants randomised and meeting the primary outcome are provided in @tbl-acs-itt-c3-summary-table, noting that 35 participants were ineligible for the standard dose plus aspirin intervention.
 
 ```{r}
 acs_itt_c3_dat <- acs_itt_dat2 %>%
@@ -2510,7 +2510,7 @@ save_tex_table(
 ```
 
 ```{r}
-#| label: fit-model-acs-itt-c4
+#| label: fit-model-acs-itt-c4-no-india
 
 X <- model.matrix(
   ~ CAssignment + agegte60 + ctry,

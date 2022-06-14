@@ -407,6 +407,8 @@ In the following section, analyses are undertaken where the analysis set is rest
 - ACS-ITT-aspirin: ACS-ITT set restricted to patients randomised between 2021-02-08 (domain start) and 2021-09-10 (closure of aspirin arm)
 - ACS-ITT-therapeutic: ACS-ITT set restricted to patients randomised between 2021-10-14 (arm start) and 2022-04-08 (domain closure)
 
+Given that RAR was not activated, the epoch terms are removed from the models. Additionally, due to smaller sample sizes, site effects have been removed from the models.
+
 ##### Intermediate dose
 
 - **Analysis set**: ACS-ITT where randomisation was to either standard dose or intermediate dose.

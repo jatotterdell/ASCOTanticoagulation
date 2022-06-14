@@ -108,6 +108,11 @@ generate_baseline_demographics_by <- function(dat, grpvar = NULL) {
 
       `Age (years), Median (IQR)` = sprintf("%.0f (%.0f, %.0f)", median(AgeAtEntry), quantile(AgeAtEntry, 0.25), quantile(AgeAtEntry, 0.75)),
 
+      `Country_India, n (\\%)` = sprintf("%i (%.0f)", sum(Country == "IN", na.rm = TRUE), 100 * sum(Country == "IN", na.rm = TRUE) / n()),
+      `Country_Australia, n (\\%)` = sprintf("%i (%.0f)", sum(Country == "AU", na.rm = TRUE), 100 * sum(Country == "AU", na.rm = TRUE) / n()),
+      `Country_Nepal, n (\\%)` = sprintf("%i (%.0f)", sum(Country == "NP", na.rm = TRUE), 100 * sum(Country == "NP", na.rm = TRUE) / n()),
+      `Country_New Zealand, n (\\%)` = sprintf("%i (%.0f)", sum(Country == "NZ", na.rm = TRUE), 100 * sum(Country == "NZ", na.rm = TRUE) / n()),
+
       `Sex_Male, n (\\%)` = sprintf("%i (%.0f)", sum(Sex == "Male", na.rm = TRUE), 100 * sum(Sex == "Male", na.rm = TRUE) / n()),
       `Sex_Female, n (\\%)` = sprintf("%i (%.0f)", sum(Sex == "Female", na.rm = TRUE), 100 * sum(Sex == "Female", na.rm = TRUE) / n()),
 
@@ -118,14 +123,14 @@ generate_baseline_demographics_by <- function(dat, grpvar = NULL) {
       `Vaccinated_Missing, n (\\%)` = sprintf("%i (%.0f)", sum(is.na(BAS_PatientVaccinated)), 100 * sum(is.na(BAS_PatientVaccinated)) / n()),
 
       `Ethnicity_Indian, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityIndian == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityIndian == "Yes", na.rm = TRUE) / n()),
-      `Ethnicity_Asian, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityAsian == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityAsian == "Yes", na.rm = TRUE) / n()),
       `Ethnicity_European, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityEuropean == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityEuropean == "Yes", na.rm = TRUE) / n()),
-      `Ethnicity_Maori, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityMaori == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityMaori == "Yes", na.rm = TRUE) / n()),
+      `Ethnicity_Asian, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityAsian == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityAsian == "Yes", na.rm = TRUE) / n()),
       `Ethnicity_Pacific Islander, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityPacificIslander == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityPacificIslander == "Yes", na.rm = TRUE) / n()),
+      `Ethnicity_Middle Eastern, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityMiddleEastern == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityMiddleEastern == "Yes", na.rm = TRUE) / n()),
+      `Ethnicity_Maori, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityMaori == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityMaori == "Yes", na.rm = TRUE) / n()),
       `Ethnicity_African, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityAfrican == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityAfrican == "Yes", na.rm = TRUE) / n()),
       `Ethnicity_Aboriginal, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityAboriginal == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityAboriginal == "Yes", na.rm = TRUE) / n()),
       `Ethnicity_Latin American, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityLatinAmerican == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityLatinAmerican == "Yes", na.rm = TRUE) / n()),
-      `Ethnicity_Middle Eastern, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityMiddleEastern == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityMiddleEastern == "Yes", na.rm = TRUE) / n()),
       `Ethnicity_Other, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityOther == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityOther == "Yes", na.rm = TRUE) / n()),
       `Ethnicity_Unknown, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityUnknown == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityUnknown == "Yes", na.rm = TRUE) / n()),
 
@@ -138,7 +143,7 @@ generate_baseline_demographics_by <- function(dat, grpvar = NULL) {
     gather(Variable, value, -!!grpvar, factor_key = TRUE) %>%
     spread(!!grpvar, value)
   colnames(tab)[-1] <- dat %>%
-    count(!!grpvar) %>%
+    dplyr::count(!!grpvar) %>%
     mutate(lab = paste0(!!grpvar, "<br><br>(n = ", n, ")")) %>%
     pull(lab)
   return(tab)
@@ -154,6 +159,11 @@ generate_baseline_demographics <- function(dat) {
     summarise(
       `Age (years), Median (IQR)` = sprintf("%.0f (%.0f, %.0f)", median(AgeAtEntry), quantile(AgeAtEntry, 0.25), quantile(AgeAtEntry, 0.75)),
 
+      `Country_India, n (\\%)` = sprintf("%i (%.0f)", sum(Country == "IN", na.rm = TRUE), 100 * sum(Country == "IN", na.rm = TRUE) / n()),
+      `Country_Australia, n (\\%)` = sprintf("%i (%.0f)", sum(Country == "AU", na.rm = TRUE), 100 * sum(Country == "AU", na.rm = TRUE) / n()),
+      `Country_Nepal, n (\\%)` = sprintf("%i (%.0f)", sum(Country == "NP", na.rm = TRUE), 100 * sum(Country == "NP", na.rm = TRUE) / n()),
+      `Country_New Zealand, n (\\%)` = sprintf("%i (%.0f)", sum(Country == "NZ", na.rm = TRUE), 100 * sum(Country == "NZ", na.rm = TRUE) / n()),
+
       `Sex_Male, n (\\%)` = sprintf("%i (%.0f)", sum(Sex == "Male", na.rm = TRUE), 100 * sum(Sex == "Male", na.rm = TRUE) / n()),
       `Sex_Female, n (\\%)` = sprintf("%i (%.0f)", sum(Sex == "Female", na.rm = TRUE), 100 * sum(Sex == "Female", na.rm = TRUE) / n()),
 
@@ -164,14 +174,14 @@ generate_baseline_demographics <- function(dat) {
       `Vaccinated_Missing, n (\\%)` = sprintf("%i (%.0f)", sum(is.na(BAS_PatientVaccinated)), 100 * sum(is.na(BAS_PatientVaccinated)) / n()),
 
       `Ethnicity_Indian, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityIndian == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityIndian == "Yes", na.rm = TRUE) / n()),
-      `Ethnicity_Asian, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityAsian == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityAsian == "Yes", na.rm = TRUE) / n()),
       `Ethnicity_European, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityEuropean == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityEuropean == "Yes", na.rm = TRUE) / n()),
-      `Ethnicity_Maori, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityMaori == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityMaori == "Yes", na.rm = TRUE) / n()),
+      `Ethnicity_Asian, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityAsian == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityAsian == "Yes", na.rm = TRUE) / n()),
       `Ethnicity_Pacific Islander, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityPacificIslander == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityPacificIslander == "Yes", na.rm = TRUE) / n()),
+      `Ethnicity_Middle Eastern, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityMiddleEastern == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityMiddleEastern == "Yes", na.rm = TRUE) / n()),
+      `Ethnicity_Maori, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityMaori == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityMaori == "Yes", na.rm = TRUE) / n()),
       `Ethnicity_African, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityAfrican == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityAfrican == "Yes", na.rm = TRUE) / n()),
       `Ethnicity_Aboriginal, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityAboriginal == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityAboriginal == "Yes", na.rm = TRUE) / n()),
       `Ethnicity_Latin American, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityLatinAmerican == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityLatinAmerican == "Yes", na.rm = TRUE) / n()),
-      `Ethnicity_Middle Eastern, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityMiddleEastern == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityMiddleEastern == "Yes", na.rm = TRUE) / n()),
       `Ethnicity_Other, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityOther == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityOther == "Yes", na.rm = TRUE) / n()),
       `Ethnicity_Unknown, n (\\%)` = sprintf("%i (%.0f)", sum(BAS_EthnicityUnknown == "Yes", na.rm = TRUE), 100 * sum(BAS_EthnicityUnknown == "Yes", na.rm = TRUE) / n()),
 
@@ -214,18 +224,19 @@ generate_baseline_demographics_table <- function(dat, format = "html") {
         bootstrap_options = "striped",
         latex_options = "HOLD_position",
         font_size = fsize) %>%
-      group_rows("Sex", 2, 3) %>%
-      group_rows("Weight (kg)", 4, 5) %>%
-      group_rows("Ethnicity", 8, 18) %>%
-      group_rows("Smoking", 19, 22) %>%
+      group_rows("Country", 2, 5) %>%
+      group_rows("Sex", 6, 7) %>%
+      group_rows("Weight (kg)", 8, 9) %>%
+      group_rows("Ethnicity", 12, 22) %>%
+      group_rows("Smoking", 23, 26) %>%
       add_header_above(c(" " = 1, "Anticoagulation" = ncol(byCgrp) - 1, " " = 1))  %>%
       row_spec(0, align = "c") %>%
       footnote(number = "Site LUD did not have ethics approval for collection of vaccination status.",
                fixed_small_size = TRUE)
     if(format == "latex") {
-      outC <- outC %>% group_rows(., "Vaccinated\\\\textsuperscript{1}", 6, 7, escape = FALSE)
+      outC <- outC %>% group_rows(., "Vaccinated\\\\textsuperscript{1}", 10, 11, escape = FALSE)
     } else {
-      outC <- outC %>% group_rows("Vaccinated<sup>1</sup>", 6, 7, escape = FALSE)
+      outC <- outC %>% group_rows("Vaccinated<sup>1</sup>", 10, 11, escape = FALSE)
     }
     return(outC)
 }
