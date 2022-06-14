@@ -381,9 +381,9 @@ writeLines(tab)
 
 \clearpage
 
-### Sensitivity
+### Sensitivity Analyses
 
-#### FAS-ITT
+#### Sensitivity: FAS-ITT
 
 The primary model was fit to the expanded FAS-ITT set. The model treatment effects were similar to those obtained under the ACS-ITT set.
 
@@ -397,6 +397,116 @@ tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "pr
 writeLines(tab)
 ```
 
+\clearpage
+
+#### Sensitivity: Concurrent Randomisations
+
+In the following section, analyses are undertaken where the analysis set is restricted to participants who were randomised concurrently amongst the interventions of interest. Three sets are considered, one for each intervention. Given that the intermediate and standard dose interventions were available the entire time the anticoagulation domain was open, that analysis set is restricted to only participants randomised to one of those interventions. The other sets are determined by a patients calendar time of randomisation. The subsets considered are:
+
+- ACS-ITT-intermediate: ACS-ITT set restricted to only patients randomised into either standard dose or intermediate dose intervention.
+- ACS-ITT-aspirin: ACS-ITT set restricted to patients randomised between 2021-02-08 (domain start) and 2021-09-10 (closure of aspirin arm)
+- ACS-ITT-therapeutic: ACS-ITT set restricted to patients randomised between 2021-10-14 (arm start) and 2022-04-08 (domain closure)
+
+##### Intermediate dose
+
+- **Analysis set**: ACS-ITT where randomisation was to either standard dose or intermediate dose.
+- **Model terms**: anticoagulation intervention, age group, country.
+
+```{r}
+#| label: tbl-primary-composite-acs-itt-c2-summary
+#| tbl-cap: |
+#|   Summary of primary composite outcome by treatment group for participants in ACS-ITT-intermediate
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "acs-itt-c2-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-primary-model-acs-itt-c2-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios) 
+#|   for primary model fit to the ACS-ITT-intermediate set.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-c2-summary-table.tex"))
+writeLines(tab)
+```
+
+##### Standard dose plus aspirin
+
+- **Analysis set**: ACS-ITT where randomisation occurred between 2021-02-08 and 2021-09-10.
+- **Model terms**: anticoagulation intervention, aspirin eligibility, age group, country.
+
+A summary of the number of participants randomised and the number meeting the primary outcome are reported in @tbl-primary-composite-acs-itt-c3-summary, noting that 35 participants were ineligible for the standard dose plus aspirin intervention. The model parameter summaries are reported in @tbl-primary-model-acs-itt-c3-summary.
+
+```{r}
+#| label: tbl-primary-composite-acs-itt-c3-summary
+#| tbl-cap: |
+#|   Summary of primary composite outcome by treatment group for participants in ACS-ITT-aspirin.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "acs-itt-c3-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-primary-model-acs-itt-c3-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios) 
+#|   for primary model fit to the ACS-ITT-aspirin set.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-c3-summary-table.tex"))
+writeLines(tab)
+```
+
+##### Therapeutic dose
+
+- **Analysis set**: ACS-ITT where randomisation occurred between 2021-10-14 and 2022-04-08.
+- **Model terms**: anticoagulation intervention, age group, country.
+
+```{r}
+#| label: tbl-primary-composite-acs-itt-c4-summary
+#| tbl-cap: |
+#|   Summary of primary composite outcome by treatment group for participants in ACS-ITT-therapeutic.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "acs-itt-c4-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-primary-model-acs-itt-c4-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios) 
+#|   for primary model fit to the ACS-ITT-therapeutic set.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-c4-summary-table.tex"))
+writeLines(tab)
+```
+
+##### Theapeutic dose without India
+
+Although the therapeutic dose arm was introduced on 2021-10-14 very few participants (4) enrolled in India were randomised to the therapeutic arm due to country specific availabilities. Therefore, a second sensitivity analysis is performed where the population excludes India. In this set, the amount of missingness is relatively high (compared to the outcome rate).
+
+- **Analysis set**: ACS-ITT where randomisation occurred between 2021-10-14 and 2022-04-08 and participant was not enrolled in India.
+- **Model terms**: anticoagulation intervention, age group, country.
+
+```{r}
+#| label: tbl-primary-composite-acs-itt-c4-no-india-summary
+#| tbl-cap: |
+#|   Summary of primary composite outcome by treatment group for patients in ACS-ITT-therapeutic excluding India.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "acs-itt-c4-no-india-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-primary-model-acs-itt-c4-no-india-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios) 
+#|   for primary model fit to the ACS-ITT-therapeutic set excluding patients
+#|   enrolled in India.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-c4-no-india-summary-table.tex"))
+writeLines(tab)
+```
 \clearpage
 
 ## Secondary Outcomes

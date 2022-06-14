@@ -5,7 +5,9 @@ subtitle: |
   support (invasive or non-invasive ventilation) or vasopressor/inotropic 
   support in the 28 days after randomisation.
 description: |
-  *Undertake the analysis of the primary outcome for ASCOT.*
+  *This scripot is used to undertake the analysis of the primary outcome for ASCOT.
+  In the hope it helps with readability and making each standalone analysis clearer, 
+  verbosity has been preferred to concisenes with respect to the R code used for the analyses.*
 author: "James Totterdell"
 date: last-modified
 ---
@@ -39,30 +41,49 @@ options(digits = 4)
 ```
 
 ```{r}
-#| label: data
+#| label: analysis-sets
 #| code-summary: Prepare dataset
 devtools::load_all()
+
+# Raw data
 all_dat <- read_all_no_daily()
 
+# FAS-ITT
 fas_itt_dat <- all_dat %>% 
   filter_fas_itt() %>%
   transmute_model_cols()
+# FAS-ITT excluding missing values
 fas_itt_nona_dat <- fas_itt_dat %>% 
   filter(!is.na(PO))
 
+# ACS-ITT
 acs_itt_dat <- all_dat %>% 
   filter_acs_itt() %>%
   transmute_model_cols()
+# ACS-ITT excluding missing values
 acs_itt_nona_dat <- acs_itt_dat %>% 
   filter(!is.na(PO))
+# ACS-ITT worst case
 acs_itt_wc_dat <- acs_itt_dat %>%
   mutate(PO = if_else(is.na(PO) | PO == 1, 1, 0))
+# ACS-ITT best case
 acs_itt_bc_dat <- acs_itt_dat %>%
+  mutate(PO = if_else(is.na(PO) | PO == 0, 0, 1))
+
+# ACS-ITT with Aus/NZ grouped into region rather than 2 countries
+acs_itt_dat2 <- all_dat %>% 
+  filter_acs_itt() %>%
+  transmute_model_cols_grp_aus_nz()
+acs_itt_nona_dat2 <- acs_itt_dat2 %>% 
+  filter(!is.na(PO))
+acs_itt_wc_dat2 <- acs_itt_dat2 %>%
+  mutate(PO = if_else(is.na(PO) | PO == 1, 1, 0))
+acs_itt_bc_dat2 <- acs_itt_dat2 %>%
   mutate(PO = if_else(is.na(PO) | PO == 0, 0, 1))
 ```
 
 ```{r}
-#| label: models
+#| label: stan-models
 #| code-summary: Load models
 logistic_mod <- cmdstan_model("stan/logistic_bernoulli.stan")
 noepoch_mod <- cmdstan_model("stan/primary_logistic_model_site.stan")
@@ -899,7 +920,7 @@ fas_itt_dat %>%
 #| tbl-cap: Primary outcome by anti-coagulation intervention.
 make_po_table <- function(dat, format = "html") {
   tab <- dat %>%
-    mutate(CAssignment = factor(CAssignment, labels = intervention_labels()$CAssignment[-1])) %>%
+    mutate(CAssignment = factor(CAssignment, levels = c("C1", "C2", "C3", "C4"), labels = intervention_labels()$CAssignment[-1])) %>%
     group_by(CAssignment) %>%
     summarise(
       Randomised = n(),
@@ -2207,7 +2228,339 @@ save_tex_table(
 
 ## Sens: Concurrent Randomisation
 
+In the following section, we undertake analyses where the analysis set is restricted to participants who were randomised concurrently amongst the relevant interventions. For example, the standard dose plus aspirin intervention was closed on 2021-09-10. Therefore, we perform a sensitivity analysis where we restrict the analysis set to participants randomised to the anticoagulation domain between trial start and 2021-09-10.
 
+### Intermediate dose
+
+```{r}
+acs_itt_c2_dat <- acs_itt_dat2 %>%
+  filter(CAssignment %in% c("C1", "C2")) %>%
+  mutate(
+    CAssignment = droplevels(CAssignment),
+    ctry = droplevels(ctry)
+  )
+acs_itt_nona_c2_dat <- acs_itt_c2_dat %>% 
+  filter(!is.na(PO))
+```
+
+```{r}
+#| label: tbl-acs-itt-c2-summary-table
+make_po_table(acs_itt_c2_dat)
+```
+
+```{r}
+save_tex_table(
+  make_po_table(
+    acs_itt_c2_dat,
+    "latex"), 
+  "outcomes/primary/acs-itt-c2-summary")
+```
+
+```{r}
+#| label: fit-model-acs-itt-c2
+
+# ctr <- contr.treatment
+ctr <- contr.orthonorm
+X <- model.matrix(
+  ~ CAssignment + agegte60 + ctry, 
+  data = acs_itt_nona_c2_dat,
+  contrasts.arg = list(CAssignment = ctr))
+y <- acs_itt_nona_c2_dat$PO
+sdat <- list(
+  N = nrow(X),
+  K = ncol(X),
+  X = X,
+  y = y,
+  beta_sd = c(2.5, 1, 2.5, 1, 1)
+)
+snk <- capture.output(
+  sfit <- logistic_mod$sample(
+    data = sdat,
+    seed = 3274,
+    chains = 8,
+    parallel_chains = 8,
+    iter_warmup = 1000,
+    iter_sampling = 2500
+  )
+)
+sdrws <- as_draws_rvars(sfit$draws("beta"))
+names(sdrws$beta) <- colnames(X)
+
+sdrws$beta_trt <- as.vector(
+  transform_coding(cbind(1, ctr(2)), cbind(1, contr.treatment(2))) %**% sdrws$beta[1:2]
+)
+
+sdrws$OR <- c(
+  "Intermediate dose" = exp(sdrws$beta_trt[2]),
+  "Age 60+" = exp(sdrws$beta[3]),
+  "Aus/NZ" = exp(sdrws$beta[4]),
+  "Nepal" = exp(sdrws$beta[5])
+)
+```
+
+```{r}
+#| label: tbl-acs-itt-c2-primary-model-summary
+odds_ratio_summary_table(sdrws$OR)
+```
+
+```{r}
+#| label: odds-ratio-summary-table-primary-model-acs-itt-c2-save
+save_tex_table(
+  odds_ratio_summary_table(sdrws$OR, "latex"),
+  "outcomes/primary/primary-model-acs-itt-c2-summary-table")
+```
+
+### Standard plus aspirin
+
+In what follows, the analysis set is restricted to participants in the ACS-ITT set who were randomised between study start and 2021-09-10. A sumamry of the number of participants randomised and meeting the primary outcome are provided in @tbl-acs-itt-c3-summary-table, noting that 35 participants were ineligible for the standard dose plus aspirin intervention.
+
+```{r}
+acs_itt_c3_dat <- acs_itt_dat2 %>%
+  filter(RandDate < get_intervention_dates()$endate[3]) %>%
+  mutate(
+    CAssignment = droplevels(CAssignment),
+    ctry = droplevels(ctry)
+  )
+acs_itt_nona_c3_dat <- acs_itt_c3_dat %>% 
+  filter(!is.na(PO))
+```
+
+```{r}
+#| label: tbl-acs-itt-c3-summary-table
+make_po_table(acs_itt_c3_dat)
+```
+
+```{r}
+save_tex_table(
+  make_po_table(
+    acs_itt_c3_dat,
+    "latex"), 
+  "outcomes/primary/acs-itt-c3-summary")
+```
+
+
+Given there was non RAR activated in the domain, the only factor influencing allocation probabilities are eligibility for the standard dose plus aspirin intervention, and the region of enrolment (antiviral interventions open to Aus/NZ but not India). Therefore, a reduced model is fit to the data where the only terms are:
+
+- anticoagulation intervention group
+- ineligibility for aspirin group
+- age 60+
+- country (India or Aus/NZ)
+
+No terms are included for site, epoch, or for the antiviral intervention received.
+
+```{r}
+#| label: fit-model-acs-itt-c3
+
+X <- model.matrix(
+  ~ CAssignment + inelgc3 + agegte60 + ctry, 
+  data = acs_itt_nona_c3_dat,
+  contrasts.arg = list(CAssignment = contr.orthonorm))
+y <- acs_itt_nona_c3_dat$PO
+sdat <- list(
+  N = nrow(X),
+  K = ncol(X),
+  X = X,
+  y = y,
+  beta_sd = c(2.5, 1, 1, 10, 2.5, 1)
+)
+snk <- capture.output(
+  sfit <- logistic_mod$sample(
+    data = sdat,
+    seed = 3274,
+    chains = 8,
+    parallel_chains = 8,
+    iter_warmup = 1000,
+    iter_sampling = 2500
+  )
+)
+sdrws <- as_draws_rvars(sfit$draws("beta"))
+names(sdrws$beta) <- colnames(X)
+
+sdrws$beta_trt <- as.vector(
+  transform_coding(cbind(1, contr.orthonorm(3)), cbind(1, contr.treatment(3))) %**% sdrws$beta[1:3]
+)
+
+sdrws$OR <- c(
+  "Intermediate dose" = exp(sdrws$beta_trt[2]),
+  "Standard dose plus aspirin" = exp(sdrws$beta_trt[3]),
+  "Ineligible aspirin" = exp(sdrws$beta[4]),
+  "Age 60+" = exp(sdrws$beta[5]),
+  "Aus/NZ" = exp(sdrws$beta[6])
+)
+```
+
+```{r}
+#| label: tbl-acs-itt-c3-primary-model-summary
+odds_ratio_summary_table(sdrws$OR)
+```
+
+```{r}
+#| label: odds-ratio-summary-table-primary-model-acs-itt-c3-save
+save_tex_table(
+  odds_ratio_summary_table(sdrws$OR, "latex"),
+  "outcomes/primary/primary-model-acs-itt-c3-summary-table")
+```
+
+### Therapeutic dose
+
+```{r}
+acs_itt_c4_dat <- acs_itt_dat2 %>%
+  filter(RandDate >= get_intervention_dates()$stdate[4] & RandDate < get_intervention_dates()$endate[4]) %>%
+  mutate(
+    CAssignment = droplevels(CAssignment),
+    ctry = droplevels(ctry)
+  )
+acs_itt_nona_c4_dat <- acs_itt_c4_dat %>%
+  filter(!is.na(PO))
+```
+
+```{r}
+#| label: tbl-acs-itt-c4-summary-table
+make_po_table(acs_itt_c4_dat)
+```
+
+```{r}
+save_tex_table(
+  make_po_table(
+    acs_itt_c4_dat,
+    "latex"), 
+  "outcomes/primary/acs-itt-c4-summary")
+```
+
+```{r}
+#| label: fit-model-acs-itt-c4
+
+X <- model.matrix(
+  ~ CAssignment + agegte60 + ctry,
+  # ~ CAssignment, 
+  data = acs_itt_nona_c4_dat,
+  contrasts.arg = list(CAssignment = contr.orthonorm))
+y <- acs_itt_nona_c4_dat$PO
+sdat <- list(
+  N = nrow(X),
+  K = ncol(X),
+  X = X,
+  y = y,
+  beta_sd = c(2.5, 1, 1, 2.5, 1, 1)
+  # beta_sd = c(2.5, 1, 1)
+)
+snk <- capture.output(
+  sfit <- logistic_mod$sample(
+    data = sdat,
+    seed = 3274,
+    chains = 8,
+    parallel_chains = 8,
+    iter_warmup = 1000,
+    iter_sampling = 2500
+  )
+)
+sdrws <- as_draws_rvars(sfit$draws("beta"))
+names(sdrws$beta) <- colnames(X)
+
+sdrws$beta_trt <- as.vector(
+  transform_coding(cbind(1, contr.orthonorm(3)), cbind(1, contr.treatment(3))) %**% sdrws$beta[1:3]
+)
+
+sdrws$OR <- c(
+  "Intermediate dose" = exp(sdrws$beta_trt[2]),
+  "Therapeutic dose" = exp(sdrws$beta_trt[3]),
+  "Age 60+" = exp(sdrws$beta[4]),
+  "Aus/NZ" = exp(sdrws$beta[5]),
+  "Nepal" = exp(sdrws$beta[6])
+)
+```
+
+```{r}
+#| label: tbl-acs-itt-c4-primary-model-summary
+odds_ratio_summary_table(sdrws$OR)
+```
+
+```{r}
+#| label: odds-ratio-summary-table-primary-model-acs-itt-c4-save
+save_tex_table(
+  odds_ratio_summary_table(sdrws$OR, "latex"),
+  "outcomes/primary/primary-model-acs-itt-c4-summary-table")
+```
+
+### Therapeutic dose - exclude India
+
+```{r}
+acs_itt_c4_noin_dat <- acs_itt_dat2 %>%
+  filter(RandDate >= get_intervention_dates()$stdate[4] & RandDate < get_intervention_dates()$endate[4]) %>%
+  filter(country != "IN") %>%
+  mutate(
+    CAssignment = droplevels(CAssignment),
+    ctry = droplevels(ctry)
+  )
+acs_itt_nona_c4_noin_dat <- acs_itt_c4_noin_dat %>%
+  filter(!is.na(PO))
+```
+
+```{r}
+#| label: tbl-acs-itt-c4-no-india-summary-table
+make_po_table(acs_itt_c4_noin_dat)
+```
+
+```{r}
+save_tex_table(
+  make_po_table(
+    acs_itt_c4_noin_dat,
+    "latex"), 
+  "outcomes/primary/acs-itt-c4-no-india-summary")
+```
+
+```{r}
+#| label: fit-model-acs-itt-c4
+
+X <- model.matrix(
+  ~ CAssignment + agegte60 + ctry,
+  data = acs_itt_nona_c4_noin_dat,
+  contrasts.arg = list(CAssignment = contr.orthonorm))
+y <- acs_itt_nona_c4_noin_dat$PO
+sdat <- list(
+  N = nrow(X),
+  K = ncol(X),
+  X = X,
+  y = y,
+  beta_sd = c(2.5, 1, 1, 2.5, 1)
+  # beta_sd = c(2.5, 1, 1)
+)
+snk <- capture.output(
+  sfit <- logistic_mod$sample(
+    data = sdat,
+    seed = 3274,
+    chains = 8,
+    parallel_chains = 8,
+    iter_warmup = 1000,
+    iter_sampling = 2500
+  )
+)
+sdrws <- as_draws_rvars(sfit$draws("beta"))
+names(sdrws$beta) <- colnames(X)
+
+sdrws$beta_trt <- as.vector(
+  transform_coding(cbind(1, contr.orthonorm(3)), cbind(1, contr.treatment(3))) %**% sdrws$beta[1:3]
+)
+
+sdrws$OR <- c(
+  "Intermediate dose" = exp(sdrws$beta_trt[2]),
+  "Therapeutic dose" = exp(sdrws$beta_trt[3]),
+  "Age 60+" = exp(sdrws$beta[4]),
+  "Nepal" = exp(sdrws$beta[5])
+)
+```
+
+```{r}
+#| label: tbl-acs-itt-c4-no-india-primary-model-summary
+odds_ratio_summary_table(sdrws$OR)
+```
+
+```{r}
+#| label: odds-ratio-summary-table-primary-model-acs-itt-c4-no-india-save
+save_tex_table(
+  odds_ratio_summary_table(sdrws$OR, "latex"),
+  "outcomes/primary/primary-model-acs-itt-c4-no-india-summary-table")
+```
 
 ## Sens:  Worst-Case
 
