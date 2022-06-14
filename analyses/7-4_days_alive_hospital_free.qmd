@@ -1,9 +1,5 @@
 ---
 title: Days alive and free of hospital by day 28
-subtitle: |
-  Death from any cause or requirement of new intensive respiratory 
-  support (invasive or non-invasive ventilation) or vasopressor/inotropic 
-  support in the 28 days after randomisation.
 description: |
   This outcome was defined as the number of days alive and free of hospital 
   from randomisation to 28 days, calculated as 28 minus the number of days 
@@ -280,16 +276,37 @@ save_tex_table(tab, file.path("outcomes", "secondary", "7-4-anticoagulation-summ
 #| fig-height: 4
 pdat <- acs_itt_nona_dat %>%
   dplyr::count(
-    agegte60,
+    agegrp = cut(AgeAtEntry, c(18, seq(25, 75, 5), 100), include.lowest = T, right = F),
     dafh = fct_rev(ordered(out_dafh, levels = 0:27)), 
     .drop = F) %>%
-  group_by(agegte60) %>%
+  group_by(agegrp) %>%
   mutate(p = n / sum(n))
-ggplot(pdat, aes(agegte60, p)) +
+pdat2 <- pdat %>%
+  group_by(agegrp) %>%
+  summarise(n = sum(n))
+
+p1 <- ggplot(pdat2, aes(agegrp, n)) +
+  geom_col(colour = "grey40", fill = "grey40") +
+  geom_vline(xintercept = 60, linetype = 2) +
+  labs(y = "Number of\nparticipants",
+       x = "Age at entry") +
+  geom_vline(xintercept = 8.5, linetype = 2) +
+  theme(axis.text.x = element_text(hjust = 1, angle = 45))
+
+p2 <- ggplot(pdat, aes(agegrp, p)) +
   geom_col(aes(fill = dafh)) +
-  labs(x = "Age", y = "Cumulative proportion") +
-  scale_fill_viridis_d("Days alive and\nfree of hospital", option = "A", direction = -1) +
-  guides(fill = guide_legend(reverse = TRUE))
+  labs(x = "Age", y = "Cumulative\nproportion") +
+  scale_fill_viridis_d("DAFH", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = TRUE)) +
+  geom_vline(xintercept = 8.5, linetype = 2) +
+  theme(axis.text.x = element_text(hjust = 1, angle = 45)) +
+  theme(legend.key.size = unit(0.25, "lines"))
+p <- p1 | p2
+```
+
+```{r}
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-4-age.pdf"), p, height = 2.5, width = 6)
 ```
 
 ## Country
@@ -301,20 +318,91 @@ ggplot(pdat, aes(agegte60, p)) +
 #| fig-height: 4
 pdat <- acs_itt_nona_dat %>%
   dplyr::count(
-    ctry,
+    country,
     dafh = ordered(out_dafh, levels = 0:27), 
     .drop = F) %>%
-  group_by(ctry) %>%
+  group_by(country) %>%
   mutate(p = n / sum(n)) %>%
   mutate(cp = cumsum(p)) %>%
   ungroup()
-p <- ggplot(pdat, aes(ctry, p)) +
+pdat2 <- pdat %>%
+  group_by(country) %>%
+  summarise(n = sum(n))
+
+p1 <- ggplot(pdat2, aes(country, n)) +
+  geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "Country of enrolment")
+
+p2 <- ggplot(pdat, aes(country, p)) +
   geom_col(aes(fill = fct_rev(dafh))) +
-  labs(x = "Anticoagulation intervention", y = "Cumulative proportion") +
-  scale_fill_viridis_d("Days alive and\nfree of hospital", option = "A", direction = -1) +
+  labs(x = "Anticoagulation intervention", y = "Cumulative\nproportion") +
+  scale_fill_viridis_d("DAFH", option = "A", direction = -1) +
   guides(fill = guide_legend(reverse = TRUE)) +
-  theme(legend.key.size = unit(0.75, "lines"))
-p
+  theme(legend.key.size = unit(0.25, "lines"))
+p <- p1 | p2
+```
+
+```{r}
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-4-country.pdf"), p, height = 2.5, width = 6)
+```
+
+## Site
+
+```{r}
+#| label: fig-dafh-dist-site
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital by study site
+#| fig-height: 4
+pdat <- all_dat %>%
+  filter_acs_itt() %>%
+  filter(!is.na(out_dafh)) %>%
+  dplyr::count(
+    Country = factor(PT_CountryName, levels = c("India", "Australia", "Nepal", "New Zealand"),
+                     labels = c("India", "Australia", "Nepal", "New\nZealand")),
+    Site = fct_infreq(Location),
+    dafh = ordered(out_dafh, levels = 0:27)) %>%
+  complete(dafh = ordered(0:27), nesting(Country, Site), fill = list(n = 0)) %>%
+  group_by(Country, Site) %>%
+  mutate(p = n / sum(n)) %>%
+  mutate(cp = cumsum(p)) %>%
+  ungroup() %>%
+  mutate(
+    Country = droplevels(Country),
+    Site = droplevels(Site)
+  )
+pdat2 <- pdat %>%
+  group_by(Country, Site) %>%
+  summarise(n = sum(n)) %>%
+  ungroup()
+
+p1 <- ggplot(pdat2, aes(Site, n)) +
+  facet_grid( ~ Country, scales = "free_x", space = "free_x") +
+  geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.border = element_rect(fill = NA))
+
+p2 <- ggplot(pdat, aes(Site, p)) +
+  facet_grid( ~ Country, scales = "free_x", space = "free_x") +
+  geom_col(aes(fill = fct_rev(dafh))) +
+  labs(x = "Anticoagulation intervention", y = "Cumulative\nproportion") +
+  scale_fill_viridis_d("DAFH", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = TRUE, ncol = 1)) +
+  theme(axis.text.x = element_text(hjust = 1, angle = 45)) +
+  theme(legend.key.size = unit(0.25, "lines"))
+
+p <- p1 / p2 +
+  plot_layout(guides = 'collect')
+```
+
+```{r}
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-4-country-site.pdf"), p, height = 4, width = 6.25)
 ```
 
 ## Calendar Time

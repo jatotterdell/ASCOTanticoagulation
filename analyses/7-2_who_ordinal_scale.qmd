@@ -62,7 +62,193 @@ acs_itt_nona_dat <- acs_itt_dat %>%
   filter(!is.na(D28_who))
 ```
 
-## Descriptive {#descriptive}
+# Descriptive {#descriptive}
+
+## Age
+
+```{r}
+#| label: fig-who-dist-age
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital by age group
+#| fig-height: 4
+pdat <- all_dat %>%
+  filter_acs_itt() %>%
+  filter(!is.na(D28_who)) %>%
+  dplyr::count(
+    agegrp = cut(AgeAtEntry, c(18, seq(25, 75, 5), 100), include.lowest = T, right = F),
+    who = ordered(D28_who, levels = 1:8), 
+    .drop = F) %>%
+  group_by(agegrp) %>%
+  mutate(p = n / sum(n))
+pdat2 <- pdat %>%
+  group_by(agegrp) %>%
+  summarise(n = sum(n))
+
+p1 <- ggplot(pdat2, aes(agegrp, n)) +
+  geom_col(colour = "grey40", fill = "grey40") +
+  geom_vline(xintercept = 60, linetype = 2) +
+  labs(y = "Number of\nparticipants",
+       x = "Age at entry") +
+  geom_vline(xintercept = 8.5, linetype = 2) +
+  theme(axis.text.x = element_text(hjust = 1, angle = 45))
+
+p2 <- ggplot(pdat, aes(agegrp, p)) +
+  geom_col(aes(fill = who)) +
+  labs(x = "Age", y = "Cumulative\nproportion") +
+  scale_fill_viridis_d("WHO scale", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = F)) +
+  geom_vline(xintercept = 8.5, linetype = 2) +
+  theme(axis.text.x = element_text(hjust = 1, angle = 45)) +
+  theme(legend.key.size = unit(0.5, "lines"))
+p <- p1 | p2
+```
+
+```{r}
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-2-age.pdf"), p, height = 2.5, width = 6)
+```
+
+## Country
+
+```{r}
+#| label: fig-dafh-dist-country
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital by country.
+#| fig-height: 4
+pdat <- all_dat %>%
+  filter_acs_itt() %>%
+  filter(!is.na(D28_who)) %>%
+  dplyr::count(
+    Country = factor(PT_CountryName, levels = c("India", "Australia", "Nepal", "New Zealand"),
+                     labels = c("India", "Australia", "Nepal", "New\nZealand")),
+    who = ordered(D28_who, levels = 1:8), 
+    .drop = F) %>%
+  group_by(Country) %>%
+  mutate(p = n / sum(n)) %>%
+  mutate(cp = cumsum(p)) %>%
+  ungroup()
+pdat2 <- pdat %>%
+  group_by(Country) %>%
+  summarise(n = sum(n))
+
+p1 <- ggplot(pdat2, aes(Country, n)) +
+  geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "Country of enrolment")
+
+p2 <- ggplot(pdat, aes(Country, p)) +
+  geom_col(aes(fill = who)) +
+  labs(x = "Anticoagulation intervention", y = "Cumulative\nproportion") +
+  scale_fill_viridis_d("WHO scale", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = F)) +
+  theme(legend.key.size = unit(0.5, "lines"))
+p <- p1 | p2
+```
+
+```{r}
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-2-country.pdf"), p, height = 2.5, width = 6)
+```
+
+## Site
+
+```{r}
+#| label: fig-who-dist-site
+#| fig-cap: |
+#|   Distribution of WHO scale by study site
+#| fig-height: 4
+pdat <- all_dat %>%
+  filter_acs_itt() %>%
+  filter(!is.na(D28_who)) %>%
+  dplyr::count(
+    Country = factor(PT_CountryName, levels = c("India", "Australia", "Nepal", "New Zealand"),
+                     labels = c("India", "Australia", "Nepal", "New\nZealand")),
+    Site = fct_infreq(Location),
+    who = ordered(D28_who, levels = 1:8)) %>%
+  complete(who = ordered(1:8), nesting(Country, Site), fill = list(n = 0)) %>%
+  group_by(Country, Site) %>%
+  mutate(p = n / sum(n)) %>%
+  mutate(cp = cumsum(p)) %>%
+  ungroup() %>%
+  mutate(
+    Country = droplevels(Country),
+    Site = droplevels(Site)
+  )
+pdat2 <- pdat %>%
+  group_by(Country, Site) %>%
+  summarise(n = sum(n)) %>%
+  ungroup()
+
+p1 <- ggplot(pdat2, aes(Site, n)) +
+  facet_grid( ~ Country, scales = "free_x", space = "free_x") +
+  geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.border = element_rect(fill = NA))
+
+p2 <- ggplot(pdat, aes(Site, p)) +
+  facet_grid( ~ Country, scales = "free_x", space = "free_x") +
+  geom_col(aes(fill = who)) +
+  labs(x = "Anticoagulation intervention", y = "Cumulative\nproportion") +
+  scale_fill_viridis_d("DAFH", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = F, ncol = 1)) +
+  theme(axis.text.x = element_text(hjust = 1, angle = 45)) +
+  theme(legend.key.size = unit(0.25, "lines"))
+
+p <- p1 / p2 +
+  plot_layout(guides = 'collect')
+```
+
+```{r}
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-2-country-site.pdf"), p, height = 4, width = 6.25)
+```
+
+## Calendar Time
+
+```{r}
+#| label: fig-who-dist-calendar
+#| fig-cap: |
+#|   Distribution of WHO scale by calendar time.
+#| fig-height: 4
+pdat <- acs_itt_nona_dat %>%
+  dplyr::count(
+    yr = year(RandDate), mth = month(RandDate),
+    who = ordered(D28_who, levels = 1:8), 
+    .drop = F) %>%
+  group_by(yr, mth) %>%
+  mutate(p = n / sum(n)) %>%
+  mutate(cp = cumsum(p)) %>%
+  ungroup()
+p1 <- pdat %>%
+  group_by(yr, mth) %>%
+  summarise(n = sum(n)) %>%
+  ggplot(., aes(mth, n))  +
+  facet_grid( ~ yr, drop = T, scales = "free_x", space = "free") +
+    geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "Calendar date (month of year)") +
+  scale_x_continuous(breaks = 1:12)
+p2 <- ggplot(pdat, aes(mth, p)) +
+  facet_grid( ~ yr, drop = T, scales = "free_x", space = "free") +
+  geom_col(aes(fill = who)) +
+  labs(x = "Calendar date (month of year)", y = "Cumulative\nproportion") +
+  scale_fill_viridis_d("DAFH", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = F)) +
+  theme(legend.key.size = unit(0.5, "lines")) +
+  scale_x_continuous(breaks = 1:12)
+p <- p1 | p2
+p
+```
+
+```{r}
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-2-calendar-time.pdf"), p, height = 2, width = 6)
+```
 
 ### Day 28
 
