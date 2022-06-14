@@ -279,6 +279,20 @@ add_days_alive_and_free <- function(dat) {
 }
 
 
+add_days_alive_and_free_ventilation <- function(dat) {
+  out <- dat %>%
+    mutate(
+      out_dafv = case_when(
+        is.na(D28_death) ~ NA_real_,
+        is.na(D28_OutcomeDaysFreeOfVentilation) & D28_death == 0 ~ NA_real_,
+        D28_death == 1 ~ 0,
+        TRUE ~ pmin(D28_OutcomeDaysFreeOfVentilation, 28)
+      )
+    )
+  return(out)
+}
+
+
 add_time_to_recovery <- function(dat) {
   out <- dat %>%
     mutate(
@@ -482,7 +496,8 @@ format_daily_data <- function(dd) {
     mutate(
       DD_who = as.integer(substr(DD_ParticipantDailyStatus, 1, 1)),
       DD_who2 = as.integer(substr(DD_O2, 1, 1))
-    )
+    ) %>%
+    arrange(StudyPatientID, DD_StudyDay)
 }
 
 
@@ -565,6 +580,7 @@ create_fulldata_no_daily <- function() {
     ) %>%
     add_primary_outcome_components() %>%
     add_days_alive_and_free() %>%
+    add_days_alive_and_free_ventilation() %>%
     add_time_to_recovery() %>%
     # restrict to randomisations prior to closure of anticoagulation
     filter(RandDate <= as.Date("2022-04-08") | is.na(RandDate))
