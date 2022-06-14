@@ -397,6 +397,17 @@ tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "pr
 writeLines(tab)
 ```
 
+```{r}
+#| label: fig-primary-model-fas-itt-site-epoch-parameters
+#| fig-cap: |
+#|   Posterior Summaries (point - median, block - 75% CrI, line - 95% CrI) 
+#|   of odds ratio for epoch and site effects for
+#|   the primary model fit to the ACS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/primary-model-fas-itt-epoch-site-terms.pdf"
+)
+```
+
 \clearpage
 
 #### Sensitivity: Concurrent Randomisations
@@ -485,7 +496,7 @@ writeLines(tab)
 
 ##### Theapeutic dose without India
 
-Although the therapeutic dose arm was introduced on 2021-10-14 very few participants (4) enrolled in India were randomised to the therapeutic arm due to country specific availabilities. Therefore, a second sensitivity analysis is performed where the population excludes India. In this set, the amount of missingness is relatively high (compared to the outcome rate).
+Although the therapeutic dose arm was introduced on 2021-10-14 very few participants enrolled in India were randomised to the therapeutic arm (4) due to country specific availabilities. Therefore, a second sensitivity analysis is performed where the population excludes India. In this set, the amount of missingness is relatively high (compared to the outcome rate).
 
 - **Analysis set**: ACS-ITT where randomisation occurred between 2021-10-14 and 2022-04-08 and participant was not enrolled in India.
 - **Model terms**: anticoagulation intervention, age group, country.
@@ -509,6 +520,13 @@ writeLines(tab)
 tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-c4-no-india-summary-table.tex"))
 writeLines(tab)
 ```
+
+\clearpage
+
+### Post-hoc Analyses
+
+The following sections report on other post-hoc analyses which were undertaken, but not explicitly specified in the SAP.
+
 \clearpage
 
 ## Secondary Outcomes
@@ -630,7 +648,26 @@ knitr::include_graphics(
 
 \clearpage
 
-### Days alive and free of invasive or non-invasive ventilation
+### Days alive and free of invasive or non-invasive ventilation (DAFV)
+
+```{r}
+#| label: tbl-7-5-summary
+#| tbl-cap: |
+#|   Summary of days alive and free of ventilation to day 28 by treatment group.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", "7-5-anticoagulation-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-7-5-descriptive
+#| fig-cap: |
+#|   Observed distribution of days alive and free of ventilation at day 28 by treatment group.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-5-descriptive.pdf"
+)
+```
 
 \clearpage
 
@@ -748,6 +785,51 @@ knitr::include_graphics(
 
 \clearpage
 
+## WHO outcome scale at day 28 by model covariates (ACS-ITT) {#sec-app-7-2-model-cov}
+
+```{r}
+#| label: fig-7-2-age
+#| fig-cap: |
+#|   Distribution of WHO outcome scale day 28
+#|   by age at randomisation. Vertical dashed line indicates the 
+#|   pre-specified cut-point of 60 years of age.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-2-age.pdf"
+)
+```
+
+```{r}
+#| label: fig-7-2-country
+#| fig-cap: |
+#|   Distribution of WHO scale at day 28
+#|   by country of randomisation.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-2-country.pdf"
+)
+```
+
+```{r}
+#| label: fig-7-2-country-site
+#| fig-cap: |
+#|   Distribution of WHO scale at day 28
+#|   by country and site of randomisation.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-2-country-site.pdf"
+)
+```
+
+```{r}
+#| label: fig-7-2-calendar-time
+#| fig-cap: |
+#|   Distribution of WHO scale at day 28
+#|   by calendar time (month) of randomisation.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-2-calendar-time.pdf"
+)
+```
+
+\clearpage
+
 ## Mortality to day 28 by Model Covariates (ACS-ITT) {#sec-app-7-3-model-cov}
 
 ```{r}
@@ -796,6 +878,36 @@ knitr::include_graphics(
 ## Days alive and free of hospital to day 28 by Model Covariates (ACS-ITT) {#sec-app-7-4-model-cov}
 
 ```{r}
+#| label: fig-7-4-age
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital to day 28
+#|   by age groups.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-4-age.pdf"
+)
+```
+
+```{r}
+#| label: fig-7-4-country
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital to day 28
+#|   by country of randomisation.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-4-country.pdf"
+)
+```
+
+```{r}
+#| label: fig-7-4-country-site
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital to day 28
+#|   by country and site of randomisation.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-4-country-site.pdf"
+)
+```
+
+```{r}
 #| label: fig-7-4-calendar-time
 #| fig-cap: |
 #|   Distribution of days alive and free of hospital to day 28
@@ -804,3 +916,4 @@ knitr::include_graphics(
   "../outputs/figures/outcomes/secondary/7-4-calendar-time.pdf"
 )
 ```
+

@@ -55,6 +55,12 @@ fas_itt_dat <- all_dat %>%
 # FAS-ITT excluding missing values
 fas_itt_nona_dat <- fas_itt_dat %>% 
   filter(!is.na(PO))
+# with Aus/NZ grouped into region rather than 2 countries
+fas_itt_dat2 <- all_dat %>% 
+  filter_fas_itt() %>%
+  transmute_model_cols_grp_aus_nz()
+fas_itt_nona_dat2 <- fas_itt_dat2 %>% 
+  filter(!is.na(PO))
 
 # ACS-ITT
 acs_itt_dat <- all_dat %>% 
@@ -1401,13 +1407,14 @@ $$
 ```{r}
 #| label: model-primary-sampling
 #| code-summary: Data and sampling primary model
+mdat <- make_stan_data(
+  acs_itt_nona_dat2,
+  c("CAssignment", "AAssignment", "inelgc3", "agegte60"),
+  "PO",
+  beta_sd = c(2.5, 1, 1, 1, 1, 1, 10, 2.5),
+  contr.orthonorm
+)
 
-ffit <- glm(
-  PO ~ CAssignment + AAssignment + agegte60 + inelgc3 + country + factor(epoch), 
-  data = acs_itt_nona_dat, 
-  family = binomial())
-
-mdat <- make_model_data_primary(acs_itt_nona_dat, contr.treatment)
 snk <- capture.output(
   mfit <- primary_mod$sample(
     data = mdat,
@@ -1417,7 +1424,7 @@ snk <- capture.output(
     iter_sampling = 2500,
     chains = 8,
     parallel_chains = 8,
-    adapt_delta = 0.98
+    adapt_delta = 0.99
 ))
 prim_mdrws <- as_draws_rvars(mfit$draws(c(
   "beta", "beta_region", 
@@ -1427,8 +1434,8 @@ prim_mdrws <- add_treatment_rvs(prim_mdrws, mdat)
 ```
 
 ```{r}
-epoch_map <- acs_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)
-site_map <- acs_itt_nona_dat %>% dplyr::count(site_num, site)
+epoch_map <- acs_itt_nona_dat2 %>% dplyr::count(epoch, epoch_lab)
+site_map <- acs_itt_nona_dat2 %>% dplyr::count(site_num, site)
 Ca <- cbind(1, attr(mdat$X, "contrasts")$AAssignment)
 Cc <- cbind(1, attr(mdat$X, "contrasts")$CAssignment)
 nC <- ncol(Cc)
@@ -1442,9 +1449,9 @@ prim_mdrws$OR <- setNames(
   c("Intermediate", "Standard + aspirin", "Therapeutic"))
 prim_mdrws$OR <- c(
   prim_mdrws$OR, 
+  "Ineligible aspirin (ref eligible)" = exp(prim_mdrws$beta[which(grepl("inelg", colnames(mdat$X)))]),
   "Age 60+ (ref < 60)" = exp(prim_mdrws$beta[which(grepl("age", colnames(mdat$X)))]),
-  "Ineligible aspirin (ref eligible)" = exp(mdrws$beta[which(grepl("inelg", colnames(mdat$X)))]),
-  setNames(exp(prim_mdrws$beta_region[-1]), c("Australia (ref India)", "Nepal", "New Zealand")),
+  setNames(exp(prim_mdrws$beta_region), c("India (ref)", "Australia/New Zealand", "Nepal")),
   setNames(exp(prim_mdrws$gamma_epoch), epoch_map$epoch_lab),
   setNames(exp(prim_mdrws$gamma_site), site_map$site)
 )
@@ -1454,7 +1461,7 @@ prim_mdrws$OR <- c(
 ```{r}
 #| label: odds-ratio-summary-table-primary-model
 #| tbl-cap: Posterior summaries for model parameters.
-odds_ratio_summary_table(prim_mdrws$OR)
+odds_ratio_summary_table(prim_mdrws$OR[1:8])
 ```
 
 ```{r}
@@ -1466,11 +1473,13 @@ save_tex_table(
 
 ```{r}
 #| label: odds-ratio-summary-primary-model-epoch-site-terms
-ors <- prim_mdrws$OR[9:length(prim_mdrws$OR)]
+epoch_ors <- exp(prim_mdrws$gamma_epoch)
+names(epoch_ors) <- epoch_map$epoch_lab
+
 orsdat <- tibble(
   Group = "Epoch",
-  Parameter = fct_inorder(names(ors)[1:12]),
-  posterior = ors[1:12]
+  Parameter = fct_inorder(names(epoch_ors)),
+  posterior = epoch_ors
 )
 p_epoch <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
   stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
@@ -1478,11 +1487,13 @@ p_epoch <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
   scale_x_log10("Odds ratio (log scale)") +
   labs(y = "Epoch")
 
+site_ors <- exp(prim_mdrws$gamma_site)
+names(site_ors) <- site_map$site
 orsdat <- tibble(
-  Group = rep("Site", 39 - 12),
-  Country = factor(mdat$region_by_site, labels = c("India", "Australia", "Nepal", "New\nZealand")),
-  Parameter = fct_inorder(names(ors[-(1:12)])),
-  posterior = ors[-(1:12)]
+  Group = "Site",
+  Country = factor(mdat$region_by_site, labels = c("India", "Australia\nNew Zealand", "Nepal")),
+  Parameter = fct_inorder(names(site_ors)),
+  posterior = site_ors
 )
 p_site <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
   facet_grid(Country ~ ., scales = "free_y", space = "free_y") +
@@ -2023,146 +2034,15 @@ p_dsfs <- ggplot(subgrp_effects_dsfs, aes(xdist = posterior, y = `Days since fir
 
 In these analyses, the population is includes all participants who were randomised to the platform, even if not randomised into the anticoagulation domain.
 
-### Treatment only
-
-```{r}
-#| label: trtonly-fas-itt-data
-mod_dat <- make_model_data_trt_only(fas_itt_nona_dat)
-```
-
-```{r}
-#| label: sample-trtonly-fas-itt-model
-#| eval: false
-seed <- 135736
-snk <- capture.output(
-  trtonly_fas_itt_fit <- logistic_mod$sample(
-    data = mod_dat,
-    seed = seed,
-    refresh = 0,
-    iter_sampling = 2500,
-    chains = 8,
-    parallel_chains = 8
-))
-save_cmdstanr_model(trtonly_fit, "primary/trtonly-fas-itt")
-```
-
-```{r}
-#| label: load-trtonly-fas-itt-model
-trtonly_fas_itt_fit <- 
-  readRDS(file.path("outputs", "models", "primary", "trtonly-fas-itt.rds"))
-mod_rvs <- as_draws_rvars(trtonly_fas_itt_fit$draws(c("beta")))
-mod_rvs <- add_treatment_rvs(mod_rvs, mod_dat)
-```
-
-```{r}
-#| label: fig-or-densities-trtonly-fas-itt-model
-#| fig-cap: Posterior densities for odds ratio contrasts.
-plot_or_densities(mod_rvs$OR)
-```
-
-```{r}
-#| label: tbl-or-densities-trtonly-fas-itt-model
-#| tbl-cap: Posterior summaries for odds ratio contrasts.
-odds_ratio_summary_table(mod_rvs$OR)
-```
-
-### Treatment plus covariates (no site or epoch)
-
-```{r}
-#| label: noepochsite-fas-itt-data
-mod_dat <- make_model_data_noepochsite(fas_itt_nona_dat)
-```
-
-```{r}
-#| label: sample-noepochsite-fas-itt-model
-#| eval: false
-seed <- 91376
-snk <- capture.output(
-  noepochsite_fas_itt_fit <- logistic_mod$sample(
-    data = mod_dat,
-    seed = seed,
-    refresh = 0,
-    iter_sampling = 2500,
-    chains = 8,
-    parallel_chains = 8,
-    adapt_delta = 0.95
-))
-save_cmdstanr_model(noepochsite_fas_itt_fit, "primary/noepochsite-fas-itt")
-```
-
-```{r}
-#| label: load-noepochsite-fas-itt-model
-noepochsite_fas_itt_fit <- 
-  readRDS(file.path("outputs", "models", "primary", "noepochsite-fas-itt.rds"))
-mod_rvs <- as_draws_rvars(noepochsite_fas_itt_fit$draws(c("beta")))
-mod_rvs <- add_treatment_rvs(mod_rvs, mod_dat)
-```
-
-```{r}
-#| label: fig-or-densities-noepochsite-fas-itt-model
-#| fig-cap: Posterior densities for odds ratio contrasts.
-#| echo: false
-plot_or_densities(mod_rvs$OR)
-```
-
-```{r}
-#| label: tbl-or-densities-noepochsite-fas-itt-model
-#| tbl-cap: Posterior summaries for odds ratio contrasts.
-#| echo: false
-odds_ratio_summary_table(mod_rvs$OR)
-```
-
-### No epoch
-
-```{r}
-#| label: noepoch-fas-itt-data
-mod_dat <- make_model_data_noepoch(fas_itt_nona_dat)
-```
-
-```{r}
-#| label: sample-noepoch-fas-itt-model
-#| eval: false
-seed <- 76150
-snk <- capture.output(
-  noepoch_fas_itt_fit <- noepoch_mod$sample(
-    data = mod_dat,
-    seed = seed,
-    refresh = 0,
-    iter_sampling = 2500,
-    chains = 8,
-    parallel_chains = 8,
-    adapt_delta = 0.95
-))
-save_cmdstanr_model(noepoch_fas_itt_fit, "primary/noepoch-fas-itt")
-```
-
-```{r}
-#| label: load-noepoch-fas-itt-model
-noepoch_fas_itt_fit <- 
-  readRDS(file.path("outputs", "models", "primary", "noepoch-fas-itt.rds"))
-mod_rvs <- as_draws_rvars(noepoch_fas_itt_fit$draws(c("beta")))
-mod_rvs <- add_treatment_rvs(mod_rvs, mod_dat)
-```
-
-```{r}
-#| label: fig-or-densities-noepoch-fas-itt-model
-#| fig-cap: Posterior densities for odds ratio contrasts.
-#| echo: false
-plot_or_densities(mod_rvs$OR)
-```
-
-```{r}
-#| label: tbl-or-densities-noepoch-fas-itt-model
-#| tbl-cap: Posterior summaries for odds ratio contrasts.
-#| echo: false
-odds_ratio_summary_table(mod_rvs$OR)
-```
-
-### Primary Model
-
 ```{r}
 #| label: sample-primary-fas-itt-model
-mdat <- make_model_data_primary(fas_itt_nona_dat)
+mdat <- make_stan_data(
+  fas_itt_nona_dat2,
+  c("CAssignment", "AAssignment", "inelgc3", "agegte60"),
+  "PO",
+  beta_sd = c(2.5, 1, 1, 1, 1, 1, 1, 10, 2.5),
+  contr.orthonorm
+)
 snk <- capture.output(
   mfit <- primary_mod$sample(
     data = mdat,
@@ -2181,8 +2061,8 @@ mdrws <- add_treatment_rvs(mdrws, mdat)
 ```
 
 ```{r}
-epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)
-site_map <- fas_itt_nona_dat %>% dplyr::count(site_num, site)
+epoch_map <- fas_itt_nona_dat2 %>% dplyr::count(epoch, epoch_lab)
+site_map <- fas_itt_nona_dat2 %>% dplyr::count(site_num, site)
 Ca <- cbind(1, attr(mdat$X, "contrasts")$AAssignment)
 Cc <- cbind(1, attr(mdat$X, "contrasts")$CAssignment)
 nC <- ncol(Cc)
@@ -2196,9 +2076,9 @@ mdrws$OR <- setNames(
   c("Intermediate", "Standard + aspirin", "Therapeutic"))
   mdrws$OR <- c(
     mdrws$OR, 
-    "Age 60+ (ref < 60)" = exp(mdrws$beta[which(grepl("age", colnames(mdat$X)))]),
     "Ineligible aspirin (ref eligible)" = exp(mdrws$beta[which(grepl("inelg", colnames(mdat$X)))]),
-    setNames(exp(mdrws$beta_region[-1]), c("Australia (ref India)", "Nepal", "New Zealand")),
+    "Age 60+ (ref < 60)" = exp(mdrws$beta[which(grepl("age", colnames(mdat$X)))]),
+    setNames(exp(mdrws$beta_region), c("India (ref)", "Australia/New Zealand", "Nepal")),
     setNames(exp(mdrws$gamma_epoch), epoch_map$epoch_lab),
     setNames(exp(mdrws$gamma_site), site_map$site)
   )
@@ -2224,6 +2104,47 @@ odds_ratio_summary_table(mdrws$OR[1:8])
 save_tex_table(
   odds_ratio_summary_table(mdrws$OR[1:8], "latex"),
   "outcomes/primary/primary-model-fas-itt-summary-table")
+```
+
+```{r}
+#| label: odds-ratio-summary-primary-model-epoch-site-terms
+epoch_ors <- exp(mdrws$gamma_epoch)
+names(epoch_ors) <- epoch_map$epoch_lab
+
+orsdat <- tibble(
+  Group = "Epoch",
+  Parameter = fct_inorder(names(epoch_ors)),
+  posterior = epoch_ors
+)
+p_epoch <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
+  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
+  geom_vline(xintercept = 1, linetype = 2) +
+  scale_x_log10("Odds ratio (log scale)") +
+  labs(y = "Epoch")
+
+site_ors <- exp(mdrws$gamma_site)
+names(site_ors) <- site_map$site
+orsdat <- tibble(
+  Group = "Site",
+  Country = factor(mdat$region_by_site, labels = c("India", "Australia\nNew Zealand", "Nepal")),
+  Parameter = fct_inorder(names(site_ors)),
+  posterior = site_ors
+)
+p_site <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
+  facet_grid(Country ~ ., scales = "free_y", space = "free_y") +
+  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
+  geom_vline(xintercept = 1, linetype = 2) +
+  scale_x_log10("Odds ratio (log scale)") +
+  labs(y = "Site") +
+  theme(panel.border = element_rect(fill = NA))
+
+p <- p_epoch | p_site
+p
+```
+
+```{r}
+pth <- file.path("outputs", "figures", "outcomes", "primary", "primary-model-fas-itt-epoch-site-terms.pdf")
+ggsave(pth, p, width = 6, height = 4.5)
 ```
 
 ## Sens: Concurrent Randomisation
@@ -2684,6 +2605,7 @@ odds_ratio_summary_table(mdrws$OR[1:8])
 
 ## Sens: Remove site and epoch effects
 
+In the following sensitivity analysis, the hiearchical site and epoch terms are removed from the primary model.
 
 
 ## Sens: Account for timing of adaptations
