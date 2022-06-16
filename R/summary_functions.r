@@ -93,6 +93,37 @@ plot_or_densities <- function(rvs) {
     geom_vline(xintercept = 1)
 }
 
+
+plot_epoch_site_terms <- function(rvs_epoch, rvs_site, region) {
+  orsdat <- tibble(
+    Group = "Epoch",
+    Parameter = fct_inorder(names(rvs_epoch)),
+    posterior = rvs_epoch
+  )
+  p_epoch <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
+    stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
+    geom_vline(xintercept = 1, linetype = 2) +
+    scale_x_log10("Odds ratio (log scale)") +
+    labs(y = "Epoch")
+
+  orsdat <- tibble(
+    Group = "Site",
+    Country = region,
+    Parameter = fct_inorder(names(rvs_site)),
+    posterior = rvs_site
+  )
+  p_site <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
+    facet_grid(Country ~ ., scales = "free_y", space = "free_y") +
+    stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
+    geom_vline(xintercept = 1, linetype = 2) +
+    scale_x_log10("Odds ratio (log scale)") +
+    labs(y = "Site") +
+    theme(panel.border = element_rect(fill = NA))
+
+  p <- p_epoch | p_site
+  p
+}
+
 # Baseline summary - demographics  ----
 
 #' Generate baseline demographics summary by a grouping variable

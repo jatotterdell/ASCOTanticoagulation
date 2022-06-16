@@ -120,6 +120,8 @@ intervention_strata <- function() {
   )
 }
 
+# Filter analysis sets ----
+
 #' @title filter_fas_itt
 #' @description
 #' Filter the full dataset down to the FAS-ITT,
@@ -151,6 +153,34 @@ filter_acs_itt <- function(dat) {
   )
 }
 
+# Filter concurrent controls ----
+
+filter_concurrent_intermediate <- function(dat) {
+  dat %>%
+    # Restrict to participants randomised to C1 or C2
+    filter(CAssignment %in% c("C1", "C2")) %>%
+    mutate(
+      CAssignment = droplevels(CAssignment)
+    )
+}
+
+
+filter_concurrent_std_aspirin <- function(dat) {
+  dat %>%
+    filter(RandDate < get_intervention_dates()$endate[3]) %>%
+    mutate(CAssignment = droplevels(CAssignment))
+}
+
+
+filter_concurrent_therapeutic <- function(dat) {
+  dat %>%
+    filter(RandDate >= get_intervention_dates()$stdate[4] &
+           RandDate < get_intervention_dates()$endate[4]) %>%
+    mutate(CAssignment = droplevels(CAssignment))
+}
+
+
+# Transmute model columns ----
 
 transmute_model_cols <- function(dat) {
   site_counts <- dat %>%
@@ -187,13 +217,17 @@ transmute_model_cols <- function(dat) {
       CAssignment = droplevels(factor(
         CAssignment, levels = c("C1", "C0", "C2", "C3", "C4"))),
       RandDate,
+      randA = factor(AAssignment, levels = c("A1", "A2")),
+      randC = factor(CAssignment, levels = c("C1", "C2", "C3", "C4")),
       PO,
       AgeAtEntry,
+      aspirin = if_else(BAS_PatientTakingAspirin == "Yes", 1, 0),
       weight = BAS_Weight,
       weightgt120 = as.numeric(weight > 120),
       oxygen_sat = if_else(BAS_PeripheralOxygen < 10, NA_real_, BAS_PeripheralOxygen),
       dsfs = as.numeric(RandDate - EL_FirstSymptoms),
       dsfsgt7 = as.numeric(dsfs > 7),
+      rec_steroids = if_else(DIS_ImmunoCorticosteroids == "Yes", 1, 0),
       age_c = AgeAtEntry - mean(AgeAtEntry),
       agegte60,
       agegte60_c = agegte60 - mean(agegte60),
@@ -269,13 +303,17 @@ transmute_model_cols_grp_aus_nz <- function(dat) {
       CAssignment = droplevels(factor(
         CAssignment, levels = c("C1", "C0", "C2", "C3", "C4"))),
       RandDate,
+      randA = factor(AAssignment, levels = c("A1", "A2")),
+      randC = factor(CAssignment, levels = c("C1", "C2", "C3", "C4")),
       PO,
       AgeAtEntry,
+      aspirin = if_else(BAS_PatientTakingAspirin == "Yes", 1, 0),
       weight = BAS_Weight,
       weightgt120 = as.numeric(weight > 120),
       oxygen_sat = if_else(BAS_PeripheralOxygen < 10, NA_real_, BAS_PeripheralOxygen),
       dsfs = as.numeric(RandDate - EL_FirstSymptoms),
       dsfsgt7 = as.numeric(dsfs > 7),
+      rec_steroids = if_else(DIS_ImmunoCorticosteroids == "Yes", 1, 0),
       age_c = AgeAtEntry - mean(AgeAtEntry),
       agegte60,
       agegte60_c = agegte60 - mean(agegte60),
@@ -312,9 +350,13 @@ transmute_model_cols_grp_aus_nz <- function(dat) {
 
 # Model helpers ----
 
-logit <- function(x) log(x) - log(1 - x)
+logit <- function(x) {
+  log(x) - log(1 - x)
+}
 
-expit <- function(x) 1 / (1 + exp(-x))
+expit <- function(x) {
+  1 / (1 + exp(-x))
+}
 
 ordered_logit <- function(x) {
   c(
