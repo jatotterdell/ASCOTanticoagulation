@@ -94,7 +94,7 @@ plot_or_densities <- function(rvs) {
 }
 
 
-plot_epoch_site_terms <- function(rvs_epoch, rvs_site, region) {
+plot_epoch_terms <- function(rvs_epoch) {
   orsdat <- tibble(
     Group = "Epoch",
     Parameter = fct_inorder(names(rvs_epoch)),
@@ -105,7 +105,11 @@ plot_epoch_site_terms <- function(rvs_epoch, rvs_site, region) {
     geom_vline(xintercept = 1, linetype = 2) +
     scale_x_log10("Odds ratio (log scale)") +
     labs(y = "Epoch")
+  return(p_epoch)
+}
 
+
+plot_site_terms <- function(rvs_site, region) {
   orsdat <- tibble(
     Group = "Site",
     Country = region,
@@ -119,7 +123,12 @@ plot_epoch_site_terms <- function(rvs_epoch, rvs_site, region) {
     scale_x_log10("Odds ratio (log scale)") +
     labs(y = "Site") +
     theme(panel.border = element_rect(fill = NA))
+}
 
+
+plot_epoch_site_terms <- function(rvs_epoch, rvs_site, region) {
+  p_epoch <- plot_epoch_terms(rvs_epoch)
+  p_site <- plot_site_terms(rvs_site, region)
   p <- p_epoch | p_site
   p
 }

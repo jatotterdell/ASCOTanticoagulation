@@ -21,6 +21,7 @@ library(bayesplot)
 library(matrixStats)
 library(ggdist)
 library(patchwork)
+library(lubridate)
 
 theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
   theme(panel.grid = element_blank(),
@@ -250,7 +251,7 @@ path <- file.path("outputs", "figures", "outcomes", "secondary")
 ggsave(file.path(path, "7-2-calendar-time.pdf"), p, height = 2, width = 6)
 ```
 
-### Day 28
+## Day 28
 
 ```{r}
 ovr_counts <- acs_itt_dat %>%
@@ -306,7 +307,7 @@ acs_itt_nona_dat %>%
   geom_segment(aes(xend = D28_who, y = 0, yend = p))
 ```
 
-#### Sample Cumulative Logits
+### Sample Cumulative Logits
 
 Proportional odds looks reasonable for all logits except 1.
 
@@ -334,11 +335,11 @@ trt_counts %>%
   labs(y = "Relative (to mean) sample cumulative logit")
 ```
 
-## Modelling (Day 28) {#modelling}
+# Modelling (Day 28) {#modelling}
 
-### Primary Model
+## Primary Model
 
-### Simplified (Treatment Only)
+## Simplified (Treatment Only)
 
 ```{r}
 #| label: fit-simple-model
@@ -427,7 +428,7 @@ ggplot(p_df, aes(who + 0.1, med)) +
   )
 ```
 
-#### Non-proportional odds
+### Non-proportional odds
 
 There is evidence of non-proportional odds with respect to the first logit. This is explored below. In this model, the first logit has a distinct parameter, but all other logits share a parameter.
 

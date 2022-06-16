@@ -1,5 +1,5 @@
 ---
-title: Time to clinical recovery during the first 28 days
+title: "7-1 Time to clinical recovery during the first 28 days"
 description: |
   The first day, during the 28 days after enrolment, on which a patient satisfies categories 1, 2, or 3 on the WHO eight-point ordinal outcome scale (it will be assumed that the participant is not hospitalised on the first day following discharge and that on the day of discharge the participant is still considered hospitalised but not requiring supplemental oxygen nor ongoing medical care if the site has mistakenly indicated the patient was not hospitalised).
 author:

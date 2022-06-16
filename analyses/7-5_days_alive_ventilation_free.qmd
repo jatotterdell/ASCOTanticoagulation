@@ -1,5 +1,5 @@
 ---
-title: Days alive and free of invasive or non-invasive ventilation
+title: "7-5 Days alive and free of invasive or non-invasive ventilation"
 description: |
   This outcome was defined as the number of days alive and free of 
   invasive or non-invasive ventilation from randomisation to 28 days. 
