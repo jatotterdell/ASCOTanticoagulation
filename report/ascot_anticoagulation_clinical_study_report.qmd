@@ -1,6 +1,6 @@
 ---
 title: "ASCOT Anticoagulation Clinical Study Report"
-date: '2022-06-09'
+date: '2022-06-15'
 author:
   - name: James Totterdell
     affiliation: University of Sydney
@@ -36,9 +36,9 @@ The trial steering committee (TSC) closed randomisation to the anticoagulation d
 
 This report summarises the data and results for the anticoagulation domain. The report restricts these summaries and analyses to the interventions available in the anticoagulation domain and does not report on the interventions in the antiviral domain.
 
-## Trial Status
+## Primary Model
 
-
+The primary model was a logistic regression model where a value of 1 indicates a patient met the primary outcome, and a value of 0 indicates they did not. The model included terms for the anticoagulation intervention received, the antiviral intervention received, intervention specific eligibilities, age at trial entry, region of enrolment, site of enrolment, and epoch of enrolment.
 
 # Results
 
@@ -130,25 +130,14 @@ Secondary analyses expand the analysis set to include all participants randomise
 
 Per-protocol (PP) analyses restrict both of the analysis sets to only those participants who sufficiently adhered to the protocol as determined by blinded review. Participants who were not PP had their outcomes set to missing, (ACS-PP and FAS-PP).
 
-\clearpage
-
 ### Baseline Characteristics
 
 The following baseline summaries exclude participants who withdrew consent for follow-up.
 
 #### Demographics
 
-Baseline demographics stratified by anticoagulation interventions are reported in @tbl-baseline-demographics
-```{r}
-#| label: tbl-baseline-demographics
-#| tbl-cap: |
-#|   Baseline demographics for participants randomised to the anticoagulation domain.
-#| results: asis
-tab <- readLines(file.path("..", "outputs", "tables", "baseline", "demographics.tex"))
-writeLines(tab[-which(grepl("caption", tab))])
-```
-
 The age distribution of participants are presented in @fig-age-overall.
+
 ```{r}
 #| label: fig-age-overall
 #| fig-cap: |
@@ -158,9 +147,21 @@ knitr::include_graphics(
 )
 ```
 
+Baseline demographics stratified by anticoagulation interventions are reported in @tbl-baseline-demographics.
+
+```{r}
+#| label: tbl-baseline-demographics
+#| tbl-cap: |
+#|   Baseline demographics for participants randomised to the anticoagulation domain.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "baseline", "demographics.tex"))
+writeLines(tab[-which(grepl("caption", tab))])
+```
+
 #### Co-morbidities
 
 Baseline co-morbidities stratified by anticoagulation interventions are reported in @tbl-baseline-comorbidities.
+
 ```{r}
 #| label: tbl-baseline-comorbidities
 #| tbl-cap: |
@@ -172,17 +173,8 @@ writeLines(tab[-which(grepl("caption", tab))])
 
 #### Prognostics
 
-Baseline prognostics stratified by anticoagulation interventions are reported in @tbl-baseline-prognostics.
-```{r}
-#| label: tbl-baseline-prognostics
-#| tbl-cap: |
-#|   Baseline prognostics for participants randomised to the anticoagulation domain.
-#| results: asis
-tab <- readLines(file.path("..", "outputs", "tables", "baseline", "prognostics.tex"))
-writeLines(tab[-which(grepl("caption", tab))])
-```
-
 The relative timing (in days) of hospitalisation, symptom onset, randomisation, and first positive test are presented in @fig-days-to-events-overall.
+
 ```{r}
 #| label: fig-days-to-events-overall
 #| fig-cap: |
@@ -191,6 +183,17 @@ The relative timing (in days) of hospitalisation, symptom onset, randomisation, 
 knitr::include_graphics(
   "../outputs/figures/baseline/days-between-events-overall.pdf"
 )
+```
+
+Baseline prognostics stratified by anticoagulation interventions are reported in @tbl-baseline-prognostics.
+
+```{r}
+#| label: tbl-baseline-prognostics
+#| tbl-cap: |
+#|   Baseline prognostics for participants randomised to the anticoagulation domain.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "baseline", "prognostics.tex"))
+writeLines(tab[-which(grepl("caption", tab))])
 ```
 
 \clearpage
@@ -226,6 +229,15 @@ Due to the small number of enrolments at New Zealand sites, in models where coun
 For models where site was included as a random effect, sites with less than 5 participants were aggregated within region into an "other sites" grouping. Similarly, for models where epoch was included, epochs with less than 10 participants were aggregated with the adjacent epoch. 
 
 Missing outcome data were not imputed for any of the models (with the exception of the deterministic imputation used in the best-case/worst-case sensitivity analyses).
+
+## Trial Decision Criteria
+
+As per the statistical appendix to the core protocol, the following decision quantities were of interest in the anticoagulation domain for the primary outcome model:
+
+- **Superiority**: superiority is assessed using the posterior probability that the intervention has the lowest odds of the outcome amongst all interventions in the domain. If a single intervention had probability exceeding 0.99 superiority would be triggered for that intervention.
+- **Effectiveness**: effectiveness is assessed relative to the standard dose arm as the posterior probability that the intervention reduces the odds of the outcome. If any intervention had probability exceeding 0.99 than effectiveness would be triggered for that intervention.
+- **Futility**: futility is assessed relative to the standard dose arm as the posterior probability that the intervention reduces the odds of the outcome by no more than a factor of 1/1.1. If any intervention had probability exceeding 0.95 than futility would be triggered for that intervention.
+- **Equivalence**: equivalence is assessed relative to the standard dose arm as the posterior probability that the intervention alters the odds of the outcome by a factor bounded by (1/1.1, 1.1).
 
 \clearpage
 
@@ -274,9 +286,21 @@ writeLines(tab)
 
 ### Primary Analysis (ACS-ITT set)
 
-The primary model was a logistic regression model adjusting for anticoagulation treatment, antiviral treatment, age ($\geq 60$), and country, with random effects for site (nested within country) and epoch (calendar time 4 week intervals). The two most recent epochs were combined due to small numbers, and the two earliest epochs were combined for the same reason.
+The primary model was a logistic regression model adjusting for anticoagulation treatment, antiviral treatment, age ($\geq 60$), and region (India (ref), Australia/New Zealand, and Nepal), with random effects for site (nested within country) and epoch (calendar time 4 week intervals, most recent epoch as reference). The three most recent epochs were combined due to small numbers, and the two earliest epochs were combined for the same reason. Sites with fewer than 5 enrolments were combined within region into an "other sites" category.
 
 The primary analysis was based on the ACS-ITT set using the full model as specified in the statistical appendix to the core protocol.
+
+The trial decision quantities are reported in @tbl-primary-model-acs-itt-decision and the model parameter posteriors are summarised in @tbl-primary-model-acs-itt-summary and @fig-primary-model-acs-itt-site-epoch-parameters.
+
+```{r}
+#| label: tbl-primary-model-acs-itt-decision
+#| tbl-cap: |
+#|   Summary of domain decision qauntities (relative to standard dose)
+#|   for primary model fit to the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-decision-table.tex"))
+writeLines(tab)
+```
 
 ```{r}
 #| label: tbl-primary-model-acs-itt-summary
@@ -295,7 +319,7 @@ writeLines(tab)
 #|   of odds ratio for epoch and site effects for
 #|   the primary model fit to the ACS-ITT set.
 knitr::include_graphics(
-  "../outputs/figures/outcomes/primary/primary-model-epoch-site-terms.pdf"
+  "../outputs/figures/outcomes/primary/primary-model-acs-itt-epoch-site-terms.pdf"
 )
 ```
 
@@ -305,7 +329,7 @@ knitr::include_graphics(
 
 The pre-specified subgroups where treatment effect heterogeneity was to be investigate were:
 
-- country
+- region
 - days since symptom onset ($\leq 7$ or $>7$ days)
 - age at enrolment ($<60$ or $\geq 60$ years of age)
 - supplemental oxygen or oxygen saturation less than 94% at randomisation (yes or no)
@@ -319,16 +343,16 @@ Domain-specific subgroups were additionally specified as:
 - patient on aspirin at baseline (yes or no)
 - D-dimer above upper limit of normal at baseline (yes or no)
 
-For each sub-group analysis, the primary model was extended to include an interaction term between the covariate of interest and the anticoagulation interventions.
+For each sub-group analysis, the primary model was extended to include an interaction term between the covariate of interest and the anticoagulation interventions. In some cases, there may be no information on the subgroup-specific effect (for example, there were no participants in Nepal who were randomised to receive standard dose plus aspirin), but the results are reported in any case noting that the posterior is essentially driven by the prior.
 
-#### Country
+#### Region
 
-A subgroup analysis of country is undertaken using the ACS-ITT set. A summary of the primary outcome by country and intervention is reported in @tbl-descriptive-acs-itt-subgroup-country. Note that no participants enrolled in Nepal or New Zealand received standard dose plus aspirin, and very few in Australia received it, due to the timing of its removal from the domain. Despite this, an interaction term for country and standard dose plus aspirin was retained in the model, however, the associated effect corresponds to the assumed prior given there is no data available.
+A subgroup analysis of region is undertaken using the ACS-ITT set. A summary of the primary outcome by country and intervention is reported in @tbl-descriptive-acs-itt-subgroup-region. Note that no participants enrolled in Nepal or New Zealand received standard dose plus aspirin, and very few in Australia received it, due to the timing of its removal from the domain. Despite this, an interaction term for country and standard dose plus aspirin was retained in the model, however, the associated effect corresponds to the assumed prior given there is no data available.
 
 ```{r}
-#| label: tbl-descriptive-acs-itt-subgroup-country
+#| label: tbl-descriptive-acs-itt-subgroup-region
 #| tbl-cap: |
-#|   Summary of participant outcomes by country of enrolment in
+#|   Summary of participant outcomes by region of enrolment in
 #|   the ACS-ITT set.
 #| results: asis
 tab <- readLines(file.path(
@@ -338,14 +362,12 @@ writeLines(tab)
 ```
 
 ```{r}
-#| label: fig-subgroup-acs-itt-country
-#| eval: false
+#| label: fig-subgroup-acs-itt-region
 #| fig-cap: |
-#|   Posterior Summaries (point - median, block - 0.75 CrI, line - 0.95 CrI) 
-#|   of odds ratio for anticoagulation interventions by country subgruop using
-#|   ACS-ITT set.
+#|   Posterior densities of odds ratio for anticoagulation interventions 
+#|   relative to standard dose by region subgroup using ACS-ITT set.
 knitr::include_graphics(
-  "../outputs/figures/outcomes/primary/subgroup-country-hte.pdf"
+  "../outputs/figures/outcomes/primary/acs-itt-subgroup-country-hte.pdf"
 )
 ```
 
@@ -365,6 +387,16 @@ tab <- readLines(file.path(
 writeLines(tab)
 ```
 
+```{r}
+#| label: fig-subgroup-acs-itt-age
+#| fig-cap: |
+#|   Posterior densities of odds ratio for anticoagulation interventions 
+#|   relative to standard dose by age subgroup using ACS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/acs-itt-subgroup-age-hte.pdf"
+)
+```
+
 #### Days since symptom onset
 
 ```{r}
@@ -377,6 +409,86 @@ tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "primary", 
   "descriptive-acs-itt-subgroup-dsfs-descriptive.tex"))
 writeLines(tab)
+```
+
+```{r}
+#| label: fig-subgroup-acs-itt-dsfs
+#| fig-cap: |
+#|   Posterior densities of odds ratio for anticoagulation interventions 
+#|   relative to standard dose by days since first symptoms subgroup using 
+#|   ACS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/acs-itt-subgroup-dsfs-hte.pdf"
+)
+```
+
+#### Receipt of Corticosteroids
+
+```{r}
+#| label: tbl-descriptive-acs-itt-subgroup-steroids
+#| tbl-cap: |
+#|   Summary of participant outcomes by receipt of steroids during index
+#|   hospital stay in the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", 
+  "descriptive-acs-itt-subgroup-steroids-descriptive.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-subgroup-acs-itt-steroids
+#| fig-cap: |
+#|   Posterior densities of odds ratio for anticoagulation interventions 
+#|   relative to standard dose by receipt of steroids subgroup using 
+#|   ACS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/acs-itt-subgroup-steroids-hte.pdf"
+)
+```
+
+#### Receipt of Remdesivir
+
+#### D-dimer
+
+#### Weight
+
+Due to smaller numbers (18 participants with weight > 120 kg and zero events), this pre-specified subgroup analysis was not undertaken.
+
+```{r}
+#| label: tbl-descriptive-acs-itt-subgroup-weight
+#| tbl-cap: |
+#|   Summary of participant outcomes by weight at baseline in the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", 
+  "descriptive-acs-itt-subgroup-weight-descriptive.tex"))
+writeLines(tab)
+```
+
+#### Aspirin
+
+```{r}
+#| label: tbl-descriptive-acs-itt-subgroup-aspirin
+#| tbl-cap: |
+#|   Summary of participant outcomes by whether patient was taking 
+#|   aspirin at baseline in the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", 
+  "descriptive-acs-itt-subgroup-aspirin-descriptive.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-subgroup-acs-itt-aspirin
+#| fig-cap: |
+#|   Posterior densities of odds ratio for anticoagulation interventions 
+#|   relative to standard dose by whether patient taking aspirin using 
+#|   ACS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/acs-itt-subgroup-aspirin-hte.pdf"
+)
 ```
 
 \clearpage
@@ -523,9 +635,119 @@ writeLines(tab)
 
 \clearpage
 
-### Post-hoc Analyses
+#### Sensitivity: Missing meet primary outcome
+
+In this analysis, patients with missing primary outcome data were assumed to have satisfied the primary outcome.
+
+```{r}
+#| label: tbl-primary-composite-acs-itt-wost-case-summary
+#| tbl-cap: |
+#|   Summary of primary composite outcome by treatment group for participants in ACS-ITT set
+#|   assuming patients with missing outcomes met the primary outcome.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", 
+                           "acs-itt-worst-case-anticoagulation-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-primary-model-acs-itt-wc-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios) 
+#|   for primary model fit to the ACS-ITT set assuming patients
+#|   with missing data met the primary outcome.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-worst-case-summary-table.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-primary-model-acs-itt-wc-site-epoch-parameters
+#| fig-cap: |
+#|   Posterior Summaries (point - median, block - 75% CrI, line - 95% CrI) 
+#|   of odds ratio for epoch and site effects for
+#|   the primary model fit to the ACS-ITT set assuming patients
+#|   with missing data met the primary outcome.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/primary-model-acs-itt-worst-case-epoch-site-terms.pdf"
+)
+```
+
+\clearpage
+
+#### Sensitivity: Missing do not meet primary outcome
+
+In this analysis, patients with missing primary outcome data were assumed to have not satisfied the primary outcome conditions.
+
+```{r}
+#| label: tbl-primary-composite-acs-itt-best-case-summary
+#| tbl-cap: |
+#|   Summary of primary composite outcome by treatment group for participants in ACS-ITT set
+#|   assuming patients with missing outcomes did not meet the primary outcome.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", 
+                           "acs-itt-best-case-anticoagulation-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-primary-model-acs-itt-bc-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios) 
+#|   for primary model fit to the ACS-ITT set assuming patients
+#|   with missing data did not meet the primary outcome.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-best-case-summary-table.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-primary-model-acs-itt-bc-site-epoch-parameters
+#| fig-cap: |
+#|   Posterior Summaries (point - median, block - 75% CrI, line - 95% CrI) 
+#|   of odds ratio for epoch and site effects for
+#|   the primary model fit to the ACS-ITT set assuming patients
+#|   with missing data did not meet the primary outcome.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/primary-model-acs-itt-best-case-epoch-site-terms.pdf"
+)
+```
+
+\clearpage
+
+### Post-hoc Sensitivity Analyses
 
 The following sections report on other post-hoc analyses which were undertaken, but not explicitly specified in the SAP.
+
+#### Remove hiearchical site and epoch effects
+
+\clearpage
+
+#### Prior Sensitivity
+
+The primary analysis model encodes the prior in terms of orthonormal contrasts. As a check of prior sensitivity, the primary model was re-fit with priors specified in terms of the more usual treatment contrasts.
+
+```{r}
+#| label: tbl-primary-model-acs-itt-trt-ctr-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios) 
+#|   for primary model fit to the ACS-ITT set with priors on treatment conrasts.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-trt-ctr-summary-table.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-primary-model-acs-itt-trt-ctr-site-epoch-parameters
+#| fig-cap: |
+#|   Posterior Summaries (point - median, block - 0.75 CrI, line - 0.95 CrI) 
+#|   of odds ratio for epoch and site effects for
+#|   the primary model fit to the ACS-ITT set with priors on treatment conrasts.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/primary-model-acs-itt-trt-ctr-epoch-site-terms.pdf"
+)
+```
+
 
 \clearpage
 
@@ -725,8 +947,6 @@ knitr::include_graphics(
 
 \clearpage
 
-## Safety
-
 # Appendix
 
 ## Primary Outcome by Model Covariates (ACS-ITT) {#sec-app-primary-outcome-model-cov}
@@ -782,6 +1002,10 @@ knitr::include_graphics(
   "../outputs/figures/outcomes/primary/outcome-dsfs.pdf"
 )
 ```
+
+\clearpage
+
+## Time to recovery to day 28 by model covariates (ACS-ITT) {#sec-app-7-1-model-cov}
 
 \clearpage
 
@@ -915,5 +1139,24 @@ knitr::include_graphics(
 knitr::include_graphics(
   "../outputs/figures/outcomes/secondary/7-4-calendar-time.pdf"
 )
+```
+
+\clearpage
+
+## Days alive and free of ventilation to day 28 by Model Covariates (ACS-ITT) {#sec-app-7-5-model-cov}
+
+\clearpage
+
+## Posterior Predictive - Primary Model ACS-ITT
+
+```{r}
+#| label: fig-primary-model-acs-itt-ppc
+#| fig-cap: |
+#|   Posterior predictive distribution for primary outcome 
+#|   by model covariates for primary model using ACS-ITT.
+#|   Vertical red line indicates observed proportions.
+pth <- file.path("..", "outputs", "figures", "outcomes", "primary",
+                 "primary-model-acs-itt-ppc.pdf")
+knitr::include_graphics(pth)
 ```
 

@@ -167,6 +167,7 @@ filter_concurrent_intermediate <- function(dat) {
 
 filter_concurrent_std_aspirin <- function(dat) {
   dat %>%
+    # Patients randomised before closure of C3
     filter(RandDate < get_intervention_dates()$endate[3]) %>%
     mutate(CAssignment = droplevels(CAssignment))
 }
@@ -174,6 +175,7 @@ filter_concurrent_std_aspirin <- function(dat) {
 
 filter_concurrent_therapeutic <- function(dat) {
   dat %>%
+    # Patients randomised after opening of C4
     filter(RandDate >= get_intervention_dates()$stdate[4] &
            RandDate < get_intervention_dates()$endate[4]) %>%
     mutate(CAssignment = droplevels(CAssignment))
