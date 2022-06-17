@@ -1,8 +1,12 @@
 ---
-title: "All Cause Mortality Day 28 and Day 90"
+title: "7-3 All Cause Mortality Day 28 and Day 90"
 description: |
   Analyse of the all-cause mortality secondary outcome in ASCOT.
-author: "Robert Mahar"
+author:
+  - name: Rob Mahar
+    affiliation: University of Melbourne
+  - name: James Totterdell
+    affiliation: University of Sydney
 date: last-modified
 ---
 
@@ -39,36 +43,39 @@ options(digits = 4)
 devtools::load_all()
 all_dat <- read_all_no_daily()
 
-# Full analysis set (intention-to-treat, including missing)
-fas_itt_dat <- all_dat %>% 
-  filter_fas_itt() %>%
-  transmute_model_cols() %>% 
-  left_join(all_dat %>% select(StudyPatientID, D28_death), by = "StudyPatientID")
-
-# Full analysis set (intention-to-treat, excluding missing)
-fas_itt_nona_dat <- fas_itt_dat %>% 
-  filter(!is.na(D28_death)) 
-
 # Anticoagulation set (intention-to-treat, including missing)
 acs_itt_dat <- all_dat %>% 
   filter_acs_itt() %>%
-  transmute_model_cols() %>% 
+  transmute_model_cols_grp_aus_nz() %>% 
   left_join(all_dat %>% select(StudyPatientID, D28_death), by = "StudyPatientID")
 
 # Anticoagulation set (intention-to-treat, excluding missing)
 acs_itt_nona_dat <- acs_itt_dat %>% 
   filter(!is.na(D28_death))  
+
+# Concurrent enrolments for C2
+acs_itt_concurc2_dat <- acs_itt_dat %>%
+  filter_concurrent_intermediate()
+acs_itt_concurc2_nona_dat <- acs_itt_concurc2_dat %>% 
+  filter(!is.na(D28_death))
+
+# Concurrent enrolments for C3
+acs_itt_concurc3_dat <- acs_itt_dat %>%
+  filter_concurrent_std_aspirin()
+acs_itt_concurc3_nona_dat <- acs_itt_concurc3_dat %>% 
+  filter(!is.na(D28_death))
+
+# Concurrent enrolments for C4
+acs_itt_concurc4_dat <- acs_itt_dat %>%
+  filter_concurrent_therapeutic()
+acs_itt_concurc4_nona_dat <- acs_itt_concurc4_dat %>% 
+  filter(!is.na(D28_death))
 ```
 
-# Data checking
+# Descriptive
 
 ```{r}
-with(acs_itt_nona_dat, table(D28_death, CAssignment))
-```
-
-## Descriptive
-
-```{r}
+#| code-summary: Summary table
 #| label: descriptive-table-mortality-anticoagulation
 make_mortality_table <- function(dat, format = "html") {
   tab <- dat %>%
@@ -111,18 +118,18 @@ make_mortality_table <- function(dat, format = "html") {
     ) %>%
     kable_styling(font_size = 10, latex_options = "HOLD_position")  
 }
-make_mortality_table(
-    all_dat %>%
-      filter_acs_itt()
-)
 save_tex_table(make_mortality_table(
       all_dat %>%
       filter_acs_itt(),
       "latex"), 
       "outcomes/secondary/anticoagulation-summary-mortality")
+make_mortality_table(
+    all_dat %>%
+      filter_acs_itt()
+)
 ```
 
-### Age
+## Age
 
 ```{r}
 #| label: fig-age-po
@@ -155,14 +162,12 @@ p2 <- ggplot(agedat, aes(AgeAtEntry, p)) +
     geom_line(aes(y = ypred)) +
     labs(y = "Proportion\ndied by day 28", x = "Age at entry")
 p <- p1 | p2
-```
-
-```{r}
 path <- file.path("outputs", "figures", "outcomes", "secondary")
 ggsave(file.path(path, "7-3-age.pdf"), p, height = 2, width = 6)
+p
 ```
 
-### Country
+## Country
 
 ```{r}
 #| label: tbl-country-po
@@ -190,14 +195,12 @@ p2 <- ggplot(tdat, aes(Country, p_1)) +
       x = "Country of enrolment")  +
   ylim(0, NA)
 p <- p1 | p2
-```
-
-```{r}
 path <- file.path("outputs", "figures", "outcomes", "secondary")
 ggsave(file.path(path, "7-3-country.pdf"), p, height = 2, width = 6)
+p
 ```
 
-### Site
+## Site
 
 ```{r}
 #| label: tbl-site-7-3
@@ -237,14 +240,12 @@ p2 <- ggplot(tdat, aes(Site_lab, p_1)) +
   theme(axis.text.x = element_text(angle = 45, hjust = 1),
         panel.border = element_rect(fill = NA))
 p <- p1 / p2
-```
-
-```{r}
 path <- file.path("outputs", "figures", "outcomes", "secondary")
 ggsave(file.path(path, "7-3-country-site.pdf"), p, height = 4, width = 6.25)
+p
 ```
 
-### Calendar Time
+## Calendar Time
 
 ```{r}
 #| label: fig-cal-po
@@ -273,12 +274,9 @@ p2 <- ggplot(caldat, aes(mth, n)) +
       x = "Calendar date (month of year)") +
   scale_x_continuous(breaks = 1:12)
 p <- p2 | p1
-p
-```
-
-```{r}
 path <- file.path("outputs", "figures", "outcomes", "secondary")
 ggsave(file.path(path, "7-3-calendar-time.pdf"), p, height = 2, width = 6)
+p
 ```
 
 # Modelling
@@ -295,17 +293,16 @@ model_full <- cmdstan_model(file.path("stan", "primary_logistic_model_site_epoch
 ```{r}
 #| label: Munge stan data.
 #| code-summary: Munges stan data.
-make_stan_data <- function(dat, vars, outcome, beta_sd = c(2.5, rep(1, nXassign), 2.5, 10), ctr = contr.orthonorm) 
-{
-  X <- model.matrix(
-     as.formula(paste("~", paste(vars, collapse = " + "))),
-    data = dat,
-    contrast = list(
-      AAssignment = ctr,
-      CAssignment = ctr)
-  )
+make_stan_data <- function(
+    dat, 
+    vars, 
+    outcome, 
+    beta_sd = c(2.5, rep(1, nXassign), 10, 2.5), 
+    ctr = contr.orthonorm) {
+
+  X <- make_X_design(dat, vars, ctr)
   
-  nXassign <- sum(grepl("Assignment", colnames(X)))
+  nXassign <- sum(grepl("rand", colnames(X))) - 1
 
   y <- dat[[outcome]]
   N <- dim(X)[1]
@@ -328,10 +325,10 @@ make_stan_data <- function(dat, vars, outcome, beta_sd = c(2.5, rep(1, nXassign)
        region_by_site = region_by_site,
        beta_sd = beta_sd)
 }
-
-dat_full <- make_stan_data(dat = acs_itt_nona_dat, 
-                           vars    = c("CAssignment", "AAssignment", "agegte60", "inelgc3"),
-                           outcome = "D28_death")
+dat_full <- make_stan_data(
+  dat = acs_itt_nona_dat, 
+  vars    = c("inelgc3", "agegte60"),
+  outcome = "D28_death")
 ```
 
 ## Analysis model
@@ -339,7 +336,6 @@ dat_full <- make_stan_data(dat = acs_itt_nona_dat,
 ```{r}
 #| label: model1-sampling
 #| code-summary: Data and sampling
-
 run_stan <- function(model, data)
 {
   model[["sample"]](data = data,
@@ -351,9 +347,7 @@ run_stan <- function(model, data)
                     parallel_chains = 8,
                     adapt_delta = 0.97)
 }
-
 stan_full <- run_stan(model_full, dat_full)
-
 stan_full$summary(variables = c("beta", 
                                 "beta_region", 
                                 "gamma_site", "epsilon_site", "tau_site",
@@ -382,14 +376,14 @@ mcmc_trace(stan_full$draws("tau_epoch",     format = "matrix"))
 
 ```{r}
 #| label: model-summaries
-#| code-summary: Model summaries
+#| code-summary: Model parameter transformations
 
 # Transform treatment contrasts back.
 add_treatment_rvs <- function(rvs, mdat) {
   
   # Get the orthonormal contrasts.
-  Ca <- cbind(1, attr(mdat$X, "contrasts")$AAssignment) 
-  Cc <- cbind(1, attr(mdat$X, "contrasts")$CAssignment)
+  Ca <- cbind(1, attr(mdat$X, "contrasts")$randA) 
+  Cc <- cbind(1, attr(mdat$X, "contrasts")$randC)
   nC <- ncol(Cc)
   # Get the treatment contrasts.
   Ct <-  cbind(1, contr.treatment(nC))
@@ -401,8 +395,7 @@ add_treatment_rvs <- function(rvs, mdat) {
   rvs$beta_trt <- as.vector(
     transform_coding(Cc, Ct) %**% rvs$beta[1:nC])
   # names_trt <- rownames(Cc)[-grep(rownames(Cc), pattern = "C1")]
-  rvs$OR <- setNames(exp(rvs$beta_trt[trt_rows][-1]), c("C2 vs C1", "C3 vs C1", "C4 vs C1"))
-  rvs$OR <- c(rvs$OR, "C2 vs C4" = rvs$OR[1] / rvs$OR[3])
+  rvs$OR <- setNames(exp(rvs$beta_trt[trt_rows][-1]), c("Intermediate", "Standard plus aspirin", "Therapeutic"))
   return(rvs)
 }
 
@@ -417,22 +410,23 @@ rvs_epoch  <- as_draws_rvars(stan_full[["draws"]](c("gamma_epoch")))[[1]]
 # Define names of random variables. 
 map_labels <- function(data, num, lab)
 {
-  lab_map <- paste0(data[[num]], "/", data[[lab]])
+  lab_map <- paste0(data[[num]], "_", data[[lab]])
   lab_map <- unique(lab_map)     
-  lab_map <- as.data.frame(str_split(lab_map, pattern = "/", simplify = T))
+  lab_map <- as.data.frame(str_split(lab_map, pattern = "_", simplify = T))
   names(lab_map) <- c("number", "label")
   lab_map[["number"]] <- as.numeric(lab_map[["number"]])
   lab_map <- lab_map[order(lab_map[["number"]]),]
+  lab_map
 }
 
 acs_itt_nona_dat[["site_nest"]] <- with(acs_itt_nona_dat, paste0(ctry,": ", site))
 
 epoch_lab  <- map_labels(acs_itt_nona_dat, "epoch", "epoch_lab")
 region_lab <- map_labels(acs_itt_nona_dat, "ctry_num", "ctry")
-site_lab   <- map_labels(acs_itt_nona_dat, "site_num", "site_nest")
+site_lab   <- map_labels(acs_itt_nona_dat, "site_num", "site")
 
 names_agegrp <- "60+"
-names_inlgc3 <- "Ineligible C3"
+names_inlgc3 <- "Ineligible aspirin"
 
 # Set names and exponentiation.
 rvs_agegrp <- setNames(exp(rvs_beta[[1]]["agegte60"]), names_agegrp)  
@@ -442,79 +436,24 @@ rvs_site   <- setNames(exp(rvs_site),   site_lab[["label"]])
 rvs_epoch  <- setNames(exp(rvs_epoch),  epoch_lab[["label"]])
 
 # Combine random variables and tabulate.
-rvs_all <- c(rvs_trt, rvs_inlgc3, rvs_agegrp, rvs_region, rvs_site, rvs_epoch)
-
-# Put the outcome table together.
-make_outcome_table <- function(OR, format = "html", fn = NULL)
-{
-  out <- tibble(Parameter = names(OR),
-                Mean = sprintf("%.2f", E(OR)),
-                SD   = sprintf("%.2f", sd(OR)),
-                Median = sprintf("%.2f", median(OR)),
-                `95% CrI` = apply(quantile(OR, c(0.025, 0.975)), 2, function(x) 
-                sprintf("(%.2f, %.2f)", x[1], x[2])),
-                `Pr(OR < 1)` = sprintf("%.2f", Pr(OR < 1))) %>%
-    kable(caption = "Model-estimated odds ratios for the all-cause mortality at day 28.",
-          format = format, digits = 2, booktabs = TRUE, linesep = "", align = "lrrrrr", longtable = TRUE) %>%
-    kable_styling(latex_options = "HOLD_position", font_size = 8) %>%
-    group_rows("Anticoagulation treatment", 1, 5) %>%
-    group_rows("Age group", 6, 6) %>%
-    group_rows("Country", 7, 10) %>%
-    group_rows("Site", 11, 37) %>%
-    group_rows("Epoch", 38, 49) %>%
-    footnote(none = "Note: Epoch is the 4-week interval relative to the most recently randomised participant.",
-             escape = TRUE)
-  if (!is.null(fn) & format == "latex") {
-    out
-    save_tex_table(out, fn)
-  } else {
-    return(out)
-  }
-}
-
-odds_ratio_summary_table(rvs_all)
+rvs_all <- c(rvs_trt, rvs_inlgc3, rvs_agegrp, rvs_region)
 ```
 
 ```{r}
 #| label: odds-ratio-summary-table-primary-model-save
+#| code-summary: Odds ratio summary table
 save_tex_table(
-  odds_ratio_summary_table(rvs_all[1:10], "latex"),
+  odds_ratio_summary_table(rvs_all, "latex"),
   "outcomes/secondary/7-3-primary-model-acs-itt-summary-table")
+odds_ratio_summary_table(rvs_all)
 ```
-
 
 ```{r}
 #| label: odds-ratio-summary-primary-model-epoch-site-terms
-orsdat <- tibble(
-  Group = "Epoch",
-  Parameter = fct_inorder(names(rvs_epoch)),
-  posterior = rvs_epoch
-)
-p_epoch <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
-  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
-  geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_log10("Odds ratio (log scale)") +
-  labs(y = "Epoch")
-
-orsdat <- tibble(
-  Group = "Site",
-  Country = factor(dat_full$region_by_site, labels = c("India", "Australia", "Nepal", "New\nZealand")),
-  Parameter = fct_inorder(names(rvs_site)),
-  posterior = rvs_site
-)
-p_site <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
-  facet_grid(Country ~ ., scales = "free_y", space = "free_y") +
-  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
-  geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_log10("Odds ratio (log scale)") +
-  labs(y = "Site") +
-  theme(panel.border = element_rect(fill = NA))
-
-p <- p_epoch | p_site
-p
-```
-
-```{r}
+#| code-summary: Epoch and site terms
+p <- plot_epoch_site_terms(
+  rvs_epoch, rvs_site, factor(dat_full$region_by_site, labels = c("India", "Australia\nNew Zealand", "Nepal")))
 pth <- file.path("outputs", "figures", "outcomes", "secondary", "7-3-primary-model-epoch-site-terms.pdf")
 ggsave(pth, p, width = 6, height = 4.5)
+p
 ```

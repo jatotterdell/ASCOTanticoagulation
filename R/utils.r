@@ -373,6 +373,84 @@ ordered_logit <- function(x) {
   )
 }
 
+
+#' make_domA_design
+#'
+#' Create design matrix where domain has an intercept which
+#' indicates whether a participant was randomised to it or not
+#' and (by default) uses orthonormal contrasts for available
+#' interventions.
+#'
+#' This keeps the "not randomised" group out of the overall
+#' mean around which interventions are centred.
+#'
+#' @param dat A dataset with factor variable "randA" for which NA means not randomised.
+#' @param ctr Contrast, by defualt orthonormal
+#' @return Design matrix
+make_domA_design <- function(dat, ctr = contr.orthonorm) {
+  XA <- model.matrix(
+    ~ randA,
+    model.frame(~ randA, dat, na.action = na.pass),
+    contrasts = list(randA = ctr)
+  )
+  # If not randomised to A
+  XA[is.na(XA[, 2]), ] <- 0
+  colnames(XA)[1] <- "randA"
+  return(XA)
+}
+
+
+#' make_domC_design
+#'
+#' Create design matrix where domain has an intercept which
+#' indicates whether a participant was randomised to it or not
+#' and (by default) uses orthonormal contrasts for available
+#' interventions.
+#'
+#' This keeps the "not randomised" group out of the overall
+#' mean around which interventions are centred.
+#'
+#' @param dat A dataset with factor variable "randC" for which NA means not randomised.
+#' @param ctr Contrast, by defualt orthonormal
+#' @return Design matrix
+make_domC_design <- function(dat, ctr = contr.orthonorm) {
+  XC <- model.matrix(
+    ~ randC,
+    model.frame(~ randC, dat, na.action = na.pass),
+    contrasts = list(randC = ctr)
+  )
+  # If not randomised to A
+  XC[is.na(XC[, 2]), ] <- 0
+  colnames(XC)[1] <- "randC"
+  return(XC)
+}
+
+
+make_X_design <- function(
+    dat,
+    vars = NULL,
+    ctr = contr.orthonorm) {
+
+  XA <- make_domA_design(dat, ctr)
+  XC <- make_domC_design(dat, ctr)
+
+  if (!is.null(vars)) {
+    Xother <- model.matrix(
+      as.formula(paste(" ~ ", paste(vars, collapse = " + "))),
+      data = dat
+    ) [, -1]
+  } else {
+    Xother <- NULL
+  }
+
+  X <- cbind(XC, XA, Xother)
+  attributes(X)$contrasts <- list(
+    "randA" = attr(XA, "contrasts")$randA,
+    "randC" = attr(XC, "contrasts")$randC
+  )
+  return(X)
+}
+
 # Save outputs ----
 
 
