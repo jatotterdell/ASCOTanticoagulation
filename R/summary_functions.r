@@ -70,6 +70,68 @@ odds_ratio_summary_table_rev <- function(OR, format = "html", fn = NULL) {
 }
 
 
+decision_quantity_summary_table <- function(OR, format = "html", fut_val = 1.1) {
+  tdat <- tibble(
+    Intervention = names(OR),
+    posterior = OR,
+    Posterior = sprintf("%.2f (%.2f, %.2f)",
+                        median(posterior),
+                        quantile(posterior, 0.025),
+                        quantile(posterior, 0.975)),
+    Superior = sprintf("%.2f", E(posterior == rvar_min(posterior))),
+    Effective = sprintf("%.2f", Pr(posterior < 1)),
+    Futile = sprintf("%.2f", Pr(posterior > 1/fut_val)),
+    Equivalent = sprintf("%.2f", Pr(posterior < fut_val & posterior > 1/fut_val))
+  ) %>%
+    select(-posterior)
+  tdat[1, -(1:3)] <- "-"
+  out <- kable(
+    tdat,
+    format = format,
+    digits = 2,
+    align = "lrrrrr",
+    linesep = "",
+    booktabs = TRUE) %>%
+    kable_styling(
+      font_size = 9,
+      bootstrap_options = "striped",
+      latex_options = "HOLD_position"
+    )
+  return(out)
+}
+
+
+decision_quantity_summary_table_rev <- function(OR, format = "html", fut_val = 1.1) {
+  tdat <- tibble(
+    Intervention = names(OR),
+    posterior = OR,
+    Posterior = sprintf("%.2f (%.2f, %.2f)",
+                        median(posterior),
+                        quantile(posterior, 0.025),
+                        quantile(posterior, 0.975)),
+    Superior = sprintf("%.2f", E(posterior == rvar_max(posterior))),
+    Effective = sprintf("%.2f", Pr(posterior > 1)),
+    Futile = sprintf("%.2f", Pr(posterior < 1/fut_val)),
+    Equivalent = sprintf("%.2f", Pr(posterior < fut_val & posterior > 1/fut_val))
+  ) %>%
+    select(-posterior)
+  tdat[1, -(1:3)] <- "-"
+  out <- kable(
+    tdat,
+    format = format,
+    digits = 2,
+    align = "lrrrrr",
+    linesep = "",
+    booktabs = TRUE) %>%
+    kable_styling(
+      font_size = 9,
+      bootstrap_options = "striped",
+      latex_options = "HOLD_position"
+    )
+  return(out)
+}
+
+
 plot_or_densities <- function(rvs) {
   tibble(Contrast = fct_inorder(names(rvs)), RV = rvs) %>%
     ggplot(., aes(y = Contrast, xdist = RV)) +

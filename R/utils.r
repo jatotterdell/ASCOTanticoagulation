@@ -169,7 +169,10 @@ filter_concurrent_std_aspirin <- function(dat) {
   dat %>%
     # Patients randomised before closure of C3
     filter(RandDate < get_intervention_dates()$endate[3]) %>%
-    mutate(CAssignment = droplevels(CAssignment))
+    # Patients ineligible for aspirin arm
+    filter(inelgc3 == 0) %>%
+    mutate(CAssignment = droplevels(CAssignment),
+           ctry = droplevels(ctry))
 }
 
 
@@ -178,7 +181,9 @@ filter_concurrent_therapeutic <- function(dat) {
     # Patients randomised after opening of C4
     filter(RandDate >= get_intervention_dates()$stdate[4] &
            RandDate < get_intervention_dates()$endate[4]) %>%
-    mutate(CAssignment = droplevels(CAssignment))
+    filter(country %in% c("AU", "NP", "NZ") | site == "BCM") %>%
+    mutate(CAssignment = droplevels(CAssignment),
+           ctry = relevel(ctry, ref = "NP"))
 }
 
 
