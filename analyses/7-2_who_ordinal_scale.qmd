@@ -1,5 +1,5 @@
 ---
-title: "WHO 8-point Outcome Scale"
+title: "7-2 WHO 8-point Outcome Scale"
 description: |
   Working analyses of the WHO 8-point outcome scale outcome.
 author: "James Totterdell"

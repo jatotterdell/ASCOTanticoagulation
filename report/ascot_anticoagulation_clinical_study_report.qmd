@@ -114,21 +114,42 @@ knitr::include_graphics(
 
 ### Intervention Allocations
 
-Due to the trial progression, response adaptive randomisation was never activated in the anti-coagulation domain. Therefore, allocations to the interventions were uniform across all available interventions from trial start to trial closure. However, the available interventions changed over time due to external decisions. The following figures summarise treatment allocations over time.
+Due to the trial progression, response adaptive randomisation (RAR) was never activated in the anticoagulation domain. Therefore, target allocations to the interventions were uniform across all available interventions from trial start to trial closure. However, the available interventions did change over time. The following figures summarise treatment allocations over time and by country.
 
 \clearpage
 
 ### Deviations
 
+Protocol deviations...
+
 \clearpage
 
-### Analysis Sets
+### Analysis Sets {#sec-analysis-sets}
 
 The primary analysis population includes all participants who were randomised to the anticoagulation domain. For the intention-to-treat (ITT) analyses, all participants randomised to the anticoagulation domain were analysed according to their aside regimen irrespective of deviations or non-adherence. This set is referred to as the anticoagulation ITT set (ACS-ITT).
 
 Secondary analyses expand the analysis set to include all participants randomised to the platform including those who were not randomised to the anticoagulation domain for the purpose of additional covariate information. This is referred to as the full analysis set ITT (FAS-ITT)
 
 Per-protocol (PP) analyses restrict both of the analysis sets to only those participants who sufficiently adhered to the protocol as determined by blinded review. Participants who were not PP had their outcomes set to missing, (ACS-PP and FAS-PP).
+
+Additional analysis sets are defined for the purpose of comparing the interventions restricted to the timing of concurrent randomisation. For this purpose, the following additional analysis sets are specified:
+
+-   ACS-ITT-intermediate: ACS-ITT set restricted to only patients randomised into either standard dose or intermediate dose intervention.
+-   ACS-ITT-aspirin: ACS-ITT set restricted to patients randomised between 2021-02-08 (domain start) and 2021-09-10 (closure of aspirin arm) who were eligible for the standard dose plus aspirin intervention
+-   ACS-ITT-therapeutic: ACS-ITT set restricted to patients randomised between 2021-10-14 (arm start) and 2022-04-08 (domain closure) at a site where the therapeutic intervention was available (all sites in Australia, New Zealand and Nepal, and one site in India)
+
+| Name                 | Definition                                                                                                                                                                                                     |
+|-----------------------|-----------------------------------------------------------|
+| FAS-ITT              | All participants who were randomised to at least one study domain. Participants will be analysed as randomised, irrespective of withdrawal from treatment, treatment compliance, or other protocol deviations. |
+| ACS-ITT              | Subset of FAS-ITT who were randomised to the anticoagulation domain.                                                                                                                                           |
+| ACS-ITT-intermediate | Subset of ACS-ITT who were randomised to intermediate or standard dose only.                                                                                                                                   |
+| ACS-ITT-aspirin      | Subset of ACS-ITT who were randomised prior to closure of the standard plus aspirin arm and were eligible for the aspirin arm.                                                                                 |
+| ACS-ITT-therapeutic  | Subset of ACS-ITT who were randomised after introduction of the therapeutic dose arm at a site where it was available.                                                                                         |
+| ACS-PP               | All participants who were randomised to the anticoagulation domain and satisfied platform, domain, and intervention protocol requirements.                                                                     |
+
+: Overview of the analysis sets used in this report.
+
+\clearpage
 
 ### Baseline Characteristics
 
@@ -226,7 +247,7 @@ Bayesian models were computed using Stan via `cmdstanr` (0.5.2 and cmdstan versi
 
 Due to the small number of enrolments at New Zealand sites, in models where country of enrolment were included as a term, Australia and New Zealand were combined into one region. The hierarchical site effects for centres in Australia and New Zealand were nested within this joint region rather than each country individually.
 
-For models where site was included as a random effect, sites with less than 5 participants were aggregated within region into an "other sites" grouping. Similarly, for models where epoch was included, epochs with less than 10 participants were aggregated with the adjacent epoch. 
+For models where site was included as a random effect, sites with less than 5 participants were aggregated within region into an "other sites" grouping. Similarly, for models where epoch was included, epochs with less than 10 participants were aggregated with the adjacent epoch.
 
 Missing outcome data were not imputed for any of the models (with the exception of the deterministic imputation used in the best-case/worst-case sensitivity analyses).
 
@@ -234,10 +255,10 @@ Missing outcome data were not imputed for any of the models (with the exception 
 
 As per the statistical appendix to the core protocol, the following decision quantities were of interest in the anticoagulation domain for the primary outcome model:
 
-- **Superiority**: superiority is assessed using the posterior probability that the intervention has the lowest odds of the outcome amongst all interventions in the domain. If a single intervention had probability exceeding 0.99 superiority would be triggered for that intervention.
-- **Effectiveness**: effectiveness is assessed relative to the standard dose arm as the posterior probability that the intervention reduces the odds of the outcome. If any intervention had probability exceeding 0.99 than effectiveness would be triggered for that intervention.
-- **Futility**: futility is assessed relative to the standard dose arm as the posterior probability that the intervention reduces the odds of the outcome by no more than a factor of 1/1.1. If any intervention had probability exceeding 0.95 than futility would be triggered for that intervention.
-- **Equivalence**: equivalence is assessed relative to the standard dose arm as the posterior probability that the intervention alters the odds of the outcome by a factor bounded by (1/1.1, 1.1).
+-   **Superiority**: superiority is assessed using the posterior probability that the intervention has the lowest odds of the outcome amongst all interventions in the domain. If a single intervention had probability exceeding 0.99 superiority would be triggered for that intervention.
+-   **Effectiveness**: effectiveness is assessed relative to the standard dose arm as the posterior probability that the intervention reduces the odds of the outcome. If any intervention had probability exceeding 0.99 than effectiveness would be triggered for that intervention.
+-   **Futility**: futility is assessed relative to the standard dose arm as the posterior probability that the intervention reduces the odds of the outcome by no more than a factor of 1/1.1. If any intervention had probability exceeding 0.95 than futility would be triggered for that intervention.
+-   **Equivalence**: equivalence is assessed relative to the standard dose arm as the posterior probability that the intervention alters the odds of the outcome by a factor bounded by (1/1.1, 1.1).
 
 \clearpage
 
@@ -245,9 +266,9 @@ As per the statistical appendix to the core protocol, the following decision qua
 
 The primary outcome is a composite comprised of:
 
-- day 28 mortality
-- vasopressor/inotropic support within first 28 days
-- new intensive respiratory support within first 28 days.
+-   day 28 mortality
+-   vasopressor/inotropic support within first 28 days
+-   new intensive respiratory support within first 28 days.
 
 The definition also allowed for patients who had unknown day 28 status, but were discharged against medical advice (DAMA) and designated as likely to die within 28 days. However, no participants met this criteria (all cases of DAMA and likely to die within 28 days had known day 28 status).
 
@@ -329,19 +350,19 @@ knitr::include_graphics(
 
 The pre-specified subgroups where treatment effect heterogeneity was to be investigate were:
 
-- region
-- days since symptom onset ($\leq 7$ or $>7$ days)
-- age at enrolment ($<60$ or $\geq 60$ years of age)
-- supplemental oxygen or oxygen saturation less than 94% at randomisation (yes or no)
-- receipt of corticosteroid during hospital stay (yes or no)
-- receipt of remdesivir during hospital stay (yes or no)
-- receipt of other agent intended to be antiviral against SARS-CoV-2 during hospital stay (yes or no)
+-   region
+-   days since symptom onset ($\leq 7$ or $>7$ days)
+-   age at enrolment ($<60$ or $\geq 60$ years of age)
+-   supplemental oxygen or oxygen saturation less than 94% at randomisation (yes or no)
+-   receipt of corticosteroid during hospital stay (yes or no)
+-   receipt of remdesivir during hospital stay (yes or no)
+-   receipt of other agent intended to be antiviral against SARS-CoV-2 during hospital stay (yes or no)
 
 Domain-specific subgroups were additionally specified as:
 
-- weight ($< 120$ or $\geq 120$ kg)
-- patient on aspirin at baseline (yes or no)
-- D-dimer above upper limit of normal at baseline (yes or no)
+-   weight ($< 120$ or $\geq 120$ kg)
+-   patient on aspirin at baseline (yes or no)
+-   D-dimer above upper limit of normal at baseline (yes or no)
 
 For each sub-group analysis, the primary model was extended to include an interaction term between the covariate of interest and the anticoagulation interventions. In some cases, there may be no information on the subgroup-specific effect (for example, there were no participants in Nepal who were randomised to receive standard dose plus aspirin), but the results are reported in any case noting that the posterior is essentially driven by the prior.
 
@@ -453,7 +474,7 @@ knitr::include_graphics(
 
 #### Weight
 
-Due to smaller numbers (18 participants with weight > 120 kg and zero events), this pre-specified subgroup analysis was not undertaken.
+Due to smaller numbers (18 participants with weight \> 120 kg and zero events), this pre-specified subgroup analysis was not undertaken.
 
 ```{r}
 #| label: tbl-descriptive-acs-itt-subgroup-weight
@@ -493,6 +514,12 @@ knitr::include_graphics(
 
 \clearpage
 
+### Per-Protocol Analysis
+
+The primary model was re-analysed using the ACS-PP set.
+
+\clearpage
+
 ### Sensitivity Analyses
 
 #### Sensitivity: FAS-ITT
@@ -524,18 +551,13 @@ knitr::include_graphics(
 
 #### Sensitivity: Concurrent Randomisations
 
-In the following section, analyses are undertaken where the analysis set is restricted to participants who were randomised concurrently amongst the interventions of interest. Three sets are considered, one for each intervention. Given that the intermediate and standard dose interventions were available the entire time the anticoagulation domain was open, that analysis set is restricted to only participants randomised to one of those interventions. The other sets are determined by a patients calendar time of randomisation. The subsets considered are:
-
-- ACS-ITT-intermediate: ACS-ITT set restricted to only patients randomised into either standard dose or intermediate dose intervention.
-- ACS-ITT-aspirin: ACS-ITT set restricted to patients randomised between 2021-02-08 (domain start) and 2021-09-10 (closure of aspirin arm)
-- ACS-ITT-therapeutic: ACS-ITT set restricted to patients randomised between 2021-10-14 (arm start) and 2022-04-08 (domain closure)
-
-Given that RAR was not activated, the epoch terms are removed from the models. Additionally, due to smaller sample sizes, site effects have been removed from the models.
+In the following section, analyses are undertaken where the analysis set is restricted to participants who were randomised concurrently amongst the interventions of interest. Three sets are considered, one for each intervention. Given that the intermediate and standard dose interventions were available the entire time the anticoagulation domain was open, that analysis set is restricted to only participants randomised to one of those interventions. The other sets are determined by a patients calendar time of randomisation. Given that RAR was not activated, the epoch terms are removed from the models. Additionally, due to smaller sample sizes, site effects have been removed from the models. For the definitions of the analysis sets, refer to @sec-analysis-sets.
 
 ##### Intermediate dose
 
-- **Analysis set**: ACS-ITT where randomisation was to either standard dose or intermediate dose.
-- **Model terms**: anticoagulation intervention, age group, country.
+-   **Model**: logistic regression
+-   **Terms**: anticoagulation intervention, age group, country
+-   **Set**: ACS-ITT-intermediate
 
 ```{r}
 #| label: tbl-primary-composite-acs-itt-c2-summary
@@ -558,8 +580,8 @@ writeLines(tab)
 
 ##### Standard dose plus aspirin
 
-- **Analysis set**: ACS-ITT where randomisation occurred between 2021-02-08 and 2021-09-10.
-- **Model terms**: anticoagulation intervention, aspirin eligibility, age group, country.
+-   **Analysis set**: ACS-ITT where randomisation occurred between 2021-02-08 and 2021-09-10.
+-   **Model terms**: anticoagulation intervention, aspirin eligibility, age group, country.
 
 A summary of the number of participants randomised and the number meeting the primary outcome are reported in @tbl-primary-composite-acs-itt-c3-summary, noting that 35 participants were ineligible for the standard dose plus aspirin intervention. The model parameter summaries are reported in @tbl-primary-model-acs-itt-c3-summary.
 
@@ -584,8 +606,8 @@ writeLines(tab)
 
 ##### Therapeutic dose
 
-- **Analysis set**: ACS-ITT where randomisation occurred between 2021-10-14 and 2022-04-08.
-- **Model terms**: anticoagulation intervention, age group, country.
+-   **Analysis set**: ACS-ITT where randomisation occurred between 2021-10-14 and 2022-04-08.
+-   **Model terms**: anticoagulation intervention, age group, country.
 
 ```{r}
 #| label: tbl-primary-composite-acs-itt-c4-summary
@@ -603,33 +625,6 @@ writeLines(tab)
 #|   for primary model fit to the ACS-ITT-therapeutic set.
 #| results: asis
 tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-c4-summary-table.tex"))
-writeLines(tab)
-```
-
-##### Theapeutic dose without India
-
-Although the therapeutic dose arm was introduced on 2021-10-14 very few participants enrolled in India were randomised to the therapeutic arm (4) due to country specific availabilities. Therefore, a second sensitivity analysis is performed where the population excludes India. In this set, the amount of missingness is relatively high (compared to the outcome rate).
-
-- **Analysis set**: ACS-ITT where randomisation occurred between 2021-10-14 and 2022-04-08 and participant was not enrolled in India.
-- **Model terms**: anticoagulation intervention, age group, country.
-
-```{r}
-#| label: tbl-primary-composite-acs-itt-c4-no-india-summary
-#| tbl-cap: |
-#|   Summary of primary composite outcome by treatment group for patients in ACS-ITT-therapeutic excluding India.
-#| results: asis
-tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "acs-itt-c4-no-india-summary.tex"))
-writeLines(tab)
-```
-
-```{r}
-#| label: tbl-primary-model-acs-itt-c4-no-india-summary
-#| tbl-cap: |
-#|   Summary of model parameters (fixed-effects odds-ratios) 
-#|   for primary model fit to the ACS-ITT-therapeutic set excluding patients
-#|   enrolled in India.
-#| results: asis
-tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-c4-no-india-summary-table.tex"))
 writeLines(tab)
 ```
 
@@ -748,7 +743,6 @@ knitr::include_graphics(
 )
 ```
 
-
 \clearpage
 
 ## Secondary Outcomes
@@ -781,8 +775,11 @@ knitr::include_graphics(
 
 \clearpage
 
-### All-cause mortality
+#### Sensitivity: Concurrent Enrolments
 
+\clearpage
+
+### All-cause mortality
 
 ```{r}
 #| label: tbl-7-3-summary
@@ -817,7 +814,21 @@ knitr::include_graphics(
 
 \clearpage
 
-### Days alive and free of hospital (DAFH)
+#### Sensitivity: Concurrent Enrolments
+
+\clearpage
+
+### Days alive and free of hospital
+
+This section reports on the analysis of the secondary outcome: days alive and free of hospital (DAFH) to day 28. For this outcome, participants who died within 28 days were coded have have 0 DAFH. The model is coded so that an odds ratio greater than 1 implies a beneift (more days alive and free of hospital).
+
+-   **Model**: cumulative logistic (ordinal) regression assuming proportional odds
+-   **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, region, site nested within region, and epoch.
+-   **Set**: ACS-ITT
+
+@tbl-7-4-summary presents the number of participants where the outcome was observed by the allocated anticoagulation arm. The observed distribution of DAFH by arm is shown in @fig-7-4-dist-overall, @fig-7-4-descriptive, and @fig-7-4-descriptive2. The model parameters (odds ratios) are summarised in @tbl-7-4-primary-model-acs-itt-summary for the fixed-effect terms and in @fig-7-4-primary-model-acs-itt-site-epoch-parameters for the site and epoch specific terms.
+
+The median (IQR) DAFH was 23 (21 - 24) days amongst all randomised participants. Compared with standard dose, the median adjusted odds ratios (95% CrI) from the primary model were 1.18 (0.98, 1.42) for intermediate dose, 1.10 (0.86, 1.41) for standard dose plus aspirin, and 0.75 (0.48, 1.16) for therapeutic dose. The corresponding posterior probabilities for effectiveness were 0.96, 0.79 and 0.10 respectively.
 
 ```{r}
 #| label: tbl-7-4-summary
@@ -827,6 +838,15 @@ knitr::include_graphics(
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "secondary", "7-4-anticoagulation-summary.tex"))
 writeLines(tab)
+```
+
+```{r}
+#| label: fig-7-4-dist-overall
+#| fig-cap: |
+#|   Observed overall distribution of days alive and free of hospital at day 28.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-4-dist-overall.pdf"
+)
 ```
 
 ```{r}
@@ -870,7 +890,126 @@ knitr::include_graphics(
 
 \clearpage
 
+#### Sensitivity: Concurrent Enrolments
+
+##### Intermediate dose
+
+-   **Model**: cumulative logistic (ordinal) regression assuming proportional odds
+-   **Terms**: anticoagulation intervention, age group, region
+-   **Set**: ACS-ITT restricted to participants randomised to standard or intermediate dose only
+
+```{r}
+#| label: tbl-7-4-concurrent-intermediate-summary
+#| tbl-cap: |
+#|   Summary of days alive and free of hospital to day 28 by treatment group.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", "7-4-anticoagulation-concurrent-intermediate-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-7-4-descriptive-concurrent-intermediate
+#| fig-cap: |
+#|   Observed distribution of days alive and free of hospital at day 28 by treatment group.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-4-descriptive-concurrent-intermediate.pdf"
+)
+```
+
+```{r}
+#| label: tbl-7-4-concurrent-intermediate-model-summary
+#| tbl-cap: |
+#|   Summary of days alive and free of hospital to day 28 by treatment group.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", "7-4-primary-model-acs-itt-concurrent-intermediate-summary-table.tex"))
+writeLines(tab)
+```
+
+##### Standard dose plus aspirin
+
+-   **Model**: cumulative logistic (ordinal) regression assuming proportional odds
+-   **Terms**: anticoagulation intervention, aspirin eligibility, age group, region
+-   **Set**: ACS-ITT restricted to participants randomised before 2021-09-10 who were eligible for aspirin arm
+
+```{r}
+#| label: tbl-7-4-concurrent-stdaspirin-summary
+#| tbl-cap: |
+#|   Summary of days alive and free of hospital to day 28 by treatment group.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", "7-4-anticoagulation-concurrent-stdaspirin-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-7-4-descriptive-concurrent-stdaspirin
+#| fig-cap: |
+#|   Observed distribution of days alive and free of hospital at day 28 by treatment group.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-4-descriptive-concurrent-stdaspirin.pdf"
+)
+```
+
+```{r}
+#| label: tbl-7-4-concurrent-stdaspirin-model-summary
+#| tbl-cap: |
+#|   Summary of days alive and free of hospital to day 28 by treatment group.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", "7-4-primary-model-acs-itt-concurrent-stdaspirin-summary-table.tex"))
+writeLines(tab)
+```
+
+##### Therapeutic dose
+
+-   **Model**: cumulative logistic (ordinal) regression assuming proportional odds
+-   **Terms**: anticoagulation intervention, age group, region
+-   **Set**: ACS-ITT restricted to participants randomised on or after 2021-10-14 at a site in Australia, New Zealand, Nepal, or the one site in India where therapeutic dose was available.
+
+*Note: the reference region was switched to Nepal for this model due to small numbers in India.*
+
+```{r}
+#| label: tbl-7-4-concurrent-therapeutic-summary
+#| tbl-cap: |
+#|   Summary of days alive and free of hospital to day 28 by treatment group.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", "7-4-anticoagulation-concurrent-therapeutic-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-7-4-descriptive-concurrent-therapeutic
+#| fig-cap: |
+#|   Observed distribution of days alive and free of hospital at day 28 by treatment group.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-4-descriptive-concurrent-therapeutic.pdf"
+)
+```
+
+```{r}
+#| label: tbl-7-4-concurrent-therapeutic-model-summary
+#| tbl-cap: |
+#|   Summary of days alive and free of hospital to day 28 by treatment group.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", "7-4-primary-model-acs-itt-concurrent-therapeutic-summary-table.tex"))
+writeLines(tab)
+```
+
+\clearpage
+
 ### Days alive and free of invasive or non-invasive ventilation (DAFV)
+
+This section reports on the analysis of the secondary outcome: days alive and free invasive or non-invasive ventilation (DAFV) to day 28. For this outcome, participants who died within 28 days were coded have have 0 DAFV.
+
+-   **Model**: cumulative logistic (ordinal) regression assuming proportional odds
+-   **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, region, site nested within region, and epoch.
+-   **Set**: ACS-ITT
+
+@tbl-7-5-summary presents the number of participants where the outcome was observed by the allocated anticoagulation arm. The observed distribution of DAFH by arm is shown in @fig-7-5-descriptive.
 
 ```{r}
 #| label: tbl-7-5-summary
@@ -893,7 +1032,15 @@ knitr::include_graphics(
 
 \clearpage
 
+#### Sensitivity: Concurrent Enrolments
+
+\clearpage
+
 ### Presence of patient reported outcome of shortness of breath
+
+\clearpage
+
+#### Sensitivity: Concurrent Enrolments
 
 \clearpage
 
@@ -901,7 +1048,11 @@ knitr::include_graphics(
 
 \clearpage
 
-###  Quality of life as measured by EQ-5D-5L questionnaire
+#### Sensitivity: Concurrent Enrolments
+
+\clearpage
+
+### Quality of life as measured by EQ-5D-5L questionnaire
 
 \clearpage
 
@@ -1159,4 +1310,3 @@ pth <- file.path("..", "outputs", "figures", "outcomes", "primary",
                  "primary-model-acs-itt-ppc.pdf")
 knitr::include_graphics(pth)
 ```
-
