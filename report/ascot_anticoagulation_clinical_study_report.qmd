@@ -816,6 +816,92 @@ knitr::include_graphics(
 
 #### Sensitivity: Concurrent Enrolments
 
+##### Intermediate dose
+
+-   **Model**: logistic regression
+-   **Terms**: anticoagulation intervention, age group, region
+-   **Set**: ACS-ITT restricted to participants randomised to standard or intermediate dose only
+
+```{r}
+#| label: tbl-7-3-concurrent-intermediate-summary
+#| tbl-cap: |
+#|   Summary of mortality to day 28 by treatment group.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary",
+  "7-3-anticoagulation-concurrent-intermediate-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-7-3-concurrent-intermediate-model-summary
+#| tbl-cap: |
+#|   Summary of posterior odds ratios for intermediate dose concurrent set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary",
+  "7-3-primary-model-acs-itt-concurrent-intermediate-summary-table.tex"))
+writeLines(tab)
+```
+
+##### Standard dose plus aspirin
+
+-   **Model**: logistic regression
+-   **Terms**: anticoagulation intervention, age group, region
+-   **Set**: ACS-ITT restricted to participants randomised before 2021-09-10 who were eligible for aspirin arm
+
+```{r}
+#| label: tbl-7-3-concurrent-stdaspirin-summary
+#| tbl-cap: |
+#|   Summary of mortality to day 28 by treatment group.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary",
+  "7-3-anticoagulation-concurrent-stdaspirin-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-7-3-concurrent-stdaspirin-model-summary
+#| tbl-cap: |
+#|   Summary of posterior odds ratios for standard dose plus aspirin concurrent set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary",
+  "7-3-primary-model-acs-itt-concurrent-stdaspirin-summary-table.tex"))
+writeLines(tab)
+```
+
+##### Therapeutic dose
+
+-   **Model**: logistic regression
+-   **Terms**: anticoagulation intervention, age group, region
+-   **Set**: ACS-ITT restricted to participants randomised on or after 2021-10-14 at a site in Australia, New Zealand, Nepal, or the one site in India where therapeutic dose was available.
+
+*Note: the reference region was switched to Nepal for this model due to small numbers in India.*
+
+```{r}
+#| label: tbl-7-3-concurrent-therapeutic-summary
+#| tbl-cap: |
+#|   Summary of mortality to day 28 by treatment group.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary",
+  "7-3-anticoagulation-concurrent-therapeutic-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-7-3-concurrent-therapeutic-model-summary
+#| tbl-cap: |
+#|   Summary of posterior odds ratios for therapeutic dose concurrent set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary",
+  "7-3-primary-model-acs-itt-concurrent-therapeutic-summary-table.tex"))
+writeLines(tab)
+```
+
 \clearpage
 
 ### Days alive and free of hospital
@@ -930,7 +1016,7 @@ writeLines(tab)
 ##### Standard dose plus aspirin
 
 -   **Model**: cumulative logistic (ordinal) regression assuming proportional odds
--   **Terms**: anticoagulation intervention, aspirin eligibility, age group, region
+-   **Terms**: anticoagulation intervention, age group, region
 -   **Set**: ACS-ITT restricted to participants randomised before 2021-09-10 who were eligible for aspirin arm
 
 ```{r}
