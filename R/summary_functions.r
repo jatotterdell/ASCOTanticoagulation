@@ -185,6 +185,7 @@ plot_site_terms <- function(rvs_site, region) {
     scale_x_log10("Odds ratio (log scale)") +
     labs(y = "Site") +
     theme(panel.border = element_rect(fill = NA))
+  return(p_site)
 }
 
 
