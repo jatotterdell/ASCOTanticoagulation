@@ -120,7 +120,7 @@ Due to the trial progression, response adaptive randomisation (RAR) was never ac
 
 ### Deviations
 
-Protocol deviations...
+Of the 1,599 patients randomised to the platform, there were 55 patients who were not considered to be per-protocol. These were 28 patients who deviated from the intervention protocol, 26 patients who withdrew from the anticoagulation domain intervention, and 1 patient who deviated and withdrew from treatment. The reason for withdrawal from the anticoagulation domain was principally a decision of the primary treating clinician (18 of 26) with the remaining due to withdrawal of patient consent.
 
 \clearpage
 
@@ -518,6 +518,38 @@ knitr::include_graphics(
 
 The primary model was re-analysed using the ACS-PP set.
 
+```{r}
+#| label: tbl-primary-composite-acs-pp-summary
+#| tbl-cap: |
+#|   Summary of primary composite outcome by treatment group for participants in ACS-PP.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", 
+                           "acs-pp-outcome-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-primary-model-acs-pp-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios) 
+#|   for primary model fit to the ACS-PP set.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", 
+                           "primary-model-acs-pp-summary-table.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-primary-model-acs-pp-site-epoch-parameters
+#| fig-cap: |
+#|   Posterior Summaries (point - median, block - 75% CrI, line - 95% CrI) 
+#|   of odds ratio for epoch and site effects for
+#|   the primary model fit to the ACS-PP set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/primary-model-acs-pp-epoch-site-terms.pdf"
+)
+```
+
 \clearpage
 
 ### Sensitivity Analyses
@@ -541,7 +573,7 @@ writeLines(tab)
 #| fig-cap: |
 #|   Posterior Summaries (point - median, block - 75% CrI, line - 95% CrI) 
 #|   of odds ratio for epoch and site effects for
-#|   the primary model fit to the ACS-ITT set.
+#|   the primary model fit to the FAS-ITT set.
 knitr::include_graphics(
   "../outputs/figures/outcomes/primary/primary-model-fas-itt-epoch-site-terms.pdf"
 )

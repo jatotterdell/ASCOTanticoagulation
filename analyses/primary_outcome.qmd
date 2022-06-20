@@ -42,7 +42,6 @@ options(digits = 4)
 #| label: analysis-sets
 #| code-summary: Prepare dataset
 devtools::load_all()
-
 # Raw data
 all_dat <- read_all_no_daily()
 
@@ -84,6 +83,32 @@ acs_itt_wc_dat2 <- acs_itt_dat2 %>%
   mutate(PO = if_else(is.na(PO) | PO == 1, 1, 0))
 acs_itt_bc_dat2 <- acs_itt_dat2 %>%
   mutate(PO = if_else(is.na(PO) | PO == 0, 0, 1))
+
+# ACS-PP - exclude participants not per-protocol
+pp <- read_per_protocol_list()
+all_pp <- all_dat %>% left_join(pp, by = "StudyPatientID")
+acs_pp_dat <- all_pp %>%
+  filter_acs_itt() %>%
+  filter(is.na(Reason)) %>%
+  transmute_model_cols_grp_aus_nz()
+acs_pp_nona_dat <- acs_pp_dat %>%
+  filter(!is.na(PO))
+
+# Concurrent enrolments for C2
+acs_itt_concurc2_dat <- acs_itt_dat %>%
+  filter_concurrent_intermediate()
+acs_itt_concurc2_nona_dat <- acs_itt_concurc2_dat %>% 
+  filter(!is.na(PO))
+# Concurrent enrolments for C3
+acs_itt_concurc3_dat <- acs_itt_dat %>%
+  filter_concurrent_std_aspirin()
+acs_itt_concurc3_nona_dat <- acs_itt_concurc3_dat %>% 
+  filter(!is.na(PO))
+# Concurrent enrolments for C4
+acs_itt_concurc4_dat <- acs_itt_dat %>%
+  filter_concurrent_therapeutic()
+acs_itt_concurc4_nona_dat <- acs_itt_concurc4_dat %>% 
+  filter(!is.na(PO))
 ```
 
 ```{r}
@@ -91,10 +116,9 @@ acs_itt_bc_dat2 <- acs_itt_dat2 %>%
 #| code-summary: Load models
 logistic_mod <- cmdstan_model("stan/logistic_bernoulli.stan")
 noepoch_mod <- cmdstan_model("stan/primary_logistic_model_site.stan")
+noesite_mod <- cmdstan_model("stan/primary_logistic_model_epoch.stan")
 primary_mod <- cmdstan_model("stan/primary_logistic_model_site_epoch.stan")
 primary_mod2 <- cmdstan_model("stan/primary_logistic_model_site_epoch2.stan")
-# logistic_subgrp_mod <- cmdstan_model("stan/logistic_subgroup.stan")
-# logistic_subgrp_multi_mod <- cmdstan_model("stan/logistic_subgroup_multi.stan")
 ```
 
 ```{r}
@@ -3125,8 +3149,108 @@ In light of the fact that response-adaptive randomisation was never activated in
 
 In this analysis, the 4 periods of recruitment are included as a fixed effect in the model.
 
-{{< pagebreak >}}
-
 ## Per-Protocol Analysis
 
-In the per-protocol analysis, participants who did not satisfy the intervention criteria (as determined by blinded review) are excluded from the analysis set.
+In the per-protocol analysis, participants who did not satisfy the intervention protocol (as determined by blinded review) are excluded from the analysis set.
+
+```{r}
+all_pp %>%
+  filter(ENR_rec == 1) %>%
+  dplyr::count(Reason)
+```
+
+```{r}
+acs_itt_dat2 %>%
+  left_join(pp, by = "StudyPatientID") %>%
+  dplyr::count(CAssignment, Reason) %>%
+  spread(CAssignment, n, fill = 0)
+
+acs_itt_dat2 %>%
+  left_join(pp, by = "StudyPatientID") %>%
+  dplyr::count(country, Reason) %>%
+  spread(country, n, fill = 0)
+```
+
+
+```{r}
+#| label: tbl-acs-pp-summary-table
+#| tbl-cap: Primary outcome summary for ACS-PP set.
+save_tex_table(
+  make_po_table(
+    acs_pp_dat,
+    "latex"), 
+  "outcomes/primary/acs-pp-outcome-summary")
+make_po_table(acs_pp_dat)
+```
+
+```{r}
+#| label: model-primary-sampling
+#| code-summary: Data and sampling primary model
+mdat <- make_primary_model_data(
+  acs_pp_nona_dat,
+  c("inelgc3", "agegte60"),
+  c(10, 2.5)
+)
+snk <- capture.output(
+  mfit <- primary_mod$sample(
+    data = mdat,
+    seed = 81241,
+    refresh = 0,
+    iter_warmup = 1000,
+    iter_sampling = 2500,
+    chains = 8,
+    parallel_chains = 8,
+    adapt_delta = 0.99
+))
+mrvs <- as_draws_rvars(mfit$draws(c(
+  "beta", "beta_region", 
+  "gamma_site", "tau_site", 
+  "gamma_epoch", "tau_epoch", "y_ppc")))
+names(mrvs$beta) <- colnames(mdat$X)
+
+# Transformed samples
+epoch_map <- acs_pp_nona_dat %>% dplyr::count(epoch, epoch_lab)
+site_map <- acs_pp_nona_dat %>% dplyr::count(site_num, site)
+site_facet <- factor(mdat$region_by_site, labels = c("India", "Australia\nNew Zealand", "Nepal"))
+Ca <- mdat$ctrA
+Cc <- mdat$ctrC
+nC <- ncol(Cc) + 1
+Co <- cbind(1, Cc)
+Ct <- cbind(1, contr.treatment(nC))
+
+mrvs$eta <- as.vector(Co %**% mrvs$beta[1:nC])
+
+mrvs$Acon <- as.vector(Ca %**% mrvs$beta[6])
+mrvs$Ccon <- as.vector(Cc %**% mrvs$beta[2:nC])
+names(mrvs$Ccon) <- c("Standard", "Intermediate", "Standard plus aspirin", "Therapeutic")
+
+mrvs$prob <- 1 / (1 + exp(-mrvs$eta))
+mrvs$beta_trt <- as.vector(transform_coding(Co, Ct) %**% mrvs$beta[1:nC])
+mrvs$OR <- setNames(
+  exp(mrvs$beta_trt[-1]), 
+  c("Intermediate", "Standard plus aspirin", "Therapeutic"))
+mrvs$OR <- c(mrvs$OR, 
+                "Ineligible aspirin" = exp(mrvs$beta[7]), 
+                "Age 60+" = exp(mrvs$beta[8]),
+             setNames(exp(mrvs$beta_region[-1]), c("Australia/New Zealand", "Nepal")))
+mrvs$ORepoch <- setNames(exp(mrvs$gamma_epoch), epoch_map$epoch_lab)
+mrvs$ORsites <- setNames(exp(mrvs$gamma_site), site_map$site)
+```
+
+```{r}
+#| label: tbl-odds-ratio-summary-table-primary-model-acs-pp
+#| tbl-cap: Posterior summaries for model parameters.
+save_tex_table(
+  odds_ratio_summary_table(mrvs$OR, "latex"),
+  "outcomes/primary/primary-model-acs-pp-summary-table")
+odds_ratio_summary_table(mrvs$OR)
+```
+
+```{r}
+p <- plot_epoch_site_terms(mrvs$ORepoch, mrvs$ORsites, site_facet)
+pth <- file.path("outputs", "figures", "outcomes", "primary", 
+                 "primary-model-acs-pp-epoch-site-terms.pdf")
+ggsave(pth, p, width = 6, height = 4.5)
+p
+```
+
