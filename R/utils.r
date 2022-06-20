@@ -181,9 +181,8 @@ filter_concurrent_std_aspirin <- function(dat) {
 filter_concurrent_therapeutic <- function(dat) {
   dat %>%
     # Patients randomised after opening of C4
-    filter(RandDate >= get_intervention_dates()$stdate[4] &
-           RandDate < get_intervention_dates()$endate[4]) %>%
-    filter(country %in% c("AU", "NP", "NZ") | site == "BCM") %>%
+    # Use the provided activation dates for V5
+    filter(EL_ProtocolVersion == "5.0") %>%
     mutate(CAssignment = droplevels(CAssignment),
            randC  = droplevels(randC),
            ctry = relevel(ctry, ref = "NP"))
@@ -221,6 +220,7 @@ transmute_model_cols <- function(dat) {
     left_join(region_site %>% select(-n), by = c("ctry", "site")) %>%
     transmute(
       StudyPatientID,
+      EL_ProtocolVersion,
       Sex,
       AAssignment= droplevels(factor(
         AAssignment, levels = c("A1", "A0", "A2"))),
@@ -307,6 +307,7 @@ transmute_model_cols_grp_aus_nz <- function(dat) {
     left_join(region_site %>% select(-n), by = c("ctry", "site")) %>%
     transmute(
       StudyPatientID,
+      EL_ProtocolVersion,
       Sex,
       AAssignment= droplevels(factor(
         AAssignment, levels = c("A0", "A1", "A2"))),

@@ -132,6 +132,13 @@ add_database_corrections <- function(dat) {
 }
 
 
+add_v5_activation_date <- function(dat) {
+  act <- read_site_activation_file() %>%
+    select(country, site, active_domains, active_v3, active_v5)
+  dat %>%
+    left_join(act, by = c("Country" = "country", "Location" = "site"))
+}
+
 #' @title add_withdrawn_followup
 #' @description
 #' Add withdrawal flag to participant records.
@@ -578,6 +585,7 @@ create_fulldata_no_daily <- function() {
       WTH_FU = if_else(is.na(WTH_FU), 0L, WTH_FU),
       WTH_day = as.integer(CON_WithdrawnDate - RandDate + 1)
     ) %>%
+    add_v5_activation_date() %>%
     add_primary_outcome_components() %>%
     add_days_alive_and_free() %>%
     add_days_alive_and_free_ventilation() %>%
