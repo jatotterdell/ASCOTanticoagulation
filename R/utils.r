@@ -160,7 +160,8 @@ filter_concurrent_intermediate <- function(dat) {
     # Restrict to participants randomised to C1 or C2
     filter(CAssignment %in% c("C1", "C2")) %>%
     mutate(
-      CAssignment = droplevels(CAssignment)
+      CAssignment = droplevels(CAssignment),
+      randC  = droplevels(randC)
     )
 }
 
@@ -172,6 +173,7 @@ filter_concurrent_std_aspirin <- function(dat) {
     # Patients ineligible for aspirin arm
     filter(inelgc3 == 0) %>%
     mutate(CAssignment = droplevels(CAssignment),
+           randC  = droplevels(randC),
            ctry = droplevels(ctry))
 }
 
@@ -183,6 +185,7 @@ filter_concurrent_therapeutic <- function(dat) {
            RandDate < get_intervention_dates()$endate[4]) %>%
     filter(country %in% c("AU", "NP", "NZ") | site == "BCM") %>%
     mutate(CAssignment = droplevels(CAssignment),
+           randC  = droplevels(randC),
            ctry = relevel(ctry, ref = "NP"))
 }
 
@@ -429,7 +432,8 @@ make_domC_design <- function(dat, ctr = contr.orthonorm) {
 make_X_design <- function(
     dat,
     vars = NULL,
-    ctr = contr.orthonorm) {
+    ctr = contr.orthonorm,
+    includeA = TRUE) {
 
   XA <- make_domA_design(dat, ctr)
   XC <- make_domC_design(dat, ctr)
@@ -443,11 +447,18 @@ make_X_design <- function(
     Xother <- NULL
   }
 
-  X <- cbind(XC, XA, Xother)
-  attributes(X)$contrasts <- list(
-    "randA" = attr(XA, "contrasts")$randA,
-    "randC" = attr(XC, "contrasts")$randC
-  )
+  if(includeA) {
+    X <- cbind(XC, XA, Xother)
+    attributes(X)$contrasts <- list(
+      "randA" = attr(XA, "contrasts")$randA,
+      "randC" = attr(XC, "contrasts")$randC
+    )
+  } else {
+    X <- cbind(XC, Xother)
+    attributes(X)$contrasts <- list(
+      "randC" = attr(XC, "contrasts")$randC
+    )
+  }
   return(X)
 }
 
