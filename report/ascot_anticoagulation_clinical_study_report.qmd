@@ -136,7 +136,7 @@ Additional analysis sets are defined for the purpose of comparing the interventi
 
 -   ACS-ITT-intermediate: ACS-ITT set restricted to only patients randomised into either standard dose or intermediate dose intervention.
 -   ACS-ITT-aspirin: ACS-ITT set restricted to patients randomised between 2021-02-08 (domain start) and 2021-09-10 (closure of aspirin arm) who were eligible for the standard dose plus aspirin intervention
--   ACS-ITT-therapeutic: ACS-ITT set restricted to patients randomised between 2021-10-14 (arm start) and 2022-04-08 (domain closure) at a site where the therapeutic intervention was available (all sites in Australia, New Zealand and Nepal, and one site in India)
+-   ACS-ITT-therapeutic: ACS-ITT set restricted to patients randomised under protocol version 5.0 (which introduced the therapeutic dose arm), noting that each site may have activated version 5.0 of the protocol at different times (or may never have activated it).
 
 | Name                 | Definition                                                                                                                                                                                                     |
 |-----------------------|-----------------------------------------------------------|
@@ -144,7 +144,7 @@ Additional analysis sets are defined for the purpose of comparing the interventi
 | ACS-ITT              | Subset of FAS-ITT who were randomised to the anticoagulation domain.                                                                                                                                           |
 | ACS-ITT-intermediate | Subset of ACS-ITT who were randomised to intermediate or standard dose only.                                                                                                                                   |
 | ACS-ITT-aspirin      | Subset of ACS-ITT who were randomised prior to closure of the standard plus aspirin arm and were eligible for the aspirin arm.                                                                                 |
-| ACS-ITT-therapeutic  | Subset of ACS-ITT who were randomised after introduction of the therapeutic dose arm at a site where it was available.                                                                                         |
+| ACS-ITT-therapeutic  | Subset of ACS-ITT who were randomised after introduction of the therapeutic dose arm at a site where it became available.                                                                                         |
 | ACS-PP               | All participants who were randomised to the anticoagulation domain and satisfied platform, domain, and intervention protocol requirements.                                                                     |
 
 : Overview of the analysis sets used in this report.
@@ -714,7 +714,15 @@ knitr::include_graphics(
 
 The following sections report on other post-hoc analyses which were undertaken, but not explicitly specified in the SAP.
 
-#### Remove hiearchical site and epoch effects
+#### Remove site terms
+
+\clearpage
+
+#### Remove epoch terms
+
+\clearpage
+
+#### Remove site and epoch terms
 
 \clearpage
 
@@ -781,6 +789,16 @@ knitr::include_graphics(
 
 ### All-cause mortality
 
+This section reports on the analysis of the secondary outcome: all-cause mortality to day 28. For this outcome, participants who died within 28 days were coded to have a value of 1, and those who did not, to have a value of 0. The model is coded so that an odds ratio less than 1 implies a benefit (reduction in odds of death by day 28).
+
+-   **Model**: logistic regression
+-   **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, region, site nested within region, and epoch.
+-   **Set**: ACS-ITT
+
+@tbl-7-3-summary presents the number of participants where the outcome was observed by the allocated anticoagulation arm. The model parameters (odds ratios) are summarised in @tbl-7-3-primary-model-acs-itt-summary for the fixed-effect terms and in @fig-7-3-primary-model-acs-itt-site-epoch-parameters for the site and epoch specific terms.
+
+The proportion who had died by day 28 was 3.3% (50 / 1530) amongst all randomised participants. Compared with standard dose, the median adjusted odds ratios (95% CrI) from the primary model were: 0.84 (0.42, 1.69) for intermediate dose, 0.81 (0.36, 1.82) for standard dose plus aspirin, and 3.17 (0.94, 10.3) for therapeutic dose. The corresponding posterior probabilities for effectiveness were 0.69, 0.69 and 0.03 respectively.  
+
 ```{r}
 #| label: tbl-7-3-summary
 #| tbl-cap: |
@@ -820,7 +838,7 @@ knitr::include_graphics(
 
 -   **Model**: logistic regression
 -   **Terms**: anticoagulation intervention, age group, region
--   **Set**: ACS-ITT restricted to participants randomised to standard or intermediate dose only
+-   **Set**: ACS-ITT-intermediate
 
 ```{r}
 #| label: tbl-7-3-concurrent-intermediate-summary
@@ -848,7 +866,7 @@ writeLines(tab)
 
 -   **Model**: logistic regression
 -   **Terms**: anticoagulation intervention, age group, region
--   **Set**: ACS-ITT restricted to participants randomised before 2021-09-10 who were eligible for aspirin arm
+-   **Set**: ACS-ITT-aspirin aspirin arm
 
 ```{r}
 #| label: tbl-7-3-concurrent-stdaspirin-summary
@@ -876,7 +894,7 @@ writeLines(tab)
 
 -   **Model**: logistic regression
 -   **Terms**: anticoagulation intervention, age group, region
--   **Set**: ACS-ITT restricted to participants randomised on or after 2021-10-14 at a site in Australia, New Zealand, Nepal, or the one site in India where therapeutic dose was available.
+-   **Set**: ACS-ITT-therapeutic
 
 *Note: the reference region was switched to Nepal for this model due to small numbers in India.*
 
@@ -982,7 +1000,7 @@ knitr::include_graphics(
 
 -   **Model**: cumulative logistic (ordinal) regression assuming proportional odds
 -   **Terms**: anticoagulation intervention, age group, region
--   **Set**: ACS-ITT restricted to participants randomised to standard or intermediate dose only
+-   **Set**: ACS-ITT-intermediate
 
 ```{r}
 #| label: tbl-7-4-concurrent-intermediate-summary
@@ -1017,7 +1035,7 @@ writeLines(tab)
 
 -   **Model**: cumulative logistic (ordinal) regression assuming proportional odds
 -   **Terms**: anticoagulation intervention, age group, region
--   **Set**: ACS-ITT restricted to participants randomised before 2021-09-10 who were eligible for aspirin arm
+-   **Set**: ACS-ITT-aspirin
 
 ```{r}
 #| label: tbl-7-4-concurrent-stdaspirin-summary
@@ -1052,7 +1070,7 @@ writeLines(tab)
 
 -   **Model**: cumulative logistic (ordinal) regression assuming proportional odds
 -   **Terms**: anticoagulation intervention, age group, region
--   **Set**: ACS-ITT restricted to participants randomised on or after 2021-10-14 at a site in Australia, New Zealand, Nepal, or the one site in India where therapeutic dose was available.
+-   **Set**: ACS-ITT-therapeutic
 
 *Note: the reference region was switched to Nepal for this model due to small numbers in India.*
 

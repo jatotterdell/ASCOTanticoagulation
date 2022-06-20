@@ -138,14 +138,14 @@ make_mortality_table <- function(dat, format = "html") {
     mutate(CAssignment = factor(
       CAssignment, 
       levels = c("C1", "C2", "C3", "C4"),
-      labels = intervention_labels()$CAssignment[-1])) %>%
+      labels = str_replace(intervention_labels()$CAssignment[-1], "<br>", " "))) %>%
     group_by(CAssignment) %>%
     summarise(
-      Randomised = n(),
-      `Outcome missing` = sprintf(
-        "%i (%.1f)", sum(is.na(D28_death)), 100 * mean(is.na(D28_death))),
-      `Outcome observed` = sprintf(
+      Patients = n(),
+      Known = sprintf(
         "%i (%.1f)", sum(!is.na(D28_death)), 100 * mean(!is.na(D28_death))),
+      Missing = sprintf(
+        "%i (%.1f)", sum(is.na(D28_death)), 100 * mean(is.na(D28_death))),
       `Died by day 28` = sprintf(
         "%i (%.1f)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
     ) %>%
@@ -153,18 +153,18 @@ make_mortality_table <- function(dat, format = "html") {
       dat  %>%
         group_by(CAssignment = "Overall") %>%
         summarise(
-          Randomised = n(),
-          `Outcome missing` = sprintf(
-            "%i (%.1f)", sum(is.na(D28_death)), 100 * mean(is.na(D28_death))),
-          `Outcome observed` = sprintf(
+          Patients = n(),
+          Known = sprintf(
             "%i (%.1f)", sum(!is.na(D28_death)), 100 * mean(!is.na(D28_death))),
+          Missing = sprintf(
+            "%i (%.1f)", sum(is.na(D28_death)), 100 * mean(is.na(D28_death))),
           `Died by day 28` = sprintf(
             "%i (%.1f)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
       )
     ) %>%
     mutate(CAssignment = fct_inorder(CAssignment)) %>%
     gather(key, value, -CAssignment, factor_key = T) %>%
-    spread(CAssignment, value)
+    spread(key, value)
   colnames(tab)[1] <- "n (\\%)"
   if(format == "latex") {
     colnames(tab) <- linebreak(colnames(tab), align = "c", linebreaker = "<br>")
@@ -175,7 +175,8 @@ make_mortality_table <- function(dat, format = "html") {
       escape = FALSE,
       booktabs = TRUE
     ) %>%
-    kable_styling(font_size = 10, latex_options = "HOLD_position")  
+    kable_styling(font_size = 10, latex_options = "HOLD_position")  %>%
+    row_spec(nrow(tab), bold = TRUE)
 }
 ```
 
@@ -458,18 +459,18 @@ epoch_lab  <- map_labels(acs_itt_nona_dat, "epoch", "epoch_lab")
 region_lab <- map_labels(acs_itt_nona_dat, "ctry_num", "ctry")
 site_lab   <- map_labels(acs_itt_nona_dat, "site_num", "site")
 
-names_agegrp <- "60+"
+names_agegrp <- "Age 60+"
 names_inlgc3 <- "Ineligible aspirin"
 
 # Set names and exponentiation.
 rvs_agegrp <- setNames(exp(rvs_beta[[1]]["agegte60"]), names_agegrp)  
 rvs_inlgc3 <- setNames(exp(rvs_beta[[1]]["inelgc3"]), names_inlgc3)  
-rvs_region <- setNames(exp(rvs_region), region_lab[["label"]])
+rvs_region <- setNames(exp(rvs_region), c("India", "Australia/New Zealand", "Nepal"))
 rvs_site   <- setNames(exp(rvs_site),   site_lab[["label"]])
 rvs_epoch  <- setNames(exp(rvs_epoch),  epoch_lab[["label"]])
 
 # Combine random variables and tabulate.
-rvs_all <- c(rvs_trt, rvs_inlgc3, rvs_agegrp, rvs_region)
+rvs_all <- c(rvs_trt, rvs_inlgc3, rvs_agegrp, rvs_region[-1])
 ```
 
 ```{r}
