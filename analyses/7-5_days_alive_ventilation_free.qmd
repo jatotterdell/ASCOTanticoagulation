@@ -10,6 +10,7 @@ author:
   - name: Rob Mahar
     affiliation: University of Melbourne
 date: last-modified
+toc-depth: 5
 ---
 
 # Preamble
@@ -79,16 +80,132 @@ acs_itt_dat <- all_dat %>%
     by = "StudyPatientID")
 acs_itt_nona_dat <- acs_itt_dat %>% 
   filter(!is.na(out_dafv))
+
+# Concurrent enrolments for C2
+acs_itt_concurc2_dat <- acs_itt_dat %>%
+  filter_concurrent_intermediate()
+acs_itt_concurc2_nona_dat <- acs_itt_concurc2_dat %>% 
+  filter(!is.na(out_dafv))
+
+# Concurrent enrolments for C3
+acs_itt_concurc3_dat <- acs_itt_dat %>%
+  filter_concurrent_std_aspirin()
+acs_itt_concurc3_nona_dat <- acs_itt_concurc3_dat %>% 
+  filter(!is.na(out_dafv))
+
+# Concurrent enrolments for C4
+acs_itt_concurc4_dat <- acs_itt_dat %>%
+  filter_concurrent_therapeutic()
+acs_itt_concurc4_nona_dat <- acs_itt_concurc4_dat %>% 
+  filter(!is.na(out_dafv))
 ```
 
 ```{r}
 #| label: models
 #| code-summary: Load models
-ordmod0 <- cmdstan_model("stan/logistic_cumulative_ordinal.stan")
-ordmod <- cmdstan_model("stan/ordinal_site_epoch.stan")
+ordmod0 <- cmdstan_model("stan/logistic_cumulative_ordinal.stan") # No epoch or site
+ordmod_epoch <- cmdstan_model("stan/logistic_cumulative_epoch.stan") # Epoch only
+# ordmod_site <- cmdstan_model("stan/logistic_cumulative_site.stan") # Site only
+ordmod <- cmdstan_model("stan/logistic_cumulative_epoch_site.stan") # Full model
+```
+
+```{r}
+make_summary_table <- function(dat, format = "html") {
+  tdat <- dat %>%
+    group_by(CAssignment = factor(
+      CAssignment, 
+      levels = c("C1", "C2", "C3", "C4"),
+      labels = intervention_labels2()$CAssignment[-1])) %>%
+    summarise(
+      Patients = n(),
+      Known = sum(!is.na(out_dafv)),
+      Deaths = sprintf("%i (%.0f%%)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
+      `Any ventilation` = sprintf("%i (%.0f%%)", 
+                                  sum(D28_OutcomeDaysFreeOfVentilation < 28, na.rm = TRUE),
+                                  100 * mean(D28_OutcomeDaysFreeOfVentilation < 28, na.rm = TRUE)),
+      `DAFV, Median (Q1, Q3)` = sprintf(
+        "%.0f (%.0f, %.0f)", 
+        median(out_dafv, na.rm = T), 
+        quantile(out_dafv, 0.25, na.rm = TRUE), 
+        quantile(out_dafv, 0.75, na.rm = TRUE))
+    ) %>%
+    bind_rows(
+      dat %>%
+    group_by(CAssignment = "Overall") %>%
+    summarise(
+      Patients = n(),
+      Known = sum(!is.na(out_dafv)),
+      Deaths = sprintf("%i (%.0f%%)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
+      `Any ventilation` = sprintf("%i (%.0f%%)", 
+                              sum(D28_OutcomeDaysFreeOfVentilation < 28, na.rm = TRUE),
+                              100 * mean(D28_OutcomeDaysFreeOfVentilation < 28, na.rm = TRUE)),
+      `DAFV, Median (Q1, Q3)` = sprintf(
+        "%.0f (%.0f, %.0f)", 
+        median(out_dafv, na.rm = T), 
+        quantile(out_dafv, 0.25, na.rm = TRUE), 
+        quantile(out_dafv, 0.75, na.rm = TRUE))
+    )
+    ) %>%
+    rename(`Anticoagulation\nintervention` = CAssignment)
+  kable(
+    tdat,
+    format = format,
+    align = "lrrrrr",
+    booktabs = TRUE,
+    linesep = ""
+  ) %>%
+    kable_styling(
+      font_size = 9,
+      latex_options = "HOLD_position"
+    ) %>%
+    row_spec(nrow(tdat), bold = T)
+}
+
+
+make_primary_model_data <- function(
+    dat, 
+    vars = NULL,
+    beta_sd_var = NULL,
+    ctr = contr.orthonorm,
+    p_mult = 2) {
+  
+  X <- make_X_design(dat, vars, ctr)
+  attX <- attr(X, "contrasts")
+  X <- X[, -1]
+  attr(X, "contrasts") <- attX
+  nXtrt <- sum(grepl("rand", colnames(X)))
+  
+  beta_sd <- c(rep(1, nXtrt), beta_sd_var)
+  
+  epoch <- dat$epoch
+  M_epoch <- max(dat$epoch)
+  region <- dat$ctry_num
+  M_region <- max(region)
+  site <- dat$site_num
+  M_site <- max(site)
+  region_by_site <- dat %>% 
+    dplyr::count(ctry_num, site_num) %>% 
+    pull(ctry_num)
+
+  y_raw <- ordered(dat$out_dafv)
+  y_mod <- as.integer(y_raw)
+  N <- dim(X)[1]
+  K <- dim(X)[2]
+  unique_y <- length(unique(y_mod))
+  list(N = N, K = K, J = unique_y, X = X, y = y_mod, y_raw = y_raw,
+       M_region = M_region,
+       M_site = M_site, site = site,
+       M_epoch = M_epoch, epoch = epoch,
+       region_by_site = region_by_site,
+       p_par = p_mult * rep(1 / unique_y, unique_y),
+       beta_sd = beta_sd)  
+}
 ```
 
 ## Outcome Derivation
+
+This outcome was defined as the number of days alive and free of positive pressure ventilation
+(invasive or non-invasive) to 28 days. All patients dying within 28 days will be assigned zero free days.
 
 The outcome is calculated for a patient as:
 
@@ -101,10 +218,13 @@ The outcome is calculated for a patient as:
 
 ### Cross-Check
 
+
+
 ```{r}
 acs_itt_dat %>% 
-  dplyr::count(D28_death, out_dafv, ANY_vent) %>% 
-  spread(ANY_vent, n, fill = 0)
+  dplyr::count(D28_death, out_dafv, D28_OutcomeDaysFreeOfVentilation, ANY_vent) %>% 
+  spread(ANY_vent, n, fill = 0) %>%
+  print(n = Inf)
 
 # Cross check against what is reported in the daily data.
 # Mostly consistent.
@@ -140,7 +260,7 @@ The overall distribution of days alive and free of ventilation (DAFV) are report
 There were few participants who required any ventilation during hospital who did not die (DAFV of 0),
 
 ```{r}
-#| label: fig-dafh-dist
+#| label: fig-dafv-dist
 #| fig-cap: |
 #|   Distribution of days alive and free of hospital.
 #| fig-subcap: ACS-ITT
@@ -157,49 +277,14 @@ ggplot(pdat, aes(dafv, p)) +
 ```
 
 ```{r}
-tdat <- acs_itt_dat %>%
-  group_by(CAssignment = factor(CAssignment, labels = intervention_labels2()$CAssignment[-1])) %>%
-  summarise(
-    Patients = n(),
-    Known = sum(!is.na(out_dafv)),
-    Deaths = sprintf("%i (%.0f%%)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
-    `DAFV, Median (Q1, Q3)` = sprintf(
-      "%.0f (%.0f, %.0f)", 
-      median(out_dafv, na.rm = T), 
-      quantile(out_dafv, 0.25, na.rm = TRUE), 
-      quantile(out_dafv, 0.75, na.rm = TRUE))
-  ) %>%
-  bind_rows(
-    acs_itt_dat %>%
-  group_by(CAssignment = "Overall") %>%
-  summarise(
-    Patients = n(),
-    Known = sum(!is.na(out_dafv)),
-    Deaths = sprintf("%i (%.0f%%)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
-    `DAFV, Median (Q1, Q3)` = sprintf(
-      "%.0f (%.0f, %.0f)", 
-      median(out_dafv, na.rm = T), 
-      quantile(out_dafv, 0.25, na.rm = TRUE), 
-      quantile(out_dafv, 0.75, na.rm = TRUE))
-  )
-  ) %>%
-  rename(`Anticoagulation\nintervention` = CAssignment)
-tab <- kable(
-  tdat,
-  format = "latex",
-  align = "lrrrr",
-  booktabs = TRUE,
-  linesep = ""
-) %>%
-  kable_styling(
-    font_size = 9,
-    latex_options = "HOLD_position"
-  ) %>%
-  row_spec(5, bold = T)
-save_tex_table(tab, file.path("outcomes", "secondary", "7-5-anticoagulation-summary"))
+#| tbl-cap: Summaty of DAFV.
+save_tex_table(
+  make_summary_table(acs_itt_dat, "latex"), 
+  file.path("outcomes", "secondary", "7-5-anticoagulation-summary"))
+make_summary_table(acs_itt_dat)
 ```
 
-## Anti-coagulation
+### Anti-coagulation
 
 ```{r}
 #| label: fig-dafh-dist-anticoagulation
@@ -221,10 +306,639 @@ p <- ggplot(pdat, aes(CAssignment, p)) +
   scale_fill_viridis_d("Days alive and\nfree of ventilation", option = "A", direction = -1) +
   guides(fill = guide_legend(reverse = TRUE)) +
   theme(legend.key.size = unit(0.75, "lines"))
+pth <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(pth, "outcome-7-5-descriptive.pdf"), p, height = 3, width = 6)
+p
+```
+
+### Age
+
+```{r}
+#| label: fig-dafv-dist-age
+#| code-summary: DAFV by age
+#| fig-cap: |
+#|   Distribution of days alive and free of ventilation by age group
+#| fig-height: 4
+pdat <- acs_itt_nona_dat %>%
+  dplyr::count(
+    agegrp = cut(AgeAtEntry, c(18, seq(25, 75, 5), 100), include.lowest = T, right = F),
+    dafv = fct_rev(ordered(out_dafv, levels = 0:28)), 
+    .drop = F) %>%
+  group_by(agegrp) %>%
+  mutate(p = n / sum(n))
+pdat2 <- pdat %>%
+  group_by(agegrp) %>%
+  summarise(n = sum(n))
+p1 <- ggplot(pdat2, aes(agegrp, n)) +
+  geom_col(colour = "grey40", fill = "grey40") +
+  geom_vline(xintercept = 60, linetype = 2) +
+  labs(y = "Number of\nparticipants",
+       x = "Age at entry") +
+  geom_vline(xintercept = 8.5, linetype = 2) +
+  theme(axis.text.x = element_text(hjust = 1, angle = 45))
+p2 <- ggplot(pdat, aes(agegrp, p)) +
+  geom_col(aes(fill = dafv)) +
+  labs(x = "Age", y = "Cumulative\nproportion") +
+  scale_fill_viridis_d("DAFV", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = TRUE)) +
+  geom_vline(xintercept = 8.5, linetype = 2) +
+  theme(axis.text.x = element_text(hjust = 1, angle = 45)) +
+  theme(legend.key.size = unit(0.25, "lines"))
+p <- p1 | p2
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-5-age.pdf"), p, height = 2.5, width = 6)
+p
+```
+
+### Country
+
+```{r}
+#| label: fig-dafv-dist-country
+#| code-summary: DAFV by country
+#| fig-cap: |
+#|   Distribution of days alive and free of ventilation by country.
+#| fig-height: 4
+pdat <- acs_itt_nona_dat %>%
+  dplyr::count(
+    country,
+    dafv = ordered(out_dafv, levels = 0:28), 
+    .drop = F) %>%
+  group_by(country) %>%
+  mutate(p = n / sum(n)) %>%
+  mutate(cp = cumsum(p)) %>%
+  ungroup()
+pdat2 <- pdat %>%
+  group_by(country) %>%
+  summarise(n = sum(n))
+
+p1 <- ggplot(pdat2, aes(country, n)) +
+  geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "Country of enrolment")
+
+p2 <- ggplot(pdat, aes(country, p)) +
+  geom_col(aes(fill = fct_rev(dafv))) +
+  labs(x = "Anticoagulation intervention", y = "Cumulative\nproportion") +
+  scale_fill_viridis_d("DAFV", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = TRUE)) +
+  theme(legend.key.size = unit(0.25, "lines"))
+p <- p1 | p2
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-5-country.pdf"), p, height = 2.5, width = 6)
+p
+```
+
+### Site
+
+```{r}
+#| label: fig-dafv-dist-site
+#| code-summary: DAFV by site
+#| fig-cap: |
+#|   Distribution of days alive and free of ventilation by study site
+#| fig-height: 4
+pdat <- all_dat %>%
+  filter_acs_itt() %>%
+  filter(!is.na(out_dafv)) %>%
+  dplyr::count(
+    Country = factor(PT_CountryName, levels = c("India", "Australia", "Nepal", "New Zealand"),
+                     labels = c("India", "Australia", "Nepal", "New\nZealand")),
+    Site = fct_infreq(Location),
+    dafv = ordered(out_dafv, levels = 0:28)) %>%
+  complete(dafv = ordered(0:28), nesting(Country, Site), fill = list(n = 0)) %>%
+  group_by(Country, Site) %>%
+  mutate(p = n / sum(n)) %>%
+  mutate(cp = cumsum(p)) %>%
+  ungroup() %>%
+  mutate(
+    Country = droplevels(Country),
+    Site = droplevels(Site)
+  )
+pdat2 <- pdat %>%
+  group_by(Country, Site) %>%
+  summarise(n = sum(n)) %>%
+  ungroup()
+p1 <- ggplot(pdat2, aes(Site, n)) +
+  facet_grid( ~ Country, scales = "free_x", space = "free_x") +
+  geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.border = element_rect(fill = NA))
+p2 <- ggplot(pdat, aes(Site, p)) +
+  facet_grid( ~ Country, scales = "free_x", space = "free_x") +
+  geom_col(aes(fill = fct_rev(dafv))) +
+  labs(x = "Anticoagulation intervention", y = "Cumulative\nproportion") +
+  scale_fill_viridis_d("DAFV", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = TRUE, ncol = 1)) +
+  theme(axis.text.x = element_text(hjust = 1, angle = 45)) +
+  theme(legend.key.size = unit(0.25, "lines"))
+p <- p1 / p2 +
+  plot_layout(guides = 'collect')
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-5-country-site.pdf"), p, height = 4, width = 6.25)
+p
+```
+
+### Calendar Time
+
+```{r}
+#| label: fig-dafv-dist-calendar
+#| code-summary: DAFV by calendar date
+#| fig-cap: |
+#|   Distribution of days alive and free of ventilation by calendar time.
+#| fig-height: 4
+pdat <- acs_itt_nona_dat %>%
+  dplyr::count(
+    yr = year(RandDate), mth = month(RandDate),
+    dafv = ordered(out_dafv, levels = 0:28), 
+    .drop = F) %>%
+  group_by(yr, mth) %>%
+  mutate(p = n / sum(n)) %>%
+  mutate(cp = cumsum(p)) %>%
+  ungroup()
+p1 <- pdat %>%
+  group_by(yr, mth) %>%
+  summarise(n = sum(n)) %>%
+  ggplot(., aes(mth, n))  +
+  facet_grid( ~ yr, drop = T, scales = "free_x", space = "free") +
+    geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "Calendar date (month of year)") +
+  scale_x_continuous(breaks = 1:12)
+p2 <- ggplot(pdat, aes(mth, p)) +
+  facet_grid( ~ yr, drop = T, scales = "free_x", space = "free") +
+  geom_col(aes(fill = fct_rev(dafv))) +
+  labs(x = "Calendar date (month of year)", y = "Cumulative\nproportion") +
+  scale_fill_viridis_d("DAFV", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = TRUE)) +
+  theme(legend.key.size = unit(0.25, "lines")) +
+  scale_x_continuous(breaks = 1:12)
+p <- p1 | p2
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-5-calendar-time.pdf"), p, height = 2, width = 6)
+p
+```
+
+
+### Sample Cumulative Logits
+
+```{r}
+#| code-summary: Plot sample cumulative logits
+#| fig-cap: Inspect sample cumulative logits.
+trt_counts <- acs_itt_nona_dat %>%
+  dplyr::count(CAssignment, out_dafv) %>%
+  complete(CAssignment, out_dafv, fill = list(n = 0)) %>%
+  group_by(CAssignment) %>%
+  mutate(p = n / sum(n))
+trt_logit <- trt_counts %>% 
+  group_by(CAssignment) %>% 
+  mutate(clogit = logit(cumsum(p))) %>%
+  group_by(out_dafv) %>%
+  mutate(rel_clogit = clogit - mean(clogit)) %>%
+  filter(out_dafv != 28)
+
+ggplot(trt_logit, aes(CAssignment, rel_clogit)) +
+  facet_wrap( ~ out_dafv) +
+  geom_point() +
+  labs(y = "Relative (to mean) sample cumulative logit")
+
+ggplot(trt_logit, aes(out_dafv, rel_clogit)) +
+  facet_wrap( ~ CAssignment) +
+  geom_point() +
+  labs(y = "Relative (to mean) sample cumulative logit")
+```
+
+## Modelling
+
+The primary analysis uses the ACS-ITT set, so all participants have been randomised to the anticoagulation domain and some participants may have been randomised to the antiviral domain.
+
+### Primary Model
+
+```{r}
+#| label: fit-model-primary
+#| code-summary: Fit primary model
+fit_primary_model <- function(dat, ctr = contr.orthonorm) {
+  mdat <- make_primary_model_data(dat, c("inelgc3", "agegte60", "ctry"), c(10, 2.5, 1, 1), ctr)
+  snk <- capture.output(
+    mfit <- ordmod$sample(
+      data = mdat,
+      seed = 3510392,
+      chains = 8,
+      parallel_chains = 8,
+      iter_warmup = 1000,
+      iter_sampling = 2500,
+      refresh = 0,
+      adapt_delta = 0.98
+  ))
+  mdrws <- as_draws_rvars(mfit$draws())
+  
+  # Add names
+  epoch_map <- dat %>% dplyr::count(epoch, epoch_lab)
+  site_map <- dat %>% dplyr::count(site_num, site)
+  names(mdrws$beta) <- colnames(mdat$X)
+  names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
+  names(mdrws$gamma_site) <- site_map$site
+  
+  # Convert to treatment log odds ratios
+  mdrws$Acon <- attr(mdat$X, "contrasts")$randA %**% mdrws$beta[grepl("randA[0-9]", names(mdrws$beta))]
+  mdrws$Ccon <- attr(mdat$X, "contrasts")$randC %**% mdrws$beta[grepl("randC[0-9]", names(mdrws$beta))]
+  mdrws$trtA <- mdrws$Acon[-1] - mdrws$Acon[1]
+  mdrws$trtC <- mdrws$Ccon[-1] - mdrws$Ccon[1]
+
+  mdrws$OR <- c(
+    setNames(exp(mdrws$trtC), c("Intermediate", "Standard plus aspirin", "Therapeutic")),
+    "Ineligible aspirin" = exp(mdrws$beta[which(grepl("inelg", colnames(mdat$X)))]),
+    "Age 60+" = exp(mdrws$beta[which(grepl("age", colnames(mdat$X)))]),
+    setNames(exp(mdrws$beta[which(grepl("ctry", colnames(mdat$X)))]), c("AU/NZ", "NP"))
+  )
+  return(list(dat = mdat, fit = mfit, drws = mdrws))
+}
+res <- fit_primary_model(acs_itt_nona_dat)
+```
+
+```{r}
+#| label: odds-ratio-summary-table-primary-model-save
+#| code-summary: Odds ratio summary table
+#| tbl-cap: Posterior summaries for model parameters (fixed-effects).
+save_tex_table(
+  odds_ratio_summary_table_rev(res$drws$OR, "latex"),
+  "outcomes/secondary/7-5-primary-model-acs-itt-summary-table")
+odds_ratio_summary_table_rev(res$drws$OR)
+```
+
+```{r}
+#| code-summary: Odds ratio summary for epoch and site
+#| fig-cap: Summary of epoch and site posterior odds ratios.
+p <- plot_epoch_site_terms(
+  exp(res$drws$gamma_epoch),
+  exp(res$drws$gamma_site),
+  factor(res$dat$region_by_site, 
+         labels = c("India", "Australia\nNew Zealand", "Nepal"))
+)
+pth <- file.path("outputs", "figures", "outcomes", "secondary", "7-5-primary-model-epoch-site-terms.pdf")
+ggsave(pth, p, width = 6, height = 4.5)
+p
+```
+
+:::{.callout-caution collapse="true"}
+###### Diagnostics
+```{r}
+res$fit$summary()
+res$fit$diagnostic_summary()
+```
+:::
+
+:::{.callout-caution collapse="true"}
+###### Trace plots
+```{r}
+mcmc_trace(res$drws["beta"])
+mcmc_trace(res$drws["alpha"])
+mcmc_trace(res$drws["gamma_site"])
+mcmc_trace(res$drws["gamma_epoch"])
+```
+:::
+
+### Sensitivity: Concurrent controls
+
+Three separate analyses are conducted based on concurrent randomisations as was done for the primary outcome. For these models, the epoch term has been removed.
+
+##### Intermediate dose
+
+```{r}
+#| code-summary: Descriptive summary table
+save_tex_table(
+  make_summary_table(acs_itt_concurc2_dat, "latex"), 
+  file.path("outcomes", "secondary", "7-5-anticoagulation-concurrent-intermediate-summary"))
+make_summary_table(acs_itt_concurc2_dat)
+```
+
+```{r}
+#| code-summary: Fit model
+ctr <- contr.orthonorm
+X <- model.matrix( 
+  ~ CAssignment + agegte60 + ctry, 
+  data = acs_itt_concurc2_nona_dat, 
+  contrasts.arg = list(CAssignment = ctr))[, -1]
+y_raw <- ordered(acs_itt_concurc2_nona_dat$out_dafv)
+y_mod <- as.integer(y_raw)
+N <- dim(X)[1]
+K <- dim(X)[2]
+unique_y <- length(unique(y_mod))
+mdat <- list(
+  N = N, K = K, J = unique_y, X = X, y = y_mod, y_raw = y_raw,
+  p_par = 2 * rep(1 / unique_y, unique_y),
+  beta_sd = c(1, 2.5, 1, 1)
+)
+
+snk <- capture.output(
+  mfit <- ordmod0$sample(
+    data = mdat,
+    seed = 75136,
+    chains = 8,
+    parallel_chains = 8,
+    iter_warmup = 1000,
+    iter_sampling = 2500,
+    refresh = 0
+))
+mdrws <- as_draws_rvars(mfit$draws())
+names(mdrws$beta) <- colnames(X)
+
+mdrws$Ccon <- as.vector(ctr(2) %**% mdrws$beta[1])
+mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
+
+mdrws$compare <- c("Intermediate vs standard" = exp(mdrws$Ctrt[1]))
+
+mdrws$OR <- c("Intermediate" = exp(mdrws$Ctrt), setNames(exp(mdrws$beta[2:4]), c("Age 60+", "Australia/New Zealand", "Nepal")))
+```
+
+```{r}
+#| code-summary: Sample distribution
+#| fig-cap: |
+#|   Distribution of days alive and free of hospital by anti-coagulation intervention in subset.
+#| fig-height: 4
+pdat <- acs_itt_concurc2_nona_dat %>%
+  dplyr::count(
+    CAssignment = factor(
+      CAssignment, 
+      levels = c("C1", "C2"),
+      labels = c("Standard", "Intermediate")),
+    dafv = ordered(out_dafv, levels = 0:28), 
+    .drop = F) %>%
+  group_by(CAssignment) %>%
+  mutate(p = n / sum(n)) %>%
+  mutate(cp = cumsum(p)) %>%
+  ungroup()
+p <- ggplot(pdat, aes(CAssignment, p)) +
+  geom_col(aes(fill = fct_rev(dafv)), colour = NA) +
+  labs(x = "Anticoagulation intervention", y = "Cumulative proportion") +
+  scale_fill_viridis_d("Days alive and\nfree of ventilation", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = TRUE, ncol = 3)) +
+  theme(legend.key.size = unit(0.75, "lines"))
+pth <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(pth, "outcome-7-5-descriptive-concurrent-intermediate.pdf"), p, height = 2.5, width = 4)
 p
 ```
 
 ```{r}
-pth <- file.path("outputs", "figures", "outcomes", "secondary")
-ggsave(file.path(pth, "outcome-7-5-descriptive.pdf"), p, height = 3, width = 6)
+#| code-summary: Posterior contrast
+#| tbl-cap: Posterior densities for comparisons of interest.
+p <- plot_or_densities(mdrws$compare) +
+  geom_text(aes(x = 1, y = 1 - 0.1, 
+                label = sprintf("Pr(OR > 1) = %.2f", Pr(RV > 1))), 
+            hjust = 0, nudge_x = 0.01, family = "Palatino") +
+  scale_x_log10(breaks = c(0.8, 0.9, 1, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6)) +
+  labs(y = "Comparison")
+p
 ```
+
+```{r}
+#| code-summary: Odds ratio summary table
+#| tbl-cap: Posterior summaries for model parameters.
+save_tex_table(
+  odds_ratio_summary_table_rev(mdrws$OR, "latex"),
+  "outcomes/secondary/7-5-primary-model-acs-itt-concurrent-intermediate-summary-table")
+odds_ratio_summary_table_rev(mdrws$OR)
+```
+
+:::{.callout-caution collapse="true"}
+###### Diagnostics
+```{r}
+mfit$summary()
+mfit$diagnostic_summary()
+```
+:::
+
+:::{.callout-caution collapse="true"}
+###### Trace plots
+```{r}
+mcmc_trace(mdrws["beta"])
+mcmc_trace(mdrws["alpha"])
+```
+:::
+
+#### Standard dose plus aspirin
+
+```{r}
+#| code-summary: Descriptive summary table
+save_tex_table(
+  make_summary_table(acs_itt_concurc3_dat, "latex"), 
+  file.path("outcomes", "secondary", "7-5-anticoagulation-concurrent-stdaspirin-summary"))
+make_summary_table(acs_itt_concurc3_dat)
+```
+
+```{r}
+#| code-summary: Fit model
+ctr <- contr.orthonorm
+X <- model.matrix( 
+  ~ CAssignment + agegte60 + ctry, 
+  data = acs_itt_concurc3_nona_dat, 
+  contrasts.arg = list(CAssignment = ctr))[, -1]
+y_raw <- ordered(acs_itt_concurc3_nona_dat$out_dafv)
+y_mod <- as.integer(y_raw)
+N <- dim(X)[1]
+K <- dim(X)[2]
+unique_y <- length(unique(y_mod))
+mdat <- list(
+  N = N, K = K, J = unique_y, X = X, y = y_mod, y_raw = y_raw,
+  p_par = 2 * rep(1 / unique_y, unique_y),
+  beta_sd = c(1, 1, 2.5, 1)
+)
+
+snk <- capture.output(
+  mfit <- ordmod0$sample(
+    data = mdat,
+    seed = 135356,
+    chains = 8,
+    parallel_chains = 8,
+    iter_warmup = 1000,
+    iter_sampling = 2500,
+    refresh = 0
+))
+mdrws <- as_draws_rvars(mfit$draws())
+names(mdrws$beta) <- colnames(X)
+
+mdrws$Ccon <- as.vector(ctr(3) %**% mdrws$beta[1:2])
+mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
+
+mdrws$compare <- c("Intermediate vs standard" = exp(mdrws$Ctrt[1]),
+                   "Standard plus aspirin vs standard" = exp(mdrws$Ctrt[2]),
+                   "Intermediate vs standard plus aspirin" = exp(mdrws$Ctrt[1] - mdrws$Ctrt[2]))
+
+mdrws$OR <- c("Intermediate" = exp(mdrws$Ctrt[1]),
+              "Standard plus aspirin" = exp(mdrws$Ctrt[2]),
+              setNames(exp(mdrws$beta[3:4]), c("Age 60+", "Australia/New Zealand")))
+```
+
+```{r}
+#| code-summary: Sample distribution
+#| fig-cap: |
+#|   Distribution of days alive and free of ventilation by anti-coagulation intervention in subset.
+#| fig-height: 4
+pdat <- acs_itt_concurc3_nona_dat %>%
+  dplyr::count(
+    CAssignment = factor(
+      CAssignment, 
+      levels = c("C1", "C2", "C3"),
+      labels = c("Standard", "Intermediate", "Standard\nplus aspirin")),
+    dafv = ordered(out_dafv, levels = 0:28), 
+    .drop = F) %>%
+  group_by(CAssignment) %>%
+  mutate(p = n / sum(n)) %>%
+  mutate(cp = cumsum(p)) %>%
+  ungroup()
+p <- ggplot(pdat, aes(CAssignment, p)) +
+  geom_col(aes(fill = fct_rev(dafv))) +
+  labs(x = "Anticoagulation intervention", y = "Cumulative proportion") +
+  scale_fill_viridis_d("Days alive and\nfree of ventilation", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = TRUE, ncol = 3)) +
+  theme(legend.key.size = unit(0.75, "lines"))
+p
+pth <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(pth, "outcome-7-5-descriptive-concurrent-stdaspirin.pdf"), p, height = 2.5, width = 6)
+```
+
+```{r}
+#| code-summary: Posterior contrast
+#| tbl-cap: Decision summaries on comparisons
+plot_or_densities(mdrws$compare)
+```
+
+```{r}
+#| code-summary: Odds ratio summary table
+#| tbl-cap: Posterior summaries for model parameters.
+save_tex_table(
+  odds_ratio_summary_table_rev(mdrws$OR, "latex"),
+  "outcomes/secondary/7-5-primary-model-acs-itt-concurrent-stdaspirin-summary-table")
+odds_ratio_summary_table_rev(mdrws$OR)
+```
+
+:::{.callout-caution collapse="true"}
+###### Diagnostics
+```{r}
+mfit$summary()
+mfit$diagnostic_summary()
+```
+:::
+
+:::{.callout-caution collapse="true"}
+###### Trace plots
+```{r}
+mcmc_trace(mdrws["beta"])
+mcmc_trace(mdrws["alpha"])
+```
+:::
+
+#### Therapeutic dose
+
+```{r}
+#| code-summary: Descriptive summary table
+save_tex_table(
+  make_summary_table(acs_itt_concurc4_dat, "latex"), 
+  file.path("outcomes", "secondary", "7-5-anticoagulation-concurrent-therapeutic-summary"))
+make_summary_table(acs_itt_concurc4_dat)
+```
+
+```{r}
+#| code-summary: Fit model
+ctr <- contr.orthonorm
+X <- model.matrix( 
+  ~ CAssignment + agegte60 + ctry, 
+  data = acs_itt_concurc4_nona_dat, 
+  contrasts.arg = list(CAssignment = ctr))[, -1]
+y_raw <- ordered(acs_itt_concurc4_nona_dat$out_dafv)
+y_mod <- as.integer(y_raw)
+N <- dim(X)[1]
+K <- dim(X)[2]
+unique_y <- length(unique(y_mod))
+mdat <- list(
+  N = N, K = K, J = unique_y, X = X, y = y_mod, y_raw = y_raw,
+  p_par = 2 * rep(1 / unique_y, unique_y),
+  beta_sd = c(1, 1, 2.5, 1, 1)
+)
+
+snk <- capture.output(
+  mfit <- ordmod0$sample(
+    data = mdat,
+    seed = 49135,
+    chains = 8,
+    parallel_chains = 8,
+    iter_warmup = 1000,
+    iter_sampling = 2500,
+    refresh = 0
+))
+mdrws <- as_draws_rvars(mfit$draws())
+names(mdrws$beta) <- colnames(X)
+
+mdrws$Ccon <- as.vector(ctr(3) %**% mdrws$beta[1:2])
+mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
+
+mdrws$compare <- c("Intermediate vs standard" = exp(mdrws$Ctrt[1]),
+                   "Therapeutic vs standard" = exp(mdrws$Ctrt[2]),
+                   "Intermediate vs therapeutic" = exp(mdrws$Ctrt[1] - mdrws$Ctrt[2]))
+
+mdrws$OR <- c("Intermediate" = exp(mdrws$Ctrt[1]),
+              "Therapeutic" = exp(mdrws$Ctrt[2]),
+              setNames(exp(mdrws$beta[3:5]), c("Age 60+", "India", "Australia/New Zealand")))
+```
+
+```{r}
+#| code-summary: Sample distribution
+#| fig-cap: |
+#|   Distribution of days alive and free of ventilation by anti-coagulation intervention in subset.
+#| fig-height: 4
+pdat <- acs_itt_concurc4_nona_dat %>%
+  dplyr::count(
+    CAssignment = factor(
+      CAssignment, 
+      levels = c("C1", "C2", "C4"),
+      labels = c("Standard", "Intermediate", "Therapeutic")),
+    dafv = ordered(out_dafv, levels = 0:28), 
+    .drop = F) %>%
+  group_by(CAssignment) %>%
+  mutate(p = n / sum(n)) %>%
+  mutate(cp = cumsum(p)) %>%
+  ungroup()
+p <- ggplot(pdat, aes(CAssignment, p)) +
+  geom_col(aes(fill = fct_rev(dafv))) +
+  labs(x = "Anticoagulation intervention", y = "Cumulative proportion") +
+  scale_fill_viridis_d("Days alive and\nfree of ventilation", option = "A", direction = -1) +
+  guides(fill = guide_legend(reverse = TRUE, ncol = 3)) +
+  theme(legend.key.size = unit(0.75, "lines"))
+pth <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(pth, "outcome-7-5-descriptive-concurrent-therapeutic.pdf"), p, height = 2.5, width = 6)
+p
+```
+
+```{r}
+#| code-summary: Posterior contrasts
+#| tbl-cap: Decision summaries on comparisons
+plot_or_densities(mdrws$compare)
+```
+
+```{r}
+#| code-summary: Odds ratio summary table
+#| tbl-cap: Posterior summaries for model parameters.
+save_tex_table(
+  odds_ratio_summary_table_rev(mdrws$OR, "latex"),
+  "outcomes/secondary/7-5-primary-model-acs-itt-concurrent-therapeutic-summary-table")
+odds_ratio_summary_table_rev(mdrws$OR)
+```
+
+:::{.callout-caution collapse="true"}
+###### Diagnostics
+```{r}
+mfit$summary()
+mfit$diagnostic_summary()
+```
+:::
+
+:::{.callout-caution collapse="true"}
+###### Trace plots
+```{r}
+mcmc_trace(mdrws["beta"])
+mcmc_trace(mdrws["alpha"])
+```
+:::
