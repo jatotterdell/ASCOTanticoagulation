@@ -246,8 +246,9 @@ transmute_model_cols <- function(dat) {
       ctry = factor(Country, levels = c("IN", "AU", "NP", "NZ")),
       ctry_num,
       # group sites with < 5 counts
+      site_raw = factor(Location, levels = site_counts$Location),
       site = fct_collapse(
-        factor(Location, levels = site_counts$Location),
+        site_raw,
         `AU other` = merge_aus,
         `NZ other` = merge_nz
       ),
@@ -335,11 +336,9 @@ transmute_model_cols_grp_aus_nz <- function(dat) {
         factor(Country, levels = c("IN", "AU", "NP", "NZ")),
         "AU/NZ" = c("AU", "NZ")),
       ctry_num,
+      site_raw = factor(Location, levels = site_counts$Location),
       # group sites with < 5 counts
-      site = fct_collapse(
-        factor(Location, levels = site_counts$Location),
-        `AU/NZ other` = merge_ausnz
-      ),
+      site = fct_collapse(site_raw, `AU/NZ other` = merge_ausnz),
       site_num,
       relRandDate = as.numeric(max(RandDate) - RandDate),
       epoch_raw = floor(relRandDate / 28),
