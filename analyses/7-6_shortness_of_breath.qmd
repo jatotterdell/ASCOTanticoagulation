@@ -39,6 +39,24 @@ acs_itt_dat <- all_dat %>%
 # Anticoagulation set (intention-to-treat, excluding missing)
 acs_itt_nona_dat <- acs_itt_dat %>% 
   filter(!is.na(out_sob))  
+
+# Concurrent enrolments for C2
+acs_itt_concurc2_dat <- acs_itt_dat %>%
+  filter_concurrent_intermediate()
+acs_itt_concurc2_nona_dat <- acs_itt_concurc2_dat %>% 
+  filter(!is.na(out_sob))
+
+# Concurrent enrolments for C3
+acs_itt_concurc3_dat <- acs_itt_dat %>%
+  filter_concurrent_std_aspirin()
+acs_itt_concurc3_nona_dat <- acs_itt_concurc3_dat %>% 
+  filter(!is.na(out_sob))
+
+# Concurrent enrolments for C4
+acs_itt_concurc4_dat <- acs_itt_dat %>%
+  filter_concurrent_therapeutic()
+acs_itt_concurc4_nona_dat <- acs_itt_concurc4_dat %>% 
+  filter(!is.na(out_sob))
 ```
 
 ```{r}
@@ -445,9 +463,42 @@ make_outcome_table <- function(OR, format = "html", fn = NULL)
 
 make_outcome_table(rvs_all)
 make_outcome_table(rvs_all, format = "latex", fn = "7-6_shortness_of_breath")
-
-# End of script.
 ```
 
 
+## Sensitivity: Concurrent Controls
 
+A sensitivity analysis is performed on the reduced concurrent control analysis sets for each intervention.
+
+### Intermediate
+
+```{r}
+#| code-summary: Overview of outcome
+#| tbl-cap: Summary of outcome for intermediate dose concurrent enrolments.
+save_tex_table(
+  make_summary_table(acs_itt_concurc2_dat, "latex"),
+  "outcomes/secondary/7-6-anticoagulation-concurrent-intermediate-summary")
+make_summary_table(acs_itt_concurc2_dat)
+```
+
+### Standard plus aspirin
+
+```{r}
+#| code-summary: Overview of outcome
+#| tbl-cap: Summary of outcome for standard dose plus aspirin concurrent enrolments.
+save_tex_table(
+  make_summary_table(acs_itt_concurc3_dat, "latex"),
+  "outcomes/secondary/7-6-anticoagulation-concurrent-stdaspirin-summary")
+make_summary_table(acs_itt_concurc3_dat)
+```
+
+### Therapeutic
+
+```{r}
+#| code-summary: Overview of outcome
+#| tbl-cap: Summary of outcome for therapeutic dose concurrent enrolments.
+save_tex_table(
+  make_summary_table(acs_itt_concurc4_dat, "latex"),
+  "outcomes/secondary/7-6-anticoagulation-concurrent-therapeutic-summary")
+make_summary_table(acs_itt_concurc4_dat)
+```
