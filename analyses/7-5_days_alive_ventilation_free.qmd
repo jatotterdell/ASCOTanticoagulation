@@ -521,7 +521,10 @@ The primary analysis uses the ACS-ITT set, so all participants have been randomi
 #| label: fit-model-primary
 #| code-summary: Fit primary model
 fit_primary_model <- function(dat, ctr = contr.orthonorm) {
-  mdat <- make_primary_model_data(dat, c("inelgc3", "agegte60", "ctry"), c(10, 2.5, 1, 1), ctr)
+  mdat <- make_primary_model_data(
+    dat, c("inelgc3", "agegte60", "ctry"), 
+    c(10, 2.5, 1, 1), 
+    ctr)
   snk <- capture.output(
     mfit <- ordmod$sample(
       data = mdat,
@@ -534,20 +537,25 @@ fit_primary_model <- function(dat, ctr = contr.orthonorm) {
       adapt_delta = 0.98
   ))
   mdrws <- as_draws_rvars(mfit$draws())
-  
   # Add names
   epoch_map <- dat %>% dplyr::count(epoch, epoch_lab)
   site_map <- dat %>% dplyr::count(site_num, site)
   names(mdrws$beta) <- colnames(mdat$X)
   names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
   names(mdrws$gamma_site) <- site_map$site
-  
   # Convert to treatment log odds ratios
   mdrws$Acon <- attr(mdat$X, "contrasts")$randA %**% mdrws$beta[grepl("randA[0-9]", names(mdrws$beta))]
   mdrws$Ccon <- attr(mdat$X, "contrasts")$randC %**% mdrws$beta[grepl("randC[0-9]", names(mdrws$beta))]
   mdrws$trtA <- mdrws$Acon[-1] - mdrws$Acon[1]
   mdrws$trtC <- mdrws$Ccon[-1] - mdrws$Ccon[1]
-
+  mdrws$compare <- c(
+    "Intermediate vs standard" = exp(mdrws$trtC[1]),
+    "Standard plus aspirin vs standard" = exp(mdrws$trtC[2]),
+    "Therapeutic vs standard" = exp(mdrws$trtC[3]),
+    "Intermediate vs standard plus aspirin" = exp(mdrws$trtC[1] - mdrws$trtC[2]),
+    "Intermediate vs therapeutic" = exp(mdrws$trtC[1] - mdrws$trtC[3]),
+    "Standard plus aspirin vs therapeutic" = exp(mdrws$trtC[2] - mdrws$trtC[3])
+  )
   mdrws$OR <- c(
     setNames(exp(mdrws$trtC), c("Intermediate", "Standard plus aspirin", "Therapeutic")),
     "Ineligible aspirin" = exp(mdrws$beta[which(grepl("inelg", colnames(mdat$X)))]),
@@ -580,6 +588,12 @@ p <- plot_epoch_site_terms(
 )
 pth <- file.path("outputs", "figures", "outcomes", "secondary", "7-5-primary-model-epoch-site-terms.pdf")
 ggsave(pth, p, width = 6, height = 4.5)
+p
+```
+
+```{r}
+#| fig-cap: Posterior densities for treatment comparisons.
+p <- plot_or_densities(res$drws$compare)
 p
 ```
 
@@ -632,7 +646,6 @@ mdat <- list(
   p_par = 2 * rep(1 / unique_y, unique_y),
   beta_sd = c(1, 2.5, 1, 1)
 )
-
 snk <- capture.output(
   mfit <- ordmod0$sample(
     data = mdat,
@@ -645,13 +658,11 @@ snk <- capture.output(
 ))
 mdrws <- as_draws_rvars(mfit$draws())
 names(mdrws$beta) <- colnames(X)
-
 mdrws$Ccon <- as.vector(ctr(2) %**% mdrws$beta[1])
 mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
-
 mdrws$compare <- c("Intermediate vs standard" = exp(mdrws$Ctrt[1]))
-
-mdrws$OR <- c("Intermediate" = exp(mdrws$Ctrt), setNames(exp(mdrws$beta[2:4]), c("Age 60+", "Australia/New Zealand", "Nepal")))
+mdrws$OR <- c("Intermediate" = exp(mdrws$Ctrt), 
+              setNames(exp(mdrws$beta[2:4]), c("Age 60+", "Australia/New Zealand", "Nepal")))
 ```
 
 ```{r}
@@ -746,7 +757,6 @@ mdat <- list(
   p_par = 2 * rep(1 / unique_y, unique_y),
   beta_sd = c(1, 1, 2.5, 1)
 )
-
 snk <- capture.output(
   mfit <- ordmod0$sample(
     data = mdat,
@@ -759,14 +769,11 @@ snk <- capture.output(
 ))
 mdrws <- as_draws_rvars(mfit$draws())
 names(mdrws$beta) <- colnames(X)
-
 mdrws$Ccon <- as.vector(ctr(3) %**% mdrws$beta[1:2])
 mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
-
 mdrws$compare <- c("Intermediate vs standard" = exp(mdrws$Ctrt[1]),
                    "Standard plus aspirin vs standard" = exp(mdrws$Ctrt[2]),
                    "Intermediate vs standard plus aspirin" = exp(mdrws$Ctrt[1] - mdrws$Ctrt[2]))
-
 mdrws$OR <- c("Intermediate" = exp(mdrws$Ctrt[1]),
               "Standard plus aspirin" = exp(mdrws$Ctrt[2]),
               setNames(exp(mdrws$beta[3:4]), c("Age 60+", "Australia/New Zealand")))
@@ -871,14 +878,11 @@ snk <- capture.output(
 ))
 mdrws <- as_draws_rvars(mfit$draws())
 names(mdrws$beta) <- colnames(X)
-
 mdrws$Ccon <- as.vector(ctr(3) %**% mdrws$beta[1:2])
 mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
-
 mdrws$compare <- c("Intermediate vs standard" = exp(mdrws$Ctrt[1]),
                    "Therapeutic vs standard" = exp(mdrws$Ctrt[2]),
                    "Intermediate vs therapeutic" = exp(mdrws$Ctrt[1] - mdrws$Ctrt[2]))
-
 mdrws$OR <- c("Intermediate" = exp(mdrws$Ctrt[1]),
               "Therapeutic" = exp(mdrws$Ctrt[2]),
               setNames(exp(mdrws$beta[3:5]), c("Age 60+", "India", "Australia/New Zealand")))
