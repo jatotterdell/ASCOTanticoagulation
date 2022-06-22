@@ -75,7 +75,7 @@ acs_itt_concurc4_nona_dat <- acs_itt_concurc4_dat %>%
 ```{r}
 #| label: models
 #| code-summary: Load the Stan models
-model_full <- cmdstan_model(file.path("stan", "primary_logistic_model_site_epoch.stan"))
+model_full <- cmdstan_model(file.path("stan", "primary_logistic_model_site_epoch2.stan"))
 model_site_only <- cmdstan_model(file.path("stan", "primary_logistic_model_site.stan"))
 model_epoch_only <- cmdstan_model(file.path("stan", "primary_logistic_model_epoch.stan")) 
 model_fixed_only <- cmdstan_model(file.path("stan", "logistic_bernoulli.stan"))
@@ -244,7 +244,7 @@ p
 #| tbl-cap: Primary outcome by country.
 tdat <- all_dat %>%
   filter_acs_itt() %>%
-  dplyr::count(Country = PT_CountryName, D28_death) %>%
+  dplyr::count(Country = fct_infreq(PT_CountryName), D28_death) %>%
   group_by(Country) %>%
   spread(D28_death, n, fill = 0) %>%
   mutate(
@@ -352,148 +352,139 @@ p
 
 The analysis for all cause mortality is specified equivalently to that for the primary outcome. It includes intervention as randomised, age category, country, site nested within country, epoch, and intervention eligibility. The main analysis restricts the population to only those participants randomised to the anticoagulation domain.
 
-```{r}
-#| label: Munge stan data.
-#| code-summary: Munges stan data.
-dat_full <- make_stan_data(
-  dat = acs_itt_nona_dat, 
-  vars    = c("inelgc3", "agegte60"),
-  outcome = "D28_death",
-  beta_sd = c(10, 2.5))
-```
-
-## Analysis model
+## Primary model
 
 ```{r}
 #| label: model1-sampling
 #| code-summary: Data and sampling
 seed <- 59579
-run_stan <- function(model, data)
-{
-  model[["sample"]](data = data,
-                    seed = seed,
-                    refresh = 0,
-                    iter_warmup = 1000,
-                    iter_sampling = 2500,
-                    chains = 8,
-                    parallel_chains = 8,
-                    adapt_delta = 0.97)
-}
+mdat <- make_stan_data(
+    dat = acs_itt_nona_dat, 
+    vars    = c("inelgc3", "agegte60", "ctry"),
+    outcome = "D28_death",
+    beta_sd = c(10, 2.5, 1, 1))
 snk <- capture.output(
-  stan_full <- run_stan(model_full, dat_full)
+  mfit <- model_full$sample(
+    data = mdat,
+    seed = seed,
+    refresh = 0,
+    iter_warmup = 1000,
+    iter_sampling = 2500,
+    chains = 8,
+    parallel_chains = 8,
+    adapt_delta = 0.99
+))
+mdrws <- as_draws_rvars(mfit$draws())
+names(mdrws$beta) <- colnames(mdat$X)
+names(mdrws$gamma_epoch) <- acs_itt_nona_dat %>% dplyr::count(epoch, epoch_lab) %>% pull(epoch_lab)
+names(mdrws$gamma_site) <- acs_itt_nona_dat %>% dplyr::count(site_num, site) %>% pull(site)
+site_facet <- factor(mdat$region_by_site, labels = c("India", "Australia\nNew Zealand", "Nepal"))
+
+mdrws$Acon <- attr(mdat$X, "contrasts")$randA %**% mdrws$beta[grepl("randA[0-9]", names(mdrws$beta))]
+mdrws$Ccon <- attr(mdat$X, "contrasts")$randC %**% mdrws$beta[grepl("randC[0-9]", names(mdrws$beta))]
+mdrws$Atrt <- mdrws$Acon[-1] - mdrws$Acon[1]
+mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
+mdrws$OR <- c(
+  setNames(exp(mdrws$Ctrt), c("Intermediate", "Standard plus aspirin", "Therapeutic")),
+  setNames(exp(mdrws$beta[7:8]), c("Ineligible aspirin", "Age 60+")),
+  setNames(exp(mdrws$beta[9:10]), c("Australia/New Zealand", "Nepal"))
 )
-stan_full$summary(variables = c("beta", 
-                                "beta_region", 
-                                "gamma_site", "epsilon_site", "tau_site",
-                                "gamma_epoch", "epsilon_epoch", "tau_epoch"))
-
-```
-
-```{r}
-#| label: model-diagnostics
-#| code-summary: Diagnostics
-stan_full$cmdstan_diagnose()
-```
-
-```{r}
-#| label: model-trace
-#| code-summary: Trace plots
-mcmc_trace(stan_full$draws("beta",          format = "matrix"))
-mcmc_trace(stan_full$draws("beta_region",   format = "matrix"))
-mcmc_trace(stan_full$draws("gamma_site",    format = "matrix"))
-mcmc_trace(stan_full$draws("epsilon_site",  format = "matrix"))
-mcmc_trace(stan_full$draws("tau_site",      format = "matrix"))
-mcmc_trace(stan_full$draws("gamma_epoch",   format = "matrix"))
-mcmc_trace(stan_full$draws("epsilon_epoch", format = "matrix"))
-mcmc_trace(stan_full$draws("tau_epoch",     format = "matrix"))
-```
-
-```{r}
-#| label: model-summaries
-#| code-summary: Model parameter transformations
-
-# Transform treatment contrasts back.
-add_treatment_rvs <- function(rvs, mdat) {
-  
-  # Get the orthonormal contrasts.
-  Ca <- cbind(1, attr(mdat$X, "contrasts")$randA) 
-  Cc <- cbind(1, attr(mdat$X, "contrasts")$randC)
-  nC <- ncol(Cc)
-  # Get the treatment contrasts.
-  Ct <-  cbind(1, contr.treatment(nC))
-  trt_rows <- which(rownames(Cc) != "C0")
-  
-  rvs$eta <- as.vector(Cc %**% rvs$beta[1:nC])
-  rvs$beta_uncon <- as.vector(Cc[, -1] %**% rvs$beta[2:nC])
-  rvs$prob <- 1 / (1 + exp(-rvs$eta))
-  rvs$beta_trt <- as.vector(
-    transform_coding(Cc, Ct) %**% rvs$beta[1:nC])
-  # names_trt <- rownames(Cc)[-grep(rownames(Cc), pattern = "C1")]
-  rvs$OR <- setNames(exp(rvs$beta_trt[trt_rows][-1]), c("Intermediate", "Standard plus aspirin", "Therapeutic"))
-  return(rvs)
-}
-
-# Extract the betas as a random variable type (using 'posterior' package)
-rvs_beta   <- as_draws_rvars(stan_full$draws(c("beta")))
-names(rvs_beta$beta) <- colnames(dat_full$X)
-rvs_trt    <- add_treatment_rvs(rvs_beta, dat_full)[["OR"]]
-rvs_region <- as_draws_rvars(stan_full[["draws"]](c("beta_region")))[[1]]
-rvs_site   <- as_draws_rvars(stan_full[["draws"]](c("gamma_site")))[[1]]
-rvs_epoch  <- as_draws_rvars(stan_full[["draws"]](c("gamma_epoch")))[[1]]
-
-# Define names of random variables. 
-map_labels <- function(data, num, lab)
-{
-  lab_map <- paste0(data[[num]], "_", data[[lab]])
-  lab_map <- unique(lab_map)     
-  lab_map <- as.data.frame(str_split(lab_map, pattern = "_", simplify = T))
-  names(lab_map) <- c("number", "label")
-  lab_map[["number"]] <- as.numeric(lab_map[["number"]])
-  lab_map <- lab_map[order(lab_map[["number"]]),]
-  lab_map
-}
-
-acs_itt_nona_dat[["site_nest"]] <- with(acs_itt_nona_dat, paste0(ctry,": ", site))
-
-epoch_lab  <- map_labels(acs_itt_nona_dat, "epoch", "epoch_lab")
-region_lab <- map_labels(acs_itt_nona_dat, "ctry_num", "ctry")
-site_lab   <- map_labels(acs_itt_nona_dat, "site_num", "site")
-
-names_agegrp <- "Age 60+"
-names_inlgc3 <- "Ineligible aspirin"
-
-# Set names and exponentiation.
-rvs_agegrp <- setNames(exp(rvs_beta[[1]]["agegte60"]), names_agegrp)  
-rvs_inlgc3 <- setNames(exp(rvs_beta[[1]]["inelgc3"]), names_inlgc3)  
-rvs_region <- setNames(exp(rvs_region), c("India", "Australia/New Zealand", "Nepal"))
-rvs_site   <- setNames(exp(rvs_site),   site_lab[["label"]])
-rvs_epoch  <- setNames(exp(rvs_epoch),  epoch_lab[["label"]])
-
-# Combine random variables and tabulate.
-rvs_all <- c(rvs_trt, rvs_inlgc3, rvs_agegrp, rvs_region[-1])
 ```
 
 ```{r}
 #| label: odds-ratio-summary-table-primary-model-save
 #| code-summary: Odds ratio summary table
 save_tex_table(
-  odds_ratio_summary_table(rvs_all, "latex"),
+  odds_ratio_summary_table(mdrws$OR, "latex"),
   "outcomes/secondary/7-3-primary-model-acs-itt-summary-table")
-odds_ratio_summary_table(rvs_all)
+odds_ratio_summary_table(mdrws$OR)
 ```
 
 ```{r}
 #| label: odds-ratio-summary-primary-model-epoch-site-terms
 #| code-summary: Epoch and site terms
 p <- plot_epoch_site_terms(
-  rvs_epoch, 
-  rvs_site, 
-  factor(dat_full$region_by_site, labels = c("India", "Australia\nNew Zealand", "Nepal")))
+  exp(mdrws$gamma_epoch), 
+  exp(mdrws$gamma_site), 
+  site_facet
+)
 pth <- file.path(
   "outputs", "figures", "outcomes", "secondary", "7-3-primary-model-epoch-site-terms.pdf")
 ggsave(pth, p, width = 6, height = 4.5)
 p
 ```
+
+:::{.callout-caution collapse="true"}
+### Diagnostics
+```{r}
+mfit$summary(variables = c("beta", "gamma_site", "gamma_epoch"))
+mfit$diagnostic_summary()
+```
+:::
+
+:::{.callout-caution collapse="true"}
+### Trace plots
+```{r}
+mcmc_trace(mdrws["beta"])
+mcmc_trace(mdrws["gamma_site"])
+mcmc_trace(mdrws["gamma_epoch"])
+mcmc_trace(mdrws[c("tau_site", "tau_epoch")])
+```
+:::
+
+### Posterior predictive
+
+```{r}
+#| label: primary-acs-itt-ppc
+#| fig-cap: Posterior predictive distribution versus observed proportion (red diamond).
+y_ppc <- mdrws$y_ppc
+ppc_dat <- bind_cols(acs_itt_nona_dat, tibble(y_ppc = y_ppc))
+
+grp_ppc <- function(grp) {
+  ppc_dat %>%
+    group_by(grp = !!grp) %>%
+    summarise(
+      mean_y = mean(D28_death),
+      rvar_mean_y_ppc = rvar_mean(y_ppc)
+    )
+}
+plot_grp_ppc <- function(dat, lab = "") {
+  dat %>%
+    ggplot(aes(y = grp, xdist = rvar_mean_y_ppc)) +
+    stat_interval(size = 2) +
+    geom_point(aes(x = mean_y, y = 1:nrow(dat)), colour = "red", shape = 23) +
+    labs(
+      x = "Posterior predictive\nproportion", 
+      y = lab)  
+}
+
+ppc_C <- grp_ppc(sym("CAssignment"))
+ppc_ctry <- grp_ppc(sym("country"))
+ppc_epoch <- grp_ppc(sym("epoch"))
+ppc_site <- ppc_dat %>%
+  group_by(Country = country, grp = site_raw) %>%
+  summarise(
+    mean_y = mean(D28_death),
+    rvar_mean_y_ppc = rvar_mean(y_ppc)
+  )
+
+p1 <- plot_grp_ppc(ppc_C, "Anticoagulation\nintervention") + labs(x = "")
+p2 <- plot_grp_ppc(ppc_ctry, "Country") + labs(x = "")
+p3 <- plot_grp_ppc(ppc_epoch, "Epoch") + labs(x = "")
+p4 <- plot_grp_ppc(ppc_site %>% filter(Country == "IN"), "Sites\nIndia")  + labs(x = "")
+p5 <- plot_grp_ppc(ppc_site %>% filter(Country == "AU"), "Sites\nAustralia") + labs(x = "")
+p6 <- plot_grp_ppc(ppc_site %>% filter(Country == "NP"), "Sites\nNepal")
+p7 <- plot_grp_ppc(ppc_site %>% filter(Country == "NZ"), "Sites\nNZ")
+p <- ((p3 | p1 / p2) / 
+        ( (p4 | p5) / (p6 | p7) + 
+            plot_layout(heights = c(3, 1)) ) ) +
+  plot_layout(heights = c(1, 1.5), guides = "collect")
+pth <- file.path("outputs", "figures", "outcomes", "secondary",
+                 "7-3-primary-model-acs-itt-ppc.pdf")
+ggsave(pth, p, width = 6, height = 5.5)
+p
+```
+
 
 ## Sensitivity: Reduced model (no site terms)
 
@@ -540,17 +531,22 @@ odds_ratio_summary_table(mdrws$OR)
 plot_epoch_terms(exp(mdrws$gamma_epoch))
 ```
 
+:::{.callout-caution collapse="true"}
+### Diagnostics
 ```{r}
-#| code-summary: Diagnostics
-mfit$cmdstan_diagnose()
+mfit$summary(variables = c("beta", "gamma_epoch", "tau_epoch"))
+mfit$diagnostic_summary()
 ```
+:::
 
+:::{.callout-caution collapse="true"}
+### Trace plots
 ```{r}
-#| code-summary: Trace plots
 mcmc_trace(mdrws["beta"])
 mcmc_trace(mdrws["gamma_epoch"])
 mcmc_trace(mdrws["tau_epoch"])
 ```
+:::
 
 ## Sensitivity: Reduced model (no epoch terms)
 
@@ -599,17 +595,22 @@ odds_ratio_summary_table(mdrws$OR)
 plot_site_terms(exp(mdrws$gamma_site), site_facet)
 ```
 
+:::{.callout-caution collapse="true"}
+### Diagnostics
 ```{r}
-#| code-summary: Diagnostics
-mfit$cmdstan_diagnose()
+mfit$summary(variables = c("beta", "gamma_site", "tau_site"))
+mfit$diagnostic_summary()
 ```
+:::
 
+:::{.callout-caution collapse="true"}
+### Trace plots
 ```{r}
-#| code-summary: Trace plots
 mcmc_trace(mdrws["beta"])
 mcmc_trace(mdrws["gamma_site"])
 mcmc_trace(mdrws["tau_site"])
 ```
+:::
 
 ## Sensitivity: Reduced model (no site or epoch)
 
@@ -636,7 +637,7 @@ snk <- capture.output(
 ))
 mdrws <- as_draws_rvars(mfit$draws(c("beta")))
 names(mdrws$beta) <- colnames(mdat$X)
-mdrws$Ccon <- attr(dat_full$X, "contrasts")$randC %**% mdrws$beta[2:4]
+mdrws$Ccon <- attr(mdat$X, "contrasts")$randC %**% mdrws$beta[2:4]
 mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
 mdrws$OR <- c(
   setNames(exp(mdrws$Ctrt), c("Intermediate", "Standard plus aspirin", "Therapeutic")),
@@ -650,15 +651,20 @@ mdrws$OR <- c(
 odds_ratio_summary_table(mdrws$OR)
 ```
 
+:::{.callout-caution collapse="true"}
+### Diagnostics
 ```{r}
-#| code-summary: Diagnostics
-mfit$cmdstan_diagnose()
+mfit$summary(variables = c("beta"))
+mfit$diagnostic_summary()
 ```
+:::
 
+:::{.callout-caution collapse="true"}
+### Trace plots
 ```{r}
-#| code-summary: Trace plots
 mcmc_trace(mdrws["beta"])
 ```
+:::
 
 ## Sensitivity: Concurrent Controls
 
@@ -707,10 +713,25 @@ mdrws$OR <- c(
 #| code-summary: Odds ratio summary
 #| tbl-cap: Odds ratio summary table for model.
 save_tex_table(
-  odds_ratio_summary_table_rev(mdrws$OR, "latex"),
+  odds_ratio_summary_table(mdrws$OR, "latex"),
   "outcomes/secondary/7-3-primary-model-acs-itt-concurrent-intermediate-summary-table")
 odds_ratio_summary_table(mdrws$OR)
 ```
+
+:::{.callout-caution collapse="true"}
+#### Diagnostics
+```{r}
+mfit$summary(variables = c("beta"))
+mfit$diagnostic_summary()
+```
+:::
+
+:::{.callout-caution collapse="true"}
+#### Trace plots
+```{r}
+mcmc_trace(mdrws["beta"])
+```
+:::
 
 ### Standard plus aspirin
 
@@ -755,10 +776,25 @@ mdrws$OR <- c(
 #| code-summary: Odds ratio summary
 #| tbl-cap: Odds ratio summary table for model.
 save_tex_table(
-  odds_ratio_summary_table_rev(mdrws$OR, "latex"),
+  odds_ratio_summary_table(mdrws$OR, "latex"),
   "outcomes/secondary/7-3-primary-model-acs-itt-concurrent-stdaspirin-summary-table")
 odds_ratio_summary_table(mdrws$OR)
 ```
+
+:::{.callout-caution collapse="true"}
+#### Diagnostics
+```{r}
+mfit$summary(variables = c("beta"))
+mfit$diagnostic_summary()
+```
+:::
+
+:::{.callout-caution collapse="true"}
+#### Trace plots
+```{r}
+mcmc_trace(mdrws["beta"])
+```
+:::
 
 ### Therapeutic
 
@@ -803,7 +839,22 @@ mdrws$OR <- c(
 #| code-summary: Odds ratio summary
 #| tbl-cap: Odds ratio summary table for model.
 save_tex_table(
-  odds_ratio_summary_table_rev(mdrws$OR, "latex"),
+  odds_ratio_summary_table(mdrws$OR, "latex"),
   "outcomes/secondary/7-3-primary-model-acs-itt-concurrent-therapeutic-summary-table")
 odds_ratio_summary_table(mdrws$OR)
 ```
+
+:::{.callout-caution collapse="true"}
+#### Diagnostics
+```{r}
+mfit$summary(variables = c("beta"))
+mfit$diagnostic_summary()
+```
+:::
+
+:::{.callout-caution collapse="true"}
+#### Trace plots
+```{r}
+mcmc_trace(mdrws["beta"])
+```
+:::
