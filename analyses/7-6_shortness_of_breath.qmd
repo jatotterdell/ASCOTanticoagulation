@@ -384,6 +384,14 @@ mdrws$Acon <- attr(mdat$X, "contrasts")$randA %**% mdrws$beta[grepl("randA[0-9]"
 mdrws$Ccon <- attr(mdat$X, "contrasts")$randC %**% mdrws$beta[grepl("randC[0-9]", names(mdrws$beta))]
 mdrws$Atrt <- mdrws$Acon[-1] - mdrws$Acon[1]
 mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
+mdrws$compare <- c(
+  "Intermediate vs standard" = exp(mdrws$Ctrt[1]),
+  "Standard plus aspirin vs standard" = exp(mdrws$Ctrt[2]),
+  "Therapeutic vs standard" = exp(mdrws$Ctrt[3]),
+  "Intermediate vs standard plus aspirin" = exp(mdrws$Ctrt[1] - mdrws$Ctrt[2]),
+  "Intermediate vs therapeutic" = exp(mdrws$Ctrt[1] - mdrws$Ctrt[3]),
+  "Standard plus aspirin vs therapeutic" = exp(mdrws$Ctrt[2] - mdrws$Ctrt[3])
+)
 mdrws$OR <- c(
   setNames(exp(mdrws$Ctrt), c("Intermediate", "Standard plus aspirin", "Therapeutic")),
   setNames(exp(mdrws$beta[7:8]), c("Ineligible aspirin", "Age 60+")),
@@ -415,6 +423,13 @@ pth <- file.path(
 ggsave(pth, p, width = 6, height = 4.5)
 p
 ```
+
+```{r}
+#| fig-cap: Posterior densities for treatment comparisons.
+p <- plot_or_densities(mdrws$compare)
+p
+```
+
 
 :::{.callout-caution collapse="true"}
 ### Diagnostics
@@ -523,6 +538,7 @@ mdrws <- as_draws_rvars(mfit$draws(c("beta")))
 names(mdrws$beta) <- colnames(mdat$X)
 mdrws$Ccon <- attr(mdat$X, "contrasts")$randC %**% mdrws$beta[2]
 mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
+mdrws$compare <- c("Intermediate vs standard" = exp(mdrws$Ctrt[1]))
 mdrws$OR <- c(
   setNames(exp(mdrws$Ctrt), c("Intermediate")),
   setNames(exp(mdrws$beta[-(1:2)]), c("Age 60+", "Australia/New Zealand", "Nepal"))
@@ -536,6 +552,13 @@ save_tex_table(
   odds_ratio_summary_table(mdrws$OR, "latex"),
   "outcomes/secondary/7-6-primary-model-acs-itt-concurrent-intermediate-summary-table")
 odds_ratio_summary_table(mdrws$OR)
+```
+
+```{r}
+#| code-summary: Posterior contrast
+#| tbl-cap: Posterior densities for treatment comparisons, ACS-ITT-intermediate
+p <- plot_or_densities(mdrws$compare)
+p
 ```
 
 :::{.callout-caution collapse="true"}
@@ -586,6 +609,9 @@ mdrws <- as_draws_rvars(mfit$draws(c("beta")))
 names(mdrws$beta) <- colnames(mdat$X)
 mdrws$Ccon <- attr(mdat$X, "contrasts")$randC %**% mdrws$beta[2:3]
 mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
+mdrws$compare <- c("Intermediate vs standard" = exp(mdrws$Ctrt[1]),
+                   "Standard plus aspirin vs standard" = exp(mdrws$Ctrt[2]),
+                   "Intermediate vs standard plus aspirin" = exp(mdrws$Ctrt[1] - mdrws$Ctrt[2]))
 mdrws$OR <- c(
   setNames(exp(mdrws$Ctrt), c("Intermediate", "Standard plus aspirin")),
   setNames(exp(mdrws$beta[-(1:3)]), c("Age 60+", "Australia/New Zealand"))
@@ -599,6 +625,13 @@ save_tex_table(
   odds_ratio_summary_table(mdrws$OR, "latex"),
   "outcomes/secondary/7-6-primary-model-acs-itt-concurrent-stdaspirin-summary-table")
 odds_ratio_summary_table(mdrws$OR)
+```
+
+```{r}
+#| code-summary: Posterior contrast
+#| tbl-cap: Posterior densities for treatment comparisons, ACS-ITT-aspirin
+p <- plot_or_densities(mdrws$compare)
+p
 ```
 
 :::{.callout-caution collapse="true"}
@@ -649,6 +682,9 @@ mdrws <- as_draws_rvars(mfit$draws(c("beta")))
 names(mdrws$beta) <- colnames(mdat$X)
 mdrws$Ccon <- attr(mdat$X, "contrasts")$randC %**% mdrws$beta[2:3]
 mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
+mdrws$compare <- c("Intermediate vs standard" = exp(mdrws$Ctrt[1]),
+                   "Therapeutic vs standard" = exp(mdrws$Ctrt[2]),
+                   "Intermediate vs therapeutic" = exp(mdrws$Ctrt[1] - mdrws$Ctrt[2]))
 mdrws$OR <- c(
   setNames(exp(mdrws$Ctrt), c("Intermediate", "Therapeutic")),
   setNames(exp(mdrws$beta[-(1:3)]), c("Age 60+", "India", "Australia/New Zealand"))
@@ -662,6 +698,13 @@ save_tex_table(
   odds_ratio_summary_table(mdrws$OR, "latex"),
   "outcomes/secondary/7-6-primary-model-acs-itt-concurrent-therapeutic-summary-table")
 odds_ratio_summary_table(mdrws$OR)
+```
+
+```{r}
+#| code-summary: Posterior contrast
+#| tbl-cap: Posterior densities for treatment comparisons, ACS-ITT-therapeutic
+p <- plot_or_densities(mdrws$compare)
+p
 ```
 
 :::{.callout-caution collapse="true"}

@@ -1,5 +1,5 @@
 ---
-title: "7-3 All Cause Mortality Day 28 and Day 90"
+title: "7-3 All Cause Mortality Day 28"
 description: |
   Analyse of the all-cause mortality secondary outcome in ASCOT.
 author:
@@ -187,6 +187,7 @@ make_mortality_table <- function(dat, format = "html") {
 ```{r}
 #| code-summary: Summary table
 #| label: descriptive-table-mortality-anticoagulation
+#| tbl-cap: Summary of mortality to day 28 by anticoagulation intervention.
 save_tex_table(make_mortality_table(
       all_dat %>%
       filter_acs_itt(),
@@ -239,9 +240,9 @@ p
 ## Country
 
 ```{r}
-#| label: tbl-country-po
+#| label: fig-country-7-3
 #| code-summary: Relationship country to outcome
-#| tbl-cap: Primary outcome by country.
+#| fig-cap: Mortality by country.
 tdat <- all_dat %>%
   filter_acs_itt() %>%
   dplyr::count(Country = fct_infreq(PT_CountryName), D28_death) %>%
@@ -272,9 +273,9 @@ p
 ## Site
 
 ```{r}
-#| label: tbl-site-7-3
+#| label: fig-site-7-3
 #| code-summary: Relationship site to outcome
-#| tbl-cap: Day 28 mortality by site within country.
+#| fig-cap: Day 28 mortality by site within country.
 tdat <- all_dat %>%
   filter_acs_itt() %>%
   dplyr::count(
@@ -384,6 +385,14 @@ mdrws$Acon <- attr(mdat$X, "contrasts")$randA %**% mdrws$beta[grepl("randA[0-9]"
 mdrws$Ccon <- attr(mdat$X, "contrasts")$randC %**% mdrws$beta[grepl("randC[0-9]", names(mdrws$beta))]
 mdrws$Atrt <- mdrws$Acon[-1] - mdrws$Acon[1]
 mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
+mdrws$compare <- c(
+  "Intermediate vs standard" = exp(mdrws$Ctrt[1]),
+  "Standard plus aspirin vs standard" = exp(mdrws$Ctrt[2]),
+  "Therapeutic vs standard" = exp(mdrws$Ctrt[3]),
+  "Intermediate vs standard plus aspirin" = exp(mdrws$Ctrt[1] - mdrws$Ctrt[2]),
+  "Intermediate vs therapeutic" = exp(mdrws$Ctrt[1] - mdrws$Ctrt[3]),
+  "Standard plus aspirin vs therapeutic" = exp(mdrws$Ctrt[2] - mdrws$Ctrt[3])
+)
 mdrws$OR <- c(
   setNames(exp(mdrws$Ctrt), c("Intermediate", "Standard plus aspirin", "Therapeutic")),
   setNames(exp(mdrws$beta[7:8]), c("Ineligible aspirin", "Age 60+")),
@@ -411,6 +420,12 @@ p <- plot_epoch_site_terms(
 pth <- file.path(
   "outputs", "figures", "outcomes", "secondary", "7-3-primary-model-epoch-site-terms.pdf")
 ggsave(pth, p, width = 6, height = 4.5)
+p
+```
+
+```{r}
+#| fig-cap: Posterior densities for treatment comparisons.
+p <- plot_or_densities(mdrws$compare)
 p
 ```
 
@@ -703,6 +718,7 @@ mdrws <- as_draws_rvars(mfit$draws(c("beta")))
 names(mdrws$beta) <- colnames(mdat$X)
 mdrws$Ccon <- attr(mdat$X, "contrasts")$randC %**% mdrws$beta[2]
 mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
+mdrws$compare <- c("Intermediate vs standard" = exp(mdrws$Ctrt[1]))
 mdrws$OR <- c(
   setNames(exp(mdrws$Ctrt), c("Intermediate")),
   setNames(exp(mdrws$beta[-(1:2)]), c("Age 60+", "Australia/New Zealand", "Nepal"))
@@ -716,6 +732,13 @@ save_tex_table(
   odds_ratio_summary_table(mdrws$OR, "latex"),
   "outcomes/secondary/7-3-primary-model-acs-itt-concurrent-intermediate-summary-table")
 odds_ratio_summary_table(mdrws$OR)
+```
+
+```{r}
+#| code-summary: Posterior contrast
+#| tbl-cap: Posterior densities for treatment comparisons, ACS-ITT-intermediate
+p <- plot_or_densities(mdrws$compare)
+p
 ```
 
 :::{.callout-caution collapse="true"}
@@ -766,6 +789,9 @@ mdrws <- as_draws_rvars(mfit$draws(c("beta")))
 names(mdrws$beta) <- colnames(mdat$X)
 mdrws$Ccon <- attr(mdat$X, "contrasts")$randC %**% mdrws$beta[2:3]
 mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
+mdrws$compare <- c("Intermediate vs standard" = exp(mdrws$Ctrt[1]),
+                   "Standard plus aspirin vs standard" = exp(mdrws$Ctrt[2]),
+                   "Intermediate vs standard plus aspirin" = exp(mdrws$Ctrt[1] - mdrws$Ctrt[2]))
 mdrws$OR <- c(
   setNames(exp(mdrws$Ctrt), c("Intermediate", "Standard plus aspirin")),
   setNames(exp(mdrws$beta[-(1:3)]), c("Age 60+", "Australia/New Zealand"))
@@ -779,6 +805,13 @@ save_tex_table(
   odds_ratio_summary_table(mdrws$OR, "latex"),
   "outcomes/secondary/7-3-primary-model-acs-itt-concurrent-stdaspirin-summary-table")
 odds_ratio_summary_table(mdrws$OR)
+```
+
+```{r}
+#| code-summary: Posterior contrast
+#| tbl-cap: Posterior densities for treatment comparisons, ACS-ITT-aspirin
+p <- plot_or_densities(mdrws$compare)
+p
 ```
 
 :::{.callout-caution collapse="true"}
@@ -829,6 +862,9 @@ mdrws <- as_draws_rvars(mfit$draws(c("beta")))
 names(mdrws$beta) <- colnames(mdat$X)
 mdrws$Ccon <- attr(mdat$X, "contrasts")$randC %**% mdrws$beta[2:3]
 mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
+mdrws$compare <- c("Intermediate vs standard" = exp(mdrws$Ctrt[1]),
+                   "Therapeutic vs standard" = exp(mdrws$Ctrt[2]),
+                   "Intermediate vs therapeutic" = exp(mdrws$Ctrt[1] - mdrws$Ctrt[2]))
 mdrws$OR <- c(
   setNames(exp(mdrws$Ctrt), c("Intermediate", "Therapeutic")),
   setNames(exp(mdrws$beta[-(1:3)]), c("Age 60+", "India", "Australia/New Zealand"))
@@ -844,6 +880,12 @@ save_tex_table(
 odds_ratio_summary_table(mdrws$OR)
 ```
 
+```{r}
+#| code-summary: Posterior contrast
+#| tbl-cap: Posterior densities for treatment comparisons, ACS-ITT-therapeutic
+p <- plot_or_densities(mdrws$compare)
+p
+```
 :::{.callout-caution collapse="true"}
 #### Diagnostics
 ```{r}
