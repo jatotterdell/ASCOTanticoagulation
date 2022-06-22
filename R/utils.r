@@ -317,6 +317,7 @@ transmute_model_cols_grp_aus_nz <- function(dat) {
       randA = factor(AAssignment, levels = c("A1", "A2")),
       randC = factor(CAssignment, levels = c("C1", "C2", "C3", "C4")),
       PO,
+      out_sob,
       AgeAtEntry,
       aspirin = if_else(BAS_PatientTakingAspirin == "Yes", 1, 0),
       weight = BAS_Weight,

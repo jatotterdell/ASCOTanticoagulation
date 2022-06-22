@@ -1,8 +1,12 @@
 ---
-title: "Shortness of breath at day 28 and day 90"
+title: "7-6 Shortness of breath"
 description: |
-  Analyse of the shortness of breath secondary outcome (7.6) in ASCOT.
-author: "Robert Mahar"
+ Patient reported shortness of breath to day 28.
+author:
+  - name: Rob Mahar
+    affiliation: University of Melbourne
+  - name: James Totterdell
+    affiliation: University of Sydney
 date: last-modified
 ---
 
@@ -27,43 +31,227 @@ library(matrixStats)
 devtools::load_all()
 all_dat <- read_all_no_daily()
 
-# Full analysis set (intention-to-treat, including missing)
-fas_itt_dat <- all_dat %>% 
-  filter_fas_itt() %>%
-  transmute_model_cols() %>% 
-  left_join(all_dat %>% select(StudyPatientID, D28_BreathSinceGettingCovid), by = "StudyPatientID")
-
-# Full analysis set (intention-to-treat, excluding missing)
-fas_itt_nona_dat <- fas_itt_dat %>% 
-  filter(!is.na(D28_BreathSinceGettingCovid)) 
-
 # Anticoagulation set (intention-to-treat, including missing)
 acs_itt_dat <- all_dat %>% 
   filter_acs_itt() %>%
-  transmute_model_cols() %>% 
-  left_join(all_dat %>% select(StudyPatientID, D28_BreathSinceGettingCovid), by = "StudyPatientID")
+  transmute_model_cols_grp_aus_nz()
 
 # Anticoagulation set (intention-to-treat, excluding missing)
 acs_itt_nona_dat <- acs_itt_dat %>% 
-  filter(!is.na(D28_BreathSinceGettingCovid))  
+  filter(!is.na(out_sob))  
 ```
-
-# Data checking
 
 ```{r}
-
-with(acs_itt_nona_dat, table(D28_BreathSinceGettingCovid, CAssignment))
-unknowns <- all_dat %>% filter(D28_BreathSinceGettingCovid == "Unknown")
-
-# Remove patients with missing outcomes.
-acs_itt_nona_dat <- acs_itt_nona_dat[-which(acs_itt_nona_dat[["D28_BreathSinceGettingCovid"]] == "Unknown"),]
-
-# Check replace worked
-with(acs_itt_nona_dat, table(D28_BreathSinceGettingCovid))
-
+make_summary_table <- function(dat, format = "html") {
+  tab <- dat %>%
+    mutate(CAssignment = factor(
+      CAssignment, 
+      levels = c("C1", "C2", "C3", "C4"),
+      labels = str_replace(intervention_labels()$CAssignment[-1], "<br>", " "))) %>%
+    group_by(CAssignment) %>%
+    summarise(
+      Patients = n(),
+      Known = sprintf(
+        "%i (%.1f)", sum(!is.na(out_sob)), 100 * mean(!is.na(out_sob))),
+      Missing = sprintf(
+        "%i (%.1f)", sum(is.na(out_sob)), 100 * mean(is.na(out_sob))),
+      `Shortness of breath day 28` = sprintf(
+        "%i (%.1f)", sum(out_sob, na.rm = TRUE), 100 * mean(out_sob, na.rm = TRUE)),
+    ) %>%
+    bind_rows(
+      dat  %>%
+        group_by(CAssignment = "Overall") %>%
+        summarise(
+          Patients = n(),
+          Known = sprintf(
+            "%i (%.1f)", sum(!is.na(out_sob)), 100 * mean(!is.na(out_sob))),
+          Missing = sprintf(
+            "%i (%.1f)", sum(is.na(out_sob)), 100 * mean(is.na(out_sob))),
+          `Shortness of breath day 28` = sprintf(
+            "%i (%.1f)", sum(out_sob, na.rm = TRUE), 100 * mean(out_sob, na.rm = TRUE)),
+      )
+    ) %>%
+    mutate(CAssignment = fct_inorder(CAssignment)) %>%
+    gather(key, value, -CAssignment, factor_key = T) %>%
+    spread(key, value)
+  colnames(tab)[1] <- "n (\\%)"
+  if(format == "latex") {
+    colnames(tab) <- linebreak(colnames(tab), align = "c", linebreaker = "<br>")
+  }
+    kable(tab,
+      format = format,
+      align = "lrrrrr",
+      escape = FALSE,
+      booktabs = TRUE
+    ) %>%
+    kable_styling(font_size = 10, latex_options = "HOLD_position")  %>%
+    row_spec(nrow(tab), bold = TRUE)
+}
 ```
 
 
+# Descriptive
+
+## Anticoagulation
+
+```{r}
+save_tex_table(
+  make_summary_table(acs_itt_dat, "latex"),
+  "outcomes/secondary/7-6-anticoagulation-summary")
+make_summary_table(acs_itt_dat)
+```
+
+## Age
+
+```{r}
+#| label: fig-age-sob
+#| code-summary: Relationship age to shortness of breath
+#| fig-cap: |
+#|   Relationship (logistic regression linear in age) 
+#|   between age at entry and shortness of breath at day 28.
+agedat <- acs_itt_dat %>%
+  dplyr::count(out_sob, AgeAtEntry) %>% 
+  spread(out_sob, n, fill = 0) %>% 
+  mutate(
+    n = `0` + `1` + `<NA>`,
+    p = `1` / (`1` + `0`))
+agemod <- glm(
+  cbind(`1`, `0`) ~ AgeAtEntry, 
+  data = agedat, 
+  family = binomial())
+agedat <- agedat %>%
+  mutate(
+    ypred = predict(agemod, newdata = agedat, type = "response")
+  )
+p1 <- ggplot(agedat, aes(AgeAtEntry, n)) +
+  geom_col(colour = "grey40", fill = "grey40") +
+  geom_vline(xintercept = 60, linetype = 2) +
+  labs(y = "Number of\nparticipants",
+       x = "Age at entry")
+p2 <- ggplot(agedat, aes(AgeAtEntry, p)) +
+    geom_point() +
+    geom_vline(xintercept = 60, linetype = 2) +
+    geom_line(aes(y = ypred)) +
+    labs(y = "Proportion\nshortness of breath\nday 28", x = "Age at entry")
+p <- p1 | p2
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-6-age.pdf"), p, height = 2, width = 6)
+p
+```
+
+## Country
+
+```{r}
+#| label: tbl-country-sob
+#| code-summary: Relationship country to outcome
+#| tbl-cap: Shortness of breath by country.
+tdat <- acs_itt_dat %>%
+  dplyr::count(Country = factor(
+    country, 
+    levels = c("IN", "AU", "NP", "NZ"),
+    labels = c("India", "Australia", "Nepal", "New\nZealand")), out_sob) %>%
+  group_by(Country) %>%
+  spread(out_sob, n, fill = 0) %>%
+  mutate(
+    n = `1` + `0` + `<NA>`,
+    p_1 = `1` / (`1` + `0`),
+    p_miss = `<NA>` / (`1` + `0` + `<NA>`)
+  )
+p1 <- ggplot(tdat, aes(Country, n)) +
+  geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "Country of enrolment")
+p2 <- ggplot(tdat, aes(Country, p_1)) +
+  geom_point() +
+    labs(
+      y = "Proportion\nshortness of breath\nday 28", 
+      x = "Country of enrolment")  +
+  ylim(0, NA)
+p <- p1 | p2
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-6-country.pdf"), p, height = 2, width = 6)
+p
+```
+
+## Site
+
+```{r}
+#| label: tbl-site-7-6
+#| code-summary: Relationship site to outcome
+#| tbl-cap: Shortness of breath at day 28 by site within country.
+tdat <- all_dat %>%
+  filter_acs_itt() %>%
+  dplyr::count(
+    Country_lab = Country,
+    Site_lab = fct_infreq(Location),
+    Country = factor(PT_CountryName, levels = c("India", "Australia", "Nepal", "New Zealand")),
+    Site = PT_LocationName,
+    out_sob) %>%
+  group_by(Country, Site) %>%
+  spread(out_sob, n, fill = 0) %>%
+  mutate(
+    n = `1` + `0` + `<NA>`,
+    p_1 = `1` / (`1` + `0`),
+    p_miss = `<NA>` / (`1` + `0` + `<NA>`)
+  ) %>%
+  ungroup()
+
+p1 <- ggplot(tdat, aes(Site_lab, n)) +
+  facet_grid( ~ Country, scales = "free_x", space = "free_x") +
+  geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.border = element_rect(fill = NA))
+p2 <- ggplot(tdat, aes(Site_lab, p_1)) +
+  facet_grid( ~ Country, scales = "free_x", space = "free_x") +
+  geom_point() +
+    labs(
+      y = "Proportion\nshortness of breath\nday 28", 
+      x = "Site of enrolment") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        panel.border = element_rect(fill = NA))
+p <- p1 / p2
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-6-country-site.pdf"), p, height = 4, width = 6.25)
+p
+```
+
+## Calendar Time
+
+```{r}
+#| label: fig-cal-po
+#| code-summary: Relationship calendar date to outcome
+#| fig-cap: |
+#|   Relationship between calendar date and the primary outcome.
+caldat <- all_dat %>% 
+  filter_acs_itt() %>%
+  dplyr::count(out_sob, yr = year(RandDate), mth = month(RandDate)) %>% 
+  spread(out_sob, n, fill = 0) %>% 
+  mutate(p = `1` / (`1` + `0`),
+         n = `1` + `0` + `<NA>`)
+p1 <- ggplot(caldat, aes(mth, p)) +
+  facet_grid( ~ yr, drop = T, scales = "free_x", space = "free") +
+    geom_point() +
+    labs(
+      y = "Proportion\nshortness of breath\nday 28", 
+      x = "Calendar date (month of year)") +
+  scale_x_continuous(breaks = 1:12) +
+  ylim(0, NA)
+p2 <- ggplot(caldat, aes(mth, n)) +
+  facet_grid( ~ yr, drop = T, scales = "free_x", space = "free") +
+    geom_col() +
+    labs(
+      y = "Number of\nparticipants", 
+      x = "Calendar date (month of year)") +
+  scale_x_continuous(breaks = 1:12)
+p <- p2 | p1
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "7-6-calendar-time.pdf"), p, height = 2, width = 6)
+p
+```
 
 # Modelling
 
