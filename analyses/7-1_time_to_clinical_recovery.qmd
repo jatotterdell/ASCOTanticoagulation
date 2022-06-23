@@ -49,7 +49,7 @@ all_dat <- read_all_no_daily()
 
 acs_itt_dat <- all_dat %>% 
   filter_acs_itt() %>%
-  transmute_model_cols() %>%
+  transmute_model_cols_grp_aus_nz() %>%
   left_join(
     all_dat %>% 
       select(
@@ -64,14 +64,30 @@ ttr_seq <- expand_grid(
   StudyPatientID = unique(acs_itt_nona_dat$StudyPatientID),
   time = 1:28)
 acs_itt_outdat <- acs_itt_nona_dat %>%
-  select(StudyPatientID, out_rec, out_ttr, CAssignment, AAssignment, agegte60) %>%
+  select(
+    StudyPatientID, 
+    out_rec, 
+    out_ttr, 
+    CAssignment, 
+    randC,
+    AAssignment, 
+    randA,
+    inelgc3,
+    agegte60,
+    ctry,
+    ctry_num,
+    country,
+    site,
+    site_num,
+    epoch,
+    epoch_lab) %>%
   left_join(ttr_seq, by = "StudyPatientID") %>%
   filter(time <= out_ttr) %>%
   mutate(
     y = if_else(out_ttr == time, out_rec, 0),
-    y0 = if_else(out_ttr > time | out_ttr == time & out_rec == 0, 1, 0),
-    y1 = if_else(out_ttr == time & out_rec == 1, 1, 0),
-    y2 = if_else(out_ttr == time & out_rec == 2, 1, 0)
+    y0 = if_else(out_ttr > time | out_ttr == time & out_rec == 0, 1, 0), # Not recovered or died
+    y1 = if_else(out_ttr == time & out_rec == 1, 1, 0), # Recovered
+    y2 = if_else(out_ttr == time & out_rec == 2, 1, 0)  # Died
   )
 acs_itt_outdat_agg <- acs_itt_outdat %>%
   complete(CAssignment, time, fill = list(y = 0)) %>%
@@ -88,6 +104,40 @@ acs_itt_outdat_agg <- acs_itt_outdat %>%
     CAssignment, labels = str_replace(intervention_labels()$CAssignment[-1], "<br>", " ")))
 ```
 
+
+```{r}
+#| label: helpers
+
+make_ttr_summary <- function(dat, format = "html") {
+  tdat <- dat %>%
+    group_by(
+      Intervention = 
+        factor(CAssignment, 
+               labels = c("Standard", "Intermediate", 
+                          "Standard plus aspirin", "Therapeutic"))) %>%
+    summarise(
+      Randomised = n(),
+      Known = sum(!is.na(out_ttr)),
+      Died = sprintf("%i (%.1f)", sum(out_rec == 2), 100 * mean(out_rec == 2)),
+      Recovered = sprintf("%i (%.1f)", sum(out_rec == 1), 100 * mean(out_rec == 1)),
+      Unrecovered = sprintf("%i (%.1f)", sum(out_rec == 0), 100 * mean(out_rec == 0)),
+      `TTR, Median (Q1, Q3)` = sprintf(
+        "%i (%.2f, %.2f)",
+        median(out_ttr[out_rec == 1]),
+        quantile(out_ttr[out_rec == 1], 0.25),
+        quantile(out_ttr[out_rec == 1], 0.75)
+      )
+    ) 
+  kable(
+    tdat,
+    format = format,
+    align = "lrrrrr",
+    booktabs = TRUE) %>%
+    kable_styling(font_size = 9)
+}
+```
+
+
 # Derivation
 
 Time to clinical recovery is taken as the first day from the index admission at which the patient had a WHO outcome score of 3 or less. If a participant died before recovery, then they are treated as censored at the day of death. No allowance is made for participants who recovered but then subsequently died (i.e. they are just counted as recovered on the relevant day). If recovery and death reportedly occurred on the same day (e.g. daily status WHO scale < 4 but discharge outcome of death on same day), then the patient is considered to have not recovered. For participants whose WHO outcome score was greater than 3 on the day of discharge, their day of recovery was counted as the first day after discharge.
@@ -95,6 +145,14 @@ Time to clinical recovery is taken as the first day from the index admission at 
 **Question: Should probably set this up with death as competing risk, i.e. cause specific hazard time to first of death or recovery with censoring at 28 days.**
 
 # Descriptive
+
+## Time to recovery
+
+```{r}
+#| tbl-cap: Summary of time to recovery to day 28 by anticoagulation intervention.
+make_ttr_summary(acs_itt_dat)
+```
+
 
 ```{r}
 #| label: fig-ttr-dist
@@ -118,7 +176,10 @@ acs_itt_nona_dat %>%
 p <- acs_itt_outdat_agg %>% 
   select(-y1, -y2, -cy1, -cy2) %>% 
   pivot_longer(cp1:cpn) %>% 
-  mutate(name = factor(name, levels = c("cp1", "cp2", "cpn"), labels = c("Recovered", "Died", "Not recovered"))) %>%
+  mutate(name = factor(
+    name, 
+    levels = c("cp1", "cp2", "cpn"), 
+    labels = c("Recovered", "Died", "Not recovered"))) %>%
   ggplot(., aes(time, value, fill = name, colour = name)) + 
   facet_wrap(~CAssignment) + 
   geom_col(width = 1) +
@@ -127,11 +188,86 @@ p <- acs_itt_outdat_agg %>%
   scale_x_continuous(breaks = c(1, 7, 14, 21, 28)) +
   labs(x = "Study day", y = "Cumulative proportion", fill = "Status", colour = "Status") +
   theme(panel.grid.minor = element_blank())
-```
-
-```{r}
 path <- file.path("outputs", "figures", "outcomes")
 ggsave(file.path(path, "outcome-7-1-descriptive.pdf"), p, height = 3, width = 6)
+p
+```
+
+## Country
+
+```{r}
+#| label: fig-rec-prog-anticoagulation
+#| fig-cap: |
+#|   Progression to recovery by anticoagulation intervention.
+tmp_agg <- acs_itt_outdat %>%
+  complete(country, time, fill = list(y = 0)) %>%
+  group_by(country, time) %>%
+  summarise(n = n(), y1 = sum(y == 1), y2 = sum(y == 2), .groups = "drop") %>%
+  group_by(country) %>%
+  mutate(cy1 = cumsum(y1), 
+         cp1 = cy1 / n[1],
+         cy2 = cumsum(y2),
+         cp2 = cy2 / n[1],
+         cpn = (n[1] - cy1 - cy2) / n[1]) %>%
+  ungroup() %>%
+  mutate(country = factor(country, levels = c("IN", "AU", "NP", "NZ"),
+                          labels = c("India", "Australia", "Nepal", "New Zealand")))
+p <- tmp_agg %>% 
+  select(-y1, -y2, -cy1, -cy2) %>% 
+  pivot_longer(cp1:cpn) %>% 
+  mutate(name = factor(
+    name, 
+    levels = c("cp1", "cp2", "cpn"), 
+    labels = c("Recovered", "Died", "Not recovered"))) %>%
+  ggplot(., aes(time, value, fill = name, colour = name)) + 
+  facet_wrap(~country) + 
+  geom_col(width = 1) +
+  scale_fill_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_colour_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_x_continuous(breaks = c(1, 7, 14, 21, 28)) +
+  labs(x = "Study day", y = "Cumulative proportion", fill = "Status", colour = "Status") +
+  theme(panel.grid.minor = element_blank())
+path <- file.path("outputs", "figures", "outcomes")
+ggsave(file.path(path, "7-1-country.pdf"), p, height = 3, width = 6)
+p
+```
+
+## Age
+
+```{r}
+#| label: fig-rec-prog-anticoagulation
+#| fig-cap: |
+#|   Progression to recovery by anticoagulation intervention.
+tmp_agg <- acs_itt_outdat %>%
+  complete(agegte60, time, fill = list(y = 0)) %>%
+  group_by(agegte60, time) %>%
+  summarise(n = n(), y1 = sum(y == 1), y2 = sum(y == 2), .groups = "drop") %>%
+  group_by(agegte60) %>%
+  mutate(cy1 = cumsum(y1), 
+         cp1 = cy1 / n[1],
+         cy2 = cumsum(y2),
+         cp2 = cy2 / n[1],
+         cpn = (n[1] - cy1 - cy2) / n[1]) %>%
+  ungroup() %>%
+  mutate(agegte60 = factor(agegte60, levels = c(0, 1), labels = c("Age < 60", "Age 60+")))
+p <- tmp_agg %>% 
+  select(-y1, -y2, -cy1, -cy2) %>% 
+  pivot_longer(cp1:cpn) %>% 
+  mutate(name = factor(
+    name, 
+    levels = c("cp1", "cp2", "cpn"), 
+    labels = c("Recovered", "Died", "Not recovered"))) %>%
+  ggplot(., aes(time, value, fill = name, colour = name)) + 
+  facet_wrap(~agegte60) + 
+  geom_col(width = 1) +
+  scale_fill_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_colour_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_x_continuous(breaks = c(1, 7, 14, 21, 28)) +
+  labs(x = "Study day", y = "Cumulative proportion", fill = "Status", colour = "Status") +
+  theme(panel.grid.minor = element_blank())
+path <- file.path("outputs", "figures", "outcomes")
+ggsave(file.path(path, "7-1-age.pdf"), p, height = 3, width = 6)
+p
 ```
 
 # Modelling
@@ -141,6 +277,9 @@ $$
 \lambda_r(t) = \frac{\exp(\alpha_{tr} + x^{\mathsf{T}}\beta_r)}{1 + \sum_{j=1}^2 \exp(\alpha_{tj} + x^{\mathsf{T}}\beta_j)}, 
 \quad r=1,2, \quad t=1,...,T
 $$
+
+
+## Reduced (anticoagulation intervention only)
 
 ```{r}
 obs_pp <- acs_itt_outdat %>% 
@@ -152,33 +291,129 @@ obs_pp <- acs_itt_outdat %>%
     p2 = s2 / (s0 + s1 + s2))
 ```
 
-
 ```{r}
-library(VGAM)
-
 mlogit <- function(x) exp(x) / (1 + rvar_sum(exp(x)))
-
-mod <- cmdstan_model("stan/time_to_event_competing_reduced.stan")
+mod <- cmdstan_model("stan/time_to_event_competing_reduced_alt.stan")
+ctr <- contr.orthonorm
+X <- make_X_design(acs_itt_outdat, ctr = ctr)
+Xm <- X[, -c(1, 5, 6)]
 sdat <- list(
   N = nrow(acs_itt_outdat),
   R = 2,
-  K = 3,
+  K = ncol(Xm),
   T = 28,
   time = acs_itt_outdat$time,
-  X = model.matrix( ~ CAssignment, data = acs_itt_outdat)[, -1],
+  X = Xm,
   y = as.matrix(acs_itt_outdat[, c("y0", "y1", "y2")])
 )
-fit <- mod$sample(data = sdat, chains = 1, iter_sampling = 500, iter_warmup = 500)
+fit <- mod$sample(
+  data = sdat, 
+  chains = 4,
+  parallel_chains = 4,
+  iter_sampling = 500, 
+  iter_warmup = 500)
 drws <- as_draws_rvars(fit$draws())
+rownames(drws$beta) <- colnames(sdat$X)
+drws$Ccon <- attr(X, "contrasts")$randC %**% drws$beta
+rownames(drws$Ccon) <- c("C1", "C2", "C3", "C4")
+drws$Ctrt <- drws$Ccon[-1, ] - drws$Ccon[1, ]
 
-pC1 <- t(do.call(cbind, apply(drws$alpha, 1, mlogit)))
-pC1 <- cbind(1 - (pC1[, 1] + pC1[, 2]), pC1)
+get_arm_specific_probs <- function(drws) {
+  haztbl <- vector("list", nrow(drws$Ccon))
+  names(haztbl) <- rownames(drws$Ccon)
+  for (k in 1:nrow(drws$Ccon)) {
+    haz <- t(do.call(cbind, apply(sweep(drws$alpha, 2, drws$Ccon[k, ], "+"), 1, mlogit)))
+    haz <- cbind(1 - (haz[, 1] + haz[, 2]), haz)
+    colnames(haz) <- c("haz0", "haz1", "haz2")
+    haztbl[[k]] <- bind_cols(time = 1:28, as_tibble(haz)) %>%
+      mutate(
+        surv = cumprod(haz0),
+        prob1 = haz1 * lag(surv, default = rvar(1)),
+        prob2 = haz2 * lag(surv, default = rvar(1)),
+        cprob1 = cumsum(prob1),
+        cprob2 = cumsum(prob2)
+      )
+  }
+  out <- bind_rows(haztbl, .id = "intervention")
+  return(out)
+}
+haz <- get_arm_specific_probs(drws)
+pdat <- haz %>% 
+  select(intervention, time, unrecovered = surv, recovered = cprob1, died = cprob2) %>%
+  pivot_longer(unrecovered:died, names_to = "event", values_to = "posterior")
+ggplot(pdat, aes(time, fill = event, colour = event)) +
+  facet_wrap( ~ intervention) +
+  geom_rect(aes(xmin = time, 
+                xmax = time + 1,
+                ymin = quantile(posterior, 0.025), 
+                ymax = quantile(posterior, 0.975)),
+              alpha = 0.25, colour = NA) +
+  geom_step(aes(y = median(posterior))) +
+  scale_fill_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_colour_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_x_continuous(breaks = c(1, 7, 14, 21, 28), limits = c(1, 28))
 
-pC4 <- t(do.call(cbind, apply(sweep(drws$alpha, 2, drws$beta[3, ], "+"), 1, mlogit)))
-pC4 <- cbind(1 - (pC4[, 1] + pC4[, 2]), pC4)
-sC4 <- cumprod(pC4[, 1])
-probC4 <- rbind(pC4[1, -1], pC4[-1, -1] * sC4[-length(sC4)]) 
-cprobC4 <- do.call(cbind, apply(probC4, 2, cumsum))
+
+as_tibble(drws$alpha, rownames = "day") %>% 
+  ggplot(., 
+         aes(xdist=V2, y = fct_inorder(day))) + 
+  stat_slabinterval()
+```
+
+## Reduced (no epoch or site)
+
+```{r}
+X <- make_X_design(acs_itt_outdat, c("inelgc3", "agegte60", "ctry"))
+Xm <- X[, -1]
+sdat <- list(
+  N = nrow(acs_itt_outdat),
+  R = 2,
+  K = ncol(Xm),
+  T = 28,
+  time = acs_itt_outdat$time,
+  X = Xm,
+  y = as.matrix(acs_itt_outdat[, c("y0", "y1", "y2")])
+)
+fit <- mod$sample(
+  data = sdat, 
+  chains = 4,
+  parallel_chains = 4,
+  iter_sampling = 500, 
+  iter_warmup = 500)
+drws <- as_draws_rvars(fit$draws())
+rownames(drws$beta) <- colnames(sdat$X)
+drws$Ccon <- attr(X, "contrasts")$randC %**% drws$beta[1:3, ]
+rownames(drws$Ccon) <- c("C1", "C2", "C3", "C4")
+drws$Ctrt <- drws$Ccon[-1, ] - drws$Ccon[1, ]
+
+haz <- get_arm_specific_probs(drws)
+pdat <- haz %>% 
+  select(intervention, time, unrecovered = surv, recovered = cprob1, died = cprob2) %>%
+  pivot_longer(unrecovered:died, names_to = "event", values_to = "posterior")
+
+ggplot(pdat, aes(time, fill = event, colour = event)) +
+  facet_wrap( ~ intervention) +
+  geom_rect(aes(xmin = time, 
+                xmax = time + 1,
+                ymin = quantile(posterior, 0.025), 
+                ymax = quantile(posterior, 0.975)),
+              alpha = 0.25, colour = NA) +
+  geom_step(aes(y = median(posterior))) +
+  scale_fill_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_colour_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_x_continuous(breaks = c(1, 7, 14, 21, 28), limits = c(1, 28))
+```
+
+## Reduced (no site)
+
+## Primary Model
+
+## Sanity Check
+
+```{r}
+#| eval: false
+#| include: false
+library(VGAM)
 
 fit0 <- vgam(
   cbind(y0, y1, y2) ~ s(time) + CAssignment, 

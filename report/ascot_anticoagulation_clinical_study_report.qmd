@@ -587,7 +587,7 @@ knitr::include_graphics(
 
 #### Sensitivity: Concurrent Randomisations
 
-In the following section, analyses are undertaken where the analysis set is restricted to participants who were randomised concurrently amongst the interventions of interest. Three sets are considered, one for each intervention. Given that the intermediate and standard dose interventions were available the entire time the anticoagulation domain was open, that analysis set is restricted to only participants randomised to one of those interventions. The other sets are determined by a patients calendar time of randomisation. Given that RAR was not activated, the epoch terms are removed from the models. Additionally, due to smaller sample sizes, site effects have been removed from the models. For the definitions of the analysis sets, refer to @sec-analysis-sets.
+In the following section, analyses are undertaken where the analysis set is restricted to participants who were randomised concurrently amongst the interventions of interest. Three sets are considered, one for each intervention. Given that the intermediate and standard dose interventions were available the entire time the anticoagulation domain was open, that analysis set is restricted to only participants randomised to one of those interventions. The other sets are determined by either a patients calendar time of randomisation or the protocol version under which they were enrolled. Given that RAR was not activated in the domain, the epoch terms are removed from these models as the intervention availability is the only factor varying the allocation probabilities. Additionally, due to smaller sample sizes, site terms and antiviral intervention terms have been dropped from the models. For the definitions of the analysis sets, refer to @sec-analysis-sets.
 
 ##### Intermediate dose
 
@@ -616,8 +616,9 @@ writeLines(tab)
 
 ##### Standard dose plus aspirin
 
--   **Analysis set**: ACS-ITT where randomisation occurred between 2021-02-08 and 2021-09-10.
--   **Model terms**: anticoagulation intervention, aspirin eligibility, age group, country.
+-   **Model**: logistic regression
+-   **Terms**: anticoagulation intervention, age group, country
+-   **Set**: ACS-ITT-aspirin
 
 A summary of the number of participants randomised and the number meeting the primary outcome are reported in @tbl-primary-composite-acs-itt-c3-summary, noting that 35 participants were ineligible for the standard dose plus aspirin intervention. The model parameter summaries are reported in @tbl-primary-model-acs-itt-c3-summary.
 
@@ -642,8 +643,9 @@ writeLines(tab)
 
 ##### Therapeutic dose
 
--   **Analysis set**: ACS-ITT where randomisation occurred between 2021-10-14 and 2022-04-08.
--   **Model terms**: anticoagulation intervention, age group, country.
+- **Model**: logistic regression
+- **Terms**: anticoagulation intervention, age group, country
+- **Set**: ACS-ITT-therapeutic
 
 ```{r}
 #| label: tbl-primary-composite-acs-itt-c4-summary
@@ -752,17 +754,11 @@ The following sections report on other post-hoc analyses which were undertaken, 
 
 #### Remove site terms
 
-\clearpage
-
 #### Remove epoch terms
-
-\clearpage
 
 #### Remove site and epoch terms
 
-\clearpage
-
-#### Prior Sensitivity
+#### Prior Sensitivity - Treatment Contrasts
 
 The primary analysis model encodes the prior in terms of orthonormal contrasts. As a check of prior sensitivity, the primary model was re-fit with priors specified in terms of the more usual treatment contrasts.
 
@@ -786,6 +782,8 @@ knitr::include_graphics(
   "../outputs/figures/outcomes/primary/primary-model-acs-itt-trt-ctr-epoch-site-terms.pdf"
 )
 ```
+
+#### Prior Sensitivity - Weaker priors
 
 \clearpage
 

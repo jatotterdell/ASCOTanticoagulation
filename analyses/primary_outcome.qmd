@@ -836,6 +836,15 @@ path <- file.path("outputs", "figures", "outcomes", "primary")
 ggsave(file.path(path, "outcome-calendar-time.pdf"), p, height = 2, width = 6)
 ```
 
+## Country and Calendar Time
+
+```{r}
+acs_itt_nona_dat %>% 
+  dplyr::group_by(country, epoch) %>% 
+  summarise(n = sprintf("%i/%i (%.2f)", sum(PO), n(), mean(PO))) %>% 
+  spread(country, n, fill = 0)
+```
+
 
 ## Days since symptom onset
 
