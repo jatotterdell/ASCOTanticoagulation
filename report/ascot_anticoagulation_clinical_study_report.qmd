@@ -1,6 +1,6 @@
 ---
 title: "ASCOT Anticoagulation Clinical Study Report"
-date: '2022-06-15'
+date: '2022-06-23'
 author:
   - name: James Totterdell
     affiliation: University of Sydney
@@ -789,7 +789,7 @@ knitr::include_graphics(
 
 For all secondary outcomes, the primary model (adjusting for interventions, age group, country, site, and epoch using the relevant outcome model) was fit to the ACS-ITT set. The only sensitivity analysis conducted was to repeat the analyses restricted to contemporaneous controls without the epoch term.
 
-### Time to clinical recovery
+### Time to clinical recovery to day 28
 
 ```{r}
 #| label: fig-7-1-descriptive
@@ -804,12 +804,52 @@ knitr::include_graphics(
 
 ### WHO 8-point ordinal outcome scale at day 28
 
+This section reports on the analysis of the secondary outcome: WHO outcome scale at day 28. The model is coded so that an odds ratio less than 1 implies a benefit (reduction in odds of having a higher WHO score at day 28).
+
+-   **Model**: cumulative logistic (ordinal) regression assuming proportional odds
+-   **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, region, site nested within region, and epoch.
+-   **Set**: ACS-ITT
+
+@tbl-7-2-summary presents the number of participants where the outcome was observed by the allocated anticoagulation arm. The model parameters (odds ratios) are summarised in @tbl-7-2-primary-model-acs-itt-summary for the fixed-effect terms and in @fig-7-2-primary-model-acs-itt-site-epoch-parameters for the site and epoch specific terms.
+
+```{r}
+#| label: tbl-7-2-summary
+#| tbl-cap: |
+#|   Summary of WHO scale at 28 by treatment group, ACS-ITT.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", "7-2-anticoagulation-summary.tex"))
+writeLines(tab)
+```
+
 ```{r}
 #| label: fig-7-2-descriptive
 #| fig-cap: |
-#|   Observed distribution of WHO outcome scale at day 28 by treatment group.
+#|   Observed distribution of WHO outcome scale at day 28 by treatment group, ACS-ITT.
 knitr::include_graphics(
   "../outputs/figures/outcomes/secondary/outcome-7-2-descriptive.pdf"
+)
+```
+
+```{r}
+#| label: tbl-7-2-primary-model-acs-itt-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios) 
+#|   for WHO outcome scale at day 28 primary model fit to the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", 
+                           "7-2-primary-model-acs-itt-summary-table.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-7-2-primary-model-acs-itt-site-epoch-parameters
+#| fig-cap: |
+#|   Posterior Summaries (point - median, block - 75% CrI, line - 95% CrI) 
+#|   of odds ratio for epoch and site effects on WHO outcome scale at 
+#|   day 28 for the primary model fit to the ACS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-2-primary-model-epoch-site-terms.pdf"
 )
 ```
 
@@ -817,9 +857,128 @@ knitr::include_graphics(
 
 #### Sensitivity: Concurrent Enrolments
 
+##### Intermediate dose
+
+-   **Model**: cumulative logistic (ordinal) regression assuming proportional odds
+-   **Terms**: anticoagulation intervention, age group, region
+-   **Set**: ACS-ITT-intermediate
+
+```{r}
+#| label: tbl-7-2-concurrent-intermediate-summary
+#| tbl-cap: |
+#|   Summary of WHO outcome scale at day 28 by treatment group, ACS-ITT-intermediate.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", 
+  "7-2-anticoagulation-concurrent-intermediate-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-7-2-descriptive-concurrent-intermediate
+#| fig-cap: |
+#|   Observed distribution of WHO outcome scale at day 28 by treatment group,
+#|   ACS-ITT-intermediate.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-2-descriptive-concurrent-intermediate.pdf"
+)
+```
+
+```{r}
+#| label: tbl-7-2-concurrent-intermediate-model-summary
+#| tbl-cap: |
+#|   Summary of model posterior odds ratios for 
+#|   WHO outcome scale at day 28 by treatment group, ACS-ITT-intermediate.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", 
+  "7-2-primary-model-acs-itt-concurrent-intermediate-summary-table.tex"))
+writeLines(tab)
+```
+
+##### Standard dose plus aspirin
+
+-   **Model**: cumulative logistic (ordinal) regression assuming proportional odds
+-   **Terms**: anticoagulation intervention, age group, region
+-   **Set**: ACS-ITT-aspirin
+
+```{r}
+#| label: tbl-7-2-concurrent-stdaspirin-summary
+#| tbl-cap: |
+#|   Summary of WHO outcome scale at day 28 by treatment group, ACS-ITT-aspirin.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", 
+  "7-2-anticoagulation-concurrent-stdaspirin-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-7-2-descriptive-concurrent-stdaspirin
+#| fig-cap: |
+#|   Observed distribution of WHO outcome scale at day 28 by treatment group,
+#|   ACS-ITT-aspirin.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-2-descriptive-concurrent-stdaspirin.pdf"
+)
+```
+
+```{r}
+#| label: tbl-7-2-concurrent-stdaspirin-model-summary
+#| tbl-cap: |
+#|   Summary of model posterior odds ratios for 
+#|   WHO outcome scale at day 28 by treatment group, ACS-ITT-aspirin.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", 
+  "7-2-primary-model-acs-itt-concurrent-stdaspirin-summary-table.tex"))
+writeLines(tab)
+```
+
+##### Therapeutic dose
+
+-   **Model**: cumulative logistic (ordinal) regression assuming proportional odds
+-   **Terms**: anticoagulation intervention, age group, region
+-   **Set**: ACS-ITT-therapeutic
+
+*Note: the reference region was switched to Nepal for this model due to small numbers in India.*
+
+```{r}
+#| label: tbl-7-2-concurrent-therapeutic-summary
+#| tbl-cap: |
+#|   Summary of WHO outcome scale at day 28 by treatment group, ACS-ITT-therapeutic.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", 
+  "7-2-anticoagulation-concurrent-therapeutic-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-7-2-descriptive-concurrent-therapeutic
+#| fig-cap: |
+#|   Observed distribution of WHO outcome scale at day 28 by treatment group,
+#|   ACS-ITT-therapeutic.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-2-descriptive-concurrent-therapeutic.pdf"
+)
+```
+
+```{r}
+#| label: tbl-7-2-concurrent-therapeutic-model-summary
+#| tbl-cap: |
+#|   Summary of model posterior odds ratios for 
+#|   WHO outcome scale at day 28 by treatment group, ACS-ITT-therapeutic.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", 
+  "7-2-primary-model-acs-itt-concurrent-therapeutic-summary-table.tex"))
+writeLines(tab)
+```
+
 \clearpage
 
-### All-cause mortality
+### All-cause mortality to day 28
 
 This section reports on the analysis of the secondary outcome: all-cause mortality to day 28. For this outcome, participants who died within 28 days were coded to have a value of 1, and those who did not, to have a value of 0. The model is coded so that an odds ratio less than 1 implies a benefit (reduction in odds of death by day 28).
 
@@ -834,7 +993,7 @@ The proportion who had died by day 28 was 3.3% (50 / 1530) amongst all randomise
 ```{r}
 #| label: tbl-7-3-summary
 #| tbl-cap: |
-#|   Summary of mortality by day 28 by treatment group.
+#|   Summary of mortality by day 28 by treatment group, ACS-ITT.
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "secondary", "anticoagulation-summary-mortality.tex"))
@@ -875,7 +1034,7 @@ knitr::include_graphics(
 ```{r}
 #| label: tbl-7-3-concurrent-intermediate-summary
 #| tbl-cap: |
-#|   Summary of mortality to day 28 by treatment group.
+#|   Summary of mortality to day 28 by treatment group, ACS-ITT-intermediate.
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "secondary",
@@ -886,7 +1045,7 @@ writeLines(tab)
 ```{r}
 #| label: tbl-7-3-concurrent-intermediate-model-summary
 #| tbl-cap: |
-#|   Summary of posterior odds ratios for intermediate dose concurrent set.
+#|   Summary of posterior odds ratios for ACS-ITT-intermediate set.
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "secondary",
@@ -898,12 +1057,12 @@ writeLines(tab)
 
 -   **Model**: logistic regression
 -   **Terms**: anticoagulation intervention, age group, region
--   **Set**: ACS-ITT-aspirin aspirin arm
+-   **Set**: ACS-ITT-aspirin
 
 ```{r}
 #| label: tbl-7-3-concurrent-stdaspirin-summary
 #| tbl-cap: |
-#|   Summary of mortality to day 28 by treatment group.
+#|   Summary of mortality to day 28 by treatment group, ACS-ITT-aspirin.
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "secondary",
@@ -914,7 +1073,7 @@ writeLines(tab)
 ```{r}
 #| label: tbl-7-3-concurrent-stdaspirin-model-summary
 #| tbl-cap: |
-#|   Summary of posterior odds ratios for standard dose plus aspirin concurrent set.
+#|   Summary of posterior odds ratios for ACS-ITT-aspirin set.
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "secondary",
@@ -933,7 +1092,7 @@ writeLines(tab)
 ```{r}
 #| label: tbl-7-3-concurrent-therapeutic-summary
 #| tbl-cap: |
-#|   Summary of mortality to day 28 by treatment group.
+#|   Summary of mortality to day 28 by treatment group, ACS-ITT-therapeutic.
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "secondary",
@@ -944,7 +1103,7 @@ writeLines(tab)
 ```{r}
 #| label: tbl-7-3-concurrent-therapeutic-model-summary
 #| tbl-cap: |
-#|   Summary of posterior odds ratios for therapeutic dose concurrent set.
+#|   Summary of posterior odds ratios for ACS-ITT-therapeutic. set.
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "secondary",
@@ -954,7 +1113,7 @@ writeLines(tab)
 
 \clearpage
 
-### Days alive and free of hospital
+### Days alive and free of hospital to day 28
 
 This section reports on the analysis of the secondary outcome: days alive and free of hospital (DAFH) to day 28. For this outcome, participants who died within 28 days were coded have have 0 DAFH. The model is coded so that an odds ratio greater than 1 implies a beneift (more days alive and free of hospital).
 
@@ -1037,7 +1196,7 @@ knitr::include_graphics(
 ```{r}
 #| label: tbl-7-4-concurrent-intermediate-summary
 #| tbl-cap: |
-#|   Summary of days alive and free of hospital to day 28 by treatment group.
+#|   Summary of days alive and free of hospital to day 28 by treatment group, ACS-ITT-intermediate.
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "secondary", "7-4-anticoagulation-concurrent-intermediate-summary.tex"))
@@ -1047,7 +1206,8 @@ writeLines(tab)
 ```{r}
 #| label: fig-7-4-descriptive-concurrent-intermediate
 #| fig-cap: |
-#|   Observed distribution of days alive and free of hospital at day 28 by treatment group.
+#|   Observed distribution of days alive and free of hospital at day 28 by treatment group,
+#|   ACS-ITT-intermediate.
 knitr::include_graphics(
   "../outputs/figures/outcomes/secondary/outcome-7-4-descriptive-concurrent-intermediate.pdf"
 )
@@ -1056,7 +1216,7 @@ knitr::include_graphics(
 ```{r}
 #| label: tbl-7-4-concurrent-intermediate-model-summary
 #| tbl-cap: |
-#|   Summary of days alive and free of hospital to day 28 by treatment group.
+#|   Summary of days alive and free of hospital to day 28 by treatment group, ACS-ITT-intermediate.
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "secondary", "7-4-primary-model-acs-itt-concurrent-intermediate-summary-table.tex"))
@@ -1072,7 +1232,7 @@ writeLines(tab)
 ```{r}
 #| label: tbl-7-4-concurrent-stdaspirin-summary
 #| tbl-cap: |
-#|   Summary of days alive and free of hospital to day 28 by treatment group.
+#|   Summary of days alive and free of hospital to day 28 by treatment group, ACS-ITT-aspirin.
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "secondary", "7-4-anticoagulation-concurrent-stdaspirin-summary.tex"))
@@ -1082,7 +1242,8 @@ writeLines(tab)
 ```{r}
 #| label: fig-7-4-descriptive-concurrent-stdaspirin
 #| fig-cap: |
-#|   Observed distribution of days alive and free of hospital at day 28 by treatment group.
+#|   Observed distribution of days alive and free of hospital at day 28 by treatment group, 
+#|   ACS-ITT-aspirin.
 knitr::include_graphics(
   "../outputs/figures/outcomes/secondary/outcome-7-4-descriptive-concurrent-stdaspirin.pdf"
 )
@@ -1091,7 +1252,7 @@ knitr::include_graphics(
 ```{r}
 #| label: tbl-7-4-concurrent-stdaspirin-model-summary
 #| tbl-cap: |
-#|   Summary of days alive and free of hospital to day 28 by treatment group.
+#|   Summary of days alive and free of hospital to day 28 by treatment group, ACS-ITT-aspirin.
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "secondary", "7-4-primary-model-acs-itt-concurrent-stdaspirin-summary-table.tex"))
@@ -1109,7 +1270,7 @@ writeLines(tab)
 ```{r}
 #| label: tbl-7-4-concurrent-therapeutic-summary
 #| tbl-cap: |
-#|   Summary of days alive and free of hospital to day 28 by treatment group.
+#|   Summary of days alive and free of hospital to day 28 by treatment group, ACS-ITT-therapeutic
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "secondary", "7-4-anticoagulation-concurrent-therapeutic-summary.tex"))
@@ -1119,7 +1280,7 @@ writeLines(tab)
 ```{r}
 #| label: fig-7-4-descriptive-concurrent-therapeutic
 #| fig-cap: |
-#|   Observed distribution of days alive and free of hospital at day 28 by treatment group.
+#|   Observed distribution of days alive and free of hospital at day 28 by treatment group, ACS-ITT-therapeutic
 knitr::include_graphics(
   "../outputs/figures/outcomes/secondary/outcome-7-4-descriptive-concurrent-therapeutic.pdf"
 )
@@ -1128,7 +1289,7 @@ knitr::include_graphics(
 ```{r}
 #| label: tbl-7-4-concurrent-therapeutic-model-summary
 #| tbl-cap: |
-#|   Summary of days alive and free of hospital to day 28 by treatment group.
+#|   Summary of days alive and free of hospital to day 28 by treatment group, ACS-ITT-therapeutic
 #| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "secondary", "7-4-primary-model-acs-itt-concurrent-therapeutic-summary-table.tex"))
@@ -1137,7 +1298,7 @@ writeLines(tab)
 
 \clearpage
 
-### Days alive and free of invasive or non-invasive ventilation (DAFV)
+### Days alive and free of invasive or non-invasive ventilation to day 28
 
 This section reports on the analysis of the secondary outcome: days alive and free invasive or non-invasive ventilation (DAFV) to day 28. For this outcome, participants who died within 28 days were coded have have 0 DAFV.
 
@@ -1145,7 +1306,7 @@ This section reports on the analysis of the secondary outcome: days alive and fr
 -   **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, region, site nested within region, and epoch.
 -   **Set**: ACS-ITT
 
-@tbl-7-5-summary presents the number of participants where the outcome was observed by the allocated anticoagulation arm. The observed distribution of DAFH by arm is shown in @fig-7-5-descriptive.
+@tbl-7-5-summary presents the number of participants where the outcome was observed by the allocated anticoagulation arm. The observed distribution of DAFV by arm is shown in @fig-7-5-descriptive.
 
 ```{r}
 #| label: tbl-7-5-summary
@@ -1166,29 +1327,290 @@ knitr::include_graphics(
 )
 ```
 
+```{r}
+#| label: tbl-7-5-primary-model-acs-itt-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios) 
+#|   for days alive and free of ventilation to day 28 primary model fit to the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", 
+                           "7-5-primary-model-acs-itt-summary-table.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-7-5-primary-model-acs-itt-site-epoch-parameters
+#| fig-cap: |
+#|   Posterior Summaries (point - median, block - 75% CrI, line - 95% CrI) 
+#|   of odds ratio for epoch and site effects on days alive and free of 
+#|   ventilation to day 28 for the primary model fit to the ACS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-5-primary-model-epoch-site-terms.pdf"
+)
+```
+
+\clearpage
+
+#### Sensitivity: Concurrent Enrolments
+
+##### Intermediate dose
+
+-   **Model**: cumulative logistic (ordinal) regression assuming proportional odds
+-   **Terms**: anticoagulation intervention, age group, region
+-   **Set**: ACS-ITT-intermediate
+
+```{r}
+#| label: tbl-7-5-concurrent-intermediate-summary
+#| tbl-cap: |
+#|   Summary of days alive and free of ventilation to day 28 by treatment group, ACS-ITT-intermediate.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", "7-5-anticoagulation-concurrent-intermediate-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-7-5-descriptive-concurrent-intermediate
+#| fig-cap: |
+#|   Observed distribution of days alive and free of ventilation at day 28 by treatment group, ACS-ITT-intermediate.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-5-descriptive-concurrent-intermediate.pdf"
+)
+```
+
+```{r}
+#| label: tbl-7-5-concurrent-intermediate-model-summary
+#| tbl-cap: |
+#|   Summary of days alive and free of ventilation to day 28 by treatment group, ACS-ITT-intermediate.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", 
+  "7-5-primary-model-acs-itt-concurrent-intermediate-summary-table.tex"))
+writeLines(tab)
+```
+
+##### Standard dose plus aspirin
+
+-   **Model**: cumulative logistic (ordinal) regression assuming proportional odds
+-   **Terms**: anticoagulation intervention, age group, region
+-   **Set**: ACS-ITT-aspirin
+
+```{r}
+#| label: tbl-7-5-concurrent-stdaspirin-summary
+#| tbl-cap: |
+#|   Summary of days alive and free of ventilation to day 28 by treatment group, ACS-ITT-aspirin.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", 
+  "7-5-anticoagulation-concurrent-stdaspirin-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-7-5-descriptive-concurrent-stdaspirin
+#| fig-cap: |
+#|   Observed distribution of days alive and free of ventilation at day 28 by treatment group, ACS-ITT-aspirin.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-5-descriptive-concurrent-stdaspirin.pdf"
+)
+```
+
+```{r}
+#| label: tbl-7-5-concurrent-stdaspirin-model-summary
+#| tbl-cap: |
+#|   Summary of days alive and free of ventilation to day 28 by treatment group, ACS-ITT-aspirin.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", 
+  "7-5-primary-model-acs-itt-concurrent-stdaspirin-summary-table.tex"))
+writeLines(tab)
+```
+
+##### Therapeutic dose
+
+-   **Model**: cumulative logistic (ordinal) regression assuming proportional odds
+-   **Terms**: anticoagulation intervention, age group, region
+-   **Set**: ACS-ITT-therapeutic
+
+*Note: the reference region was switched to Nepal for this model due to small numbers in India.*
+
+```{r}
+#| label: tbl-7-5-concurrent-therapeutic-summary
+#| tbl-cap: |
+#|   Summary of days alive and free of ventilation to day 28 by treatment group, ACS-ITT-therapeutic.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", 
+  "7-5-anticoagulation-concurrent-therapeutic-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-7-5-descriptive-concurrent-therapeutic
+#| fig-cap: |
+#|   Observed distribution of days alive and free of ventilation at day 28 by treatment group, ACS-ITT-therapeutic.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-5-descriptive-concurrent-therapeutic.pdf"
+)
+```
+
+```{r}
+#| label: tbl-7-5-concurrent-therapeutic-model-summary
+#| tbl-cap: |
+#|   Summary of days alive and free of ventilation to day 28 by treatment group, ACS-ITT-therapeutic.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", 
+  "7-5-primary-model-acs-itt-concurrent-therapeutic-summary-table.tex"))
+writeLines(tab)
+```
+
+\clearpage
+
+### Presence of patient reported shortness of breath at day 28
+
+This section reports on the analysis of the secondary outcome: patient reported shortness of breath at day 28. For this outcome, participants who died within 28 days were coded to have a missing value, so this outcome reflects shortness of breath at day 28 amongst patients who survived to at least day 28. The model is coded so that an odds ratio less than 1 implies a benefit (reduction in odds of shortness of breath at day 28).
+
+- **Model**: logistic regression
+- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, region, site nested within region, and epoch.
+- **Set**: ACS-ITT
+
+@tbl-7-6-summary presents the number of participants where the outcome was observed by the allocated anticoagulation arm. The model parameters (odds ratios) are summarised in @tbl-7-6-primary-model-acs-itt-summary for the fixed-effect terms and in @fig-7-6-primary-model-acs-itt-site-epoch-parameters for the site and epoch specific terms.
+
+```{r}
+#| label: tbl-7-6-summary
+#| tbl-cap: |
+#|   Summary of patient reported shortness of breath at day 28 by treatment group.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary", "7-6-anticoagulation-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-7-6-primary-model-acs-itt-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios) 
+#|   for shortness of breath at day 28 primary model fit to the ACS-ITT set.
+#| results: asis
+tab <- readLines(
+  file.path("..", "outputs", "tables", "outcomes", "secondary", 
+            "7-6-primary-model-acs-itt-summary-table.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-7-6-primary-model-acs-itt-site-epoch-parameters
+#| fig-cap: |
+#|   Posterior Summaries (point - median, block - 75% CrI, line - 95% CrI) 
+#|   of odds ratio for epoch and site effects on day 28 shortness of breath for
+#|   the primary model fit to the ACS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-6-acs-itt-epoch-site-terms.pdf"
+)
+```
+
+\clearpage
+
+#### Sensitivity: Concurrent Enrolments
+
+##### Intermediate dose
+
+-   **Model**: logistic regression
+-   **Terms**: anticoagulation intervention, age group, region
+-   **Set**: ACS-ITT-intermediate
+
+```{r}
+#| label: tbl-7-6-concurrent-intermediate-summary
+#| tbl-cap: |
+#|   Summary of shortness of breath at day 28 by treatment group, ACS-ITT-intermediate.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary",
+  "7-6-anticoagulation-concurrent-intermediate-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-7-6-concurrent-intermediate-model-summary
+#| tbl-cap: |
+#|   Summary of posterior odds ratios, ACS-ITT-intermediate.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary",
+  "7-6-primary-model-acs-itt-concurrent-intermediate-summary-table.tex"))
+writeLines(tab)
+```
+
+##### Standard dose plus aspirin
+
+-   **Model**: logistic regression
+-   **Terms**: anticoagulation intervention, age group, region
+-   **Set**: ACS-ITT-aspirin
+
+```{r}
+#| label: tbl-7-6-concurrent-stdaspirin-summary
+#| tbl-cap: |
+#|   Summary of shortness of breath at day 28 by treatment group, ACS-ITT-aspirin.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary",
+  "7-6-anticoagulation-concurrent-stdaspirin-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-7-6-concurrent-stdaspirin-model-summary
+#| tbl-cap: |
+#|   Summary of posterior odds ratios, ACS-ITT-aspirin.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary",
+  "7-6-primary-model-acs-itt-concurrent-stdaspirin-summary-table.tex"))
+writeLines(tab)
+```
+
+##### Therapeutic dose
+
+-   **Model**: logistic regression
+-   **Terms**: anticoagulation intervention, age group, region
+-   **Set**: ACS-ITT-therapeutic
+
+*Note: the reference region was switched to Nepal for this model due to small numbers in India.*
+
+```{r}
+#| label: tbl-7-6-concurrent-therapeutic-summary
+#| tbl-cap: |
+#|   Summary of shortness of breath at day 28 by treatment group, ACS-ITT-therapeutic.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary",
+  "7-6-anticoagulation-concurrent-therapeutic-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-7-6-concurrent-therapeutic-model-summary
+#| tbl-cap: |
+#|   Summary of posterior odds ratios, ACS-ITT-therapeutic.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary",
+  "7-6-primary-model-acs-itt-concurrent-therapeutic-summary-table.tex"))
+writeLines(tab)
+```
+
+\clearpage
+
+### Modified Medical Research Council (mMRC) breathlessness scale at day 28
+
 \clearpage
 
 #### Sensitivity: Concurrent Enrolments
 
 \clearpage
 
-### Presence of patient reported outcome of shortness of breath
-
-\clearpage
-
-#### Sensitivity: Concurrent Enrolments
-
-\clearpage
-
-### Modified Medical Research Council (mMRC) breathlessness scale
-
-\clearpage
-
-#### Sensitivity: Concurrent Enrolments
-
-\clearpage
-
-### Quality of life as measured by EQ-5D-5L questionnaire
+### Quality of life as measured by EQ-5D-5L questionnaire at day 28
 
 \clearpage
 
@@ -1432,17 +1854,133 @@ knitr::include_graphics(
 
 ## Days alive and free of ventilation to day 28 by Model Covariates (ACS-ITT) {#sec-app-7-5-model-cov}
 
+```{r}
+#| label: fig-7-5-age
+#| fig-cap: |
+#|   Distribution of days alive and free of ventilation to day 28
+#|   by age groups.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-5-age.pdf"
+)
+```
+
+```{r}
+#| label: fig-7-5-country
+#| fig-cap: |
+#|   Distribution of days alive and free of ventilation to day 28
+#|   by country of randomisation.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-5-country.pdf"
+)
+```
+
+```{r}
+#| label: fig-7-5-country-site
+#| fig-cap: |
+#|   Distribution of days alive and free of ventilation to day 28
+#|   by country and site of randomisation.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-5-country-site.pdf"
+)
+```
+
+```{r}
+#| label: fig-7-5-calendar-time
+#| fig-cap: |
+#|   Distribution of days alive and free of ventilation to day 28
+#|   by calendar time (month) of randomisation.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-5-calendar-time.pdf"
+)
+```
+
 \clearpage
 
-## Posterior Predictive - Primary Model ACS-ITT
+## Presence of patient reported shortness of breath to day 28 by model covariates (ACS-ITT) {#sec-app-7-6-model-cov}
+
+```{r}
+#| label: fig-7-6-age
+#| fig-cap: |
+#|   Proportion with patient reported shortness of breath at day 28
+#|   by age groups.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-6-age.pdf"
+)
+```
+
+```{r}
+#| label: fig-7-6-country
+#| fig-cap: |
+#|   Proportion with patient reported shortness of breath at day 28
+#|   by country of randomisation.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-6-country.pdf"
+)
+```
+
+```{r}
+#| label: fig-7-6-country-site
+#| fig-cap: |
+#|   Proportion with patient reported shortness of breath at day 28
+#|   by country and site of randomisation.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-6-country-site.pdf"
+)
+```
+
+```{r}
+#| label: fig-7-6-calendar-time
+#| fig-cap: |
+#|   Proportion with patient reported shortness of breath at day 28
+#|   by calendar time (month) of randomisation.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-6-calendar-time.pdf"
+)
+```
+
+\clearpage
+
+## Posterior Predictive 
+
+### Primary Model ACS-ITT
 
 ```{r}
 #| label: fig-primary-model-acs-itt-ppc
 #| fig-cap: |
-#|   Posterior predictive distribution for primary outcome 
+#|   Posterior predictive distribution for outcome 
 #|   by model covariates for primary model using ACS-ITT.
 #|   Vertical red line indicates observed proportions.
 pth <- file.path("..", "outputs", "figures", "outcomes", "primary",
                  "primary-model-acs-itt-ppc.pdf")
+knitr::include_graphics(pth)
+```
+
+\clearpage
+
+### Mortality to day 28
+
+```{r}
+#| label: fig-7-3-primary-model-acs-itt-ppc
+#| fig-cap: |
+#|   Posterior predictive distribution for outcome 
+#|   by model covariates for primary model using ACS-ITT.
+#|   Red diamond indicates observed proportions.
+pth <- file.path("..", "outputs", "figures", "outcomes", "secondary",
+                 "7-3-primary-model-acs-itt-ppc.pdf")
+knitr::include_graphics(pth)
+```
+
+\clearpage
+
+### Shortness of Breath at day 28
+
+```{r}
+#| label: fig-7-6-primary-model-acs-itt-ppc
+#| fig-cap: |
+#|   Posterior predictive distribution for outcome 
+#|   by model covariates for primary model using ACS-ITT.
+#|   Red diamond indicates observed proportions.
+pth <- file.path("..", "outputs", "figures", "outcomes", "secondary",
+                 "7-6-primary-model-acs-itt-ppc.pdf")
 knitr::include_graphics(pth)
 ```

@@ -94,6 +94,50 @@ ordmod <- cmdstan_model("stan/logistic_cumulative_epoch_site.stan") # Full model
 #| label: helper-functions
 #| code-summary: Functions
 
+make_summary_table <- function(dat, format = "html") {
+  tdat <- dat %>%
+  group_by(CAssignment = factor(CAssignment, 
+                                levels = c("C1", "C2", "C3", "C4"),
+                                labels = intervention_labels2()$CAssignment[-1])) %>%
+  summarise(
+    Patients = n(),
+    Known = sum(!is.na(out_dafh)),
+    Deaths = sprintf("%i (%.0f%%)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
+    `DAFH, Median (Q1, Q3)` = sprintf(
+      "%.0f (%.0f, %.0f)", 
+      median(out_dafh, na.rm = T), 
+      quantile(out_dafh, 0.25, na.rm = TRUE), 
+      quantile(out_dafh, 0.75, na.rm = TRUE))
+  ) %>%
+  bind_rows(
+    dat %>%
+  group_by(CAssignment = "Overall") %>%
+  summarise(
+    Patients = n(),
+    Known = sum(!is.na(out_dafh)),
+    Deaths = sprintf("%i (%.0f%%)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
+    `DAFH, Median (Q1, Q3)` = sprintf(
+      "%.0f (%.0f, %.0f)", 
+      median(out_dafh, na.rm = T), 
+      quantile(out_dafh, 0.25, na.rm = TRUE), 
+      quantile(out_dafh, 0.75, na.rm = TRUE))
+  )
+  ) %>%
+  rename(`Anticoagulation\nintervention` = CAssignment)
+  kable(
+    tdat,
+    format = format,
+    align = "lrrrr",
+    booktabs = TRUE,
+    linesep = ""
+  ) %>%
+    kable_styling(
+      font_size = 9,
+      latex_options = "HOLD_position"
+    ) %>%
+    row_spec(nrow(tdat), bold = T)
+}
+
 # Code the design matrix such that
 # reference group are participants who
 # were not randomised to an antiviral,
@@ -247,59 +291,10 @@ p
 #| label: tbl-7-4-summary
 #| code-summary: Summary of DAFH outcome by arm
 #| tbl-cap: Summary of days alive and free of hospital to day 28 by treatment group.
-tdat <- acs_itt_dat %>%
-  group_by(CAssignment = factor(CAssignment, labels = intervention_labels2()$CAssignment[-1])) %>%
-  summarise(
-    Patients = n(),
-    Known = sum(!is.na(out_dafh)),
-    Deaths = sprintf("%i (%.0f%%)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
-    `DAFH, Median (Q1, Q3)` = sprintf(
-      "%.0f (%.0f, %.0f)", 
-      median(out_dafh, na.rm = T), 
-      quantile(out_dafh, 0.25, na.rm = TRUE), 
-      quantile(out_dafh, 0.75, na.rm = TRUE))
-  ) %>%
-  bind_rows(
-    acs_itt_dat %>%
-  group_by(CAssignment = "Overall") %>%
-  summarise(
-    Patients = n(),
-    Known = sum(!is.na(out_dafh)),
-    Deaths = sprintf("%i (%.0f%%)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
-    `DAFH, Median (Q1, Q3)` = sprintf(
-      "%.0f (%.0f, %.0f)", 
-      median(out_dafh, na.rm = T), 
-      quantile(out_dafh, 0.25, na.rm = TRUE), 
-      quantile(out_dafh, 0.75, na.rm = TRUE))
-  )
-  ) %>%
-  rename(`Anticoagulation\nintervention` = CAssignment)
-tab <- kable(
-  tdat,
-  format = "latex",
-  align = "lrrrr",
-  booktabs = TRUE,
-  linesep = ""
-) %>%
-  kable_styling(
-    font_size = 9,
-    latex_options = "HOLD_position"
-  ) %>%
-  row_spec(5, bold = T)
-save_tex_table(tab, file.path("outcomes", "secondary", "7-4-anticoagulation-summary"))
-
-kable(
-  tdat,
-  format = "html",
-  align = "lrrrr",
-  booktabs = TRUE,
-  linesep = ""
-) %>%
-  kable_styling(
-    font_size = 9,
-    latex_options = "HOLD_position"
-  ) %>%
-  row_spec(5, bold = T)
+save_tex_table(
+  make_summary_table(acs_itt_dat, "latex"), 
+  file.path("outcomes", "secondary", "7-4-anticoagulation-summary"))
+make_summary_table(acs_itt_dat)
 ```
 
 ## Age
@@ -550,11 +545,9 @@ ggplot(trt_logit, aes(out_dafh, rel_clogit)) +
 
 # Modelling
 
-## ACS-ITT
-
 The primary analysis uses the ACS-ITT set, so all participants have been randomised to the anticoagulation domain and some participants may have been randomised to the antiviral domain.
 
-### Primary Model
+## Primary Model
 
 ```{r}
 #| label: fit-model-primary
@@ -622,7 +615,25 @@ ggsave(pth, p, width = 6, height = 4.5)
 p
 ```
 
-#### Posterior Predictive
+:::{.callout-caution collapse="true"}
+##### Diagnostics
+```{r}
+res$fit$summary()
+res$fit$diagnostic_summary()
+```
+:::
+
+:::{.callout-caution collapse="true"}
+##### Trace plots
+```{r}
+mcmc_trace(res$drws["beta"])
+mcmc_trace(res$drws["alpha"])
+mcmc_trace(res$drws["gamma_site"])
+mcmc_trace(res$drws["gamma_epoch"])
+```
+:::
+
+### Posterior Predictive
 
 ```{r}
 y_raw <- as.integer(levels(res$dat$y_raw))
@@ -694,7 +705,7 @@ plot_grp_ppc_pr0 <- function(dat, lab = "") {
 }
 ```
 
-### Sensitivity: Reduced Model (No site term)
+## Sensitivity: Reduced Model (No site term)
 
 ```{r}
 #| code-summary: Fit reduced model without site term
@@ -753,7 +764,7 @@ p
 res$fit$cmdstan_diagnose()
 ```
 
-### Sensitivity: Reduced Model (No site or epoch terms)
+## Sensitivity: Reduced Model (No site or epoch terms)
 
 ```{r}
 #| code-summary: Fit reduced model (no site or epoch)
@@ -829,7 +840,7 @@ ggplot(p_df, aes(out_dafh, med)) +
   )
 ```
 
-### Sensitivity: Treatment coding
+## Sensitivity: Treatment coding
 
 The model is re-fit with priors specified on the treatment contrasts rather than the orthonormal contrasts.
 
@@ -922,11 +933,11 @@ p <- plot_epoch_site_terms(
 p
 ```
 
-### Sensitivity: Concurrent controls
+## Sensitivity: Concurrent controls
 
 Three separate analyses are conducted based on concurrent randomisations as was done for the primary outcome. For these models, the epoch term has been removed.
 
-#### Intermediate dose
+### Intermediate dose
 
 In the following analyses, the set is restricted to participants who were randomised to either standard dose or intermediate dose.
 
@@ -935,58 +946,10 @@ In the following analyses, the set is restricted to participants who were random
 
 ```{r}
 #| code-summary: Descriptive summary table
-tdat <- acs_itt_concurc2_dat  %>%
-  group_by(CAssignment = factor(CAssignment, levels = c("C1", "C2"), labels = c("Standard", "Intermediate"))) %>%
-  summarise(
-    Patients = n(),
-    Known = sum(!is.na(out_dafh)),
-    Deaths = sprintf("%i (%.0f%%)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
-    `DAFH, Median (Q1, Q3)` = sprintf(
-      "%.0f (%.0f, %.0f)", 
-      median(out_dafh, na.rm = T), 
-      quantile(out_dafh, 0.25, na.rm = TRUE), 
-      quantile(out_dafh, 0.75, na.rm = TRUE))
-  ) %>%
-  bind_rows(
-    acs_itt_concurc2_dat  %>%
-  group_by(CAssignment = "Overall") %>%
-  summarise(
-    Patients = n(),
-    Known = sum(!is.na(out_dafh)),
-    Deaths = sprintf("%i (%.0f%%)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
-    `DAFH, Median (Q1, Q3)` = sprintf(
-      "%.0f (%.0f, %.0f)", 
-      median(out_dafh, na.rm = T), 
-      quantile(out_dafh, 0.25, na.rm = TRUE), 
-      quantile(out_dafh, 0.75, na.rm = TRUE))
-  )
-  ) %>%
-  rename(`Anticoagulation\nintervention` = CAssignment)
-tab <- kable(
-  tdat,
-  format = "latex",
-  align = "lrrrr",
-  booktabs = TRUE,
-  linesep = ""
-) %>%
-  kable_styling(
-    font_size = 9,
-    latex_options = "HOLD_position"
-  ) %>%
-  row_spec(nrow(tdat), bold = T)
-save_tex_table(tab, file.path("outcomes", "secondary", "7-4-anticoagulation-concurrent-intermediate-summary"))
-
-kable(
-  tdat,
-  align = "lrrrr",
-  booktabs = TRUE,
-  linesep = ""
-) %>%
-  kable_styling(
-    font_size = 9,
-    latex_options = "HOLD_position"
-  ) %>%
-  row_spec(nrow(tdat), bold = T)
+save_tex_table(
+  make_summary_table(acs_itt_concurc2_dat, "latex"), 
+  file.path("outcomes", "secondary", "7-4-anticoagulation-concurrent-intermediate-summary"))
+make_summary_table(acs_itt_concurc2_dat)
 ```
 
 ```{r}
@@ -1078,69 +1041,33 @@ save_tex_table(
   "outcomes/secondary/7-4-primary-model-acs-itt-concurrent-intermediate-summary-table")
 ```
 
+:::{.callout-caution collapse="true"}
+#### Diagnostics
 ```{r}
-#| code-summary: Diagnostics
-mfit$cmdstan_diagnose()
+mfit$summary()
+mfit$diagnostic_summary()
 ```
+:::
 
-#### Standard dose plus aspirin
+:::{.callout-caution collapse="true"}
+#### Trace plots
+```{r}
+mcmc_trace(mdrws["beta"])
+mcmc_trace(mdrws["alpha"])
+```
+:::
+
+
+### Standard dose plus aspirin
 
 -   **Covariates**: anticoagulation intervention, age group, region of enrolment.
 
 ```{r}
 #| code-summary: Descriptive summary table
-tdat <- acs_itt_concurc3_dat %>%
-  group_by(CAssignment = factor(CAssignment, levels = c("C1", "C2", "C3"), labels = c("Standard", "Intermediate", "Standard plus aspirin"))) %>%
-  summarise(
-    Patients = n(),
-    Known = sum(!is.na(out_dafh)),
-    Deaths = sprintf("%i (%.0f%%)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
-    `DAFH, Median (Q1, Q3)` = sprintf(
-      "%.0f (%.0f, %.0f)", 
-      median(out_dafh, na.rm = T), 
-      quantile(out_dafh, 0.25, na.rm = TRUE), 
-      quantile(out_dafh, 0.75, na.rm = TRUE))
-  ) %>%
-  bind_rows(
-    acs_itt_concurc3_dat  %>%
-  group_by(CAssignment = "Overall") %>%
-  summarise(
-    Patients = n(),
-    Known = sum(!is.na(out_dafh)),
-    Deaths = sprintf("%i (%.0f%%)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
-    `DAFH, Median (Q1, Q3)` = sprintf(
-      "%.0f (%.0f, %.0f)", 
-      median(out_dafh, na.rm = T), 
-      quantile(out_dafh, 0.25, na.rm = TRUE), 
-      quantile(out_dafh, 0.75, na.rm = TRUE))
-  )
-  ) %>%
-  rename(`Anticoagulation\nintervention` = CAssignment)
-tab <- kable(
-  tdat,
-  format = "latex",
-  align = "lrrrr",
-  booktabs = TRUE,
-  linesep = ""
-) %>%
-  kable_styling(
-    font_size = 9,
-    latex_options = "HOLD_position"
-  ) %>%
-  row_spec(nrow(tdat), bold = T)
-save_tex_table(tab, file.path("outcomes", "secondary", "7-4-anticoagulation-concurrent-stdaspirin-summary"))
-
-kable(
-  tdat,
-  align = "lrrrr",
-  booktabs = TRUE,
-  linesep = ""
-) %>%
-  kable_styling(
-    font_size = 9,
-    latex_options = "HOLD_position"
-  ) %>%
-  row_spec(nrow(tdat), bold = T)
+save_tex_table(
+  make_summary_table(acs_itt_concurc3_dat, "latex"), 
+  file.path("outcomes", "secondary", "7-4-anticoagulation-concurrent-stdaspirin-summary"))
+make_summary_table(acs_itt_concurc3_dat)
 ```
 
 ```{r}
@@ -1229,69 +1156,32 @@ save_tex_table(
   "outcomes/secondary/7-4-primary-model-acs-itt-concurrent-stdaspirin-summary-table")
 ```
 
+:::{.callout-caution collapse="true"}
+#### Diagnostics
 ```{r}
-#| code-summary: Diagnostics
-mfit$cmdstan_diagnose()
+mfit$summary()
+mfit$diagnostic_summary()
 ```
+:::
 
-#### Therapeutic dose
+:::{.callout-caution collapse="true"}
+#### Trace plots
+```{r}
+mcmc_trace(mdrws["beta"])
+mcmc_trace(mdrws["alpha"])
+```
+:::
+
+### Therapeutic dose
 
 -   **Covariates**: anticoagulation intervention, age group, region of enrolment.
 
 ```{r}
 #| code-summary: Descriptive summary table
-tdat <- acs_itt_concurc4_dat %>%
-  group_by(CAssignment = factor(CAssignment, levels = c("C1", "C2", "C4"), labels = c("Standard", "Intermediate", "Therapeutic"))) %>%
-  summarise(
-    Patients = n(),
-    Known = sum(!is.na(out_dafh)),
-    Deaths = sprintf("%i (%.0f%%)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
-    `DAFH, Median (Q1, Q3)` = sprintf(
-      "%.0f (%.0f, %.0f)", 
-      median(out_dafh, na.rm = T), 
-      quantile(out_dafh, 0.25, na.rm = TRUE), 
-      quantile(out_dafh, 0.75, na.rm = TRUE))
-  ) %>%
-  bind_rows(
-    acs_itt_concurc4_dat %>%
-  group_by(CAssignment = "Overall") %>%
-  summarise(
-    Patients = n(),
-    Known = sum(!is.na(out_dafh)),
-    Deaths = sprintf("%i (%.0f%%)", sum(D28_death, na.rm = TRUE), 100 * mean(D28_death, na.rm = TRUE)),
-    `DAFH, Median (Q1, Q3)` = sprintf(
-      "%.0f (%.0f, %.0f)", 
-      median(out_dafh, na.rm = T), 
-      quantile(out_dafh, 0.25, na.rm = TRUE), 
-      quantile(out_dafh, 0.75, na.rm = TRUE))
-  )
-  ) %>%
-  rename(`Anticoagulation\nintervention` = CAssignment)
-tab <- kable(
-  tdat,
-  format = "latex",
-  align = "lrrrr",
-  booktabs = TRUE,
-  linesep = ""
-) %>%
-  kable_styling(
-    font_size = 9,
-    latex_options = "HOLD_position"
-  ) %>%
-  row_spec(nrow(tdat), bold = T)
-save_tex_table(tab, file.path("outcomes", "secondary", "7-4-anticoagulation-concurrent-therapeutic-summary"))
-
-kable(
-  tdat,
-  align = "lrrrr",
-  booktabs = TRUE,
-  linesep = ""
-) %>%
-  kable_styling(
-    font_size = 9,
-    latex_options = "HOLD_position"
-  ) %>%
-  row_spec(nrow(tdat), bold = T)
+save_tex_table(
+  make_summary_table(acs_itt_concurc4_dat, "latex"), 
+  file.path("outcomes", "secondary", "7-4-anticoagulation-concurrent-therapeutic-summary"))
+make_summary_table(acs_itt_concurc4_dat)
 ```
 
 ```{r}
@@ -1380,7 +1270,18 @@ save_tex_table(
 odds_ratio_summary_table_rev(mdrws$OR)
 ```
 
+:::{.callout-caution collapse="true"}
+#### Diagnostics
 ```{r}
-#| code-summary: Diagnostics
-mfit$cmdstan_diagnose()
+mfit$summary()
+mfit$diagnostic_summary()
 ```
+:::
+
+:::{.callout-caution collapse="true"}
+#### Trace plots
+```{r}
+mcmc_trace(mdrws["beta"])
+mcmc_trace(mdrws["alpha"])
+```
+:::

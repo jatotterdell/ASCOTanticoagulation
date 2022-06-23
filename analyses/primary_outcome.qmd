@@ -1289,7 +1289,7 @@ do.call(cbind, noepoch_acs_itt_fit$diagnostic_summary())
 #| fig-height: 4
 #| code-summary: Trace plots
 mcmc_trace(noepoch_acs_itt_fit$draws(
-  c("beta_raw", "beta_region_raw"), 
+  c("beta_raw"), 
   format = "matrix"))
 ```
 
@@ -1484,54 +1484,31 @@ mcmc_trace(mfit$draws(
 ```{r}
 #| label: primary-acs-itt-ppc
 y_ppc <- mrvs$y_ppc
-ppc_dat <- bind_cols(acs_itt_nona_dat, tibble(y_ppc = y_ppc)) %>%
-  select(
-    StudyPatientID,
-    AAssignment,
-    CAssignment, 
-    AgeAtEntry,
-    inelgc3,
-    ctry, 
-    site, 
-    epoch,
-    PO,
-    y_ppc) %>%
-  mutate(
-    mean_y_ppc = mean(y_ppc))
+ppc_dat <- bind_cols(acs_itt_nona_dat, tibble(y_ppc = y_ppc))
 
+grp_ppc <- function(grp) {
+  ppc_dat %>%
+    group_by(grp = !!grp) %>%
+    summarise(
+      mean_y = mean(PO),
+      rvar_mean_y_ppc = rvar_mean(y_ppc)
+    )
+}
 plot_grp_ppc <- function(dat, lab = "") {
   dat %>%
     ggplot(aes(y = grp, xdist = rvar_mean_y_ppc)) +
-    stat_histinterval(fatten_point = 1) +
-    geom_segment(aes(x = mean_y, 
-                     xend = mean_y,
-                     y = 1:nrow(dat),
-                     yend = 2:(nrow(dat)+1)-0.1), colour = "red") +
+    stat_interval(size = 2) +
+    geom_point(aes(x = mean_y, y = 1:nrow(dat)), colour = "red", shape = 23) +
     labs(
       x = "Posterior predictive\nproportion", 
       y = lab)  
 }
 
-ppc_C <- ppc_dat %>%
-  group_by(grp = CAssignment) %>%
-  summarise(
-    mean_y = mean(PO),
-    rvar_mean_y_ppc = rvar_mean(y_ppc)
-  )
-ppc_ctry <- ppc_dat %>%
-  group_by(grp = ctry) %>%
-  summarise(
-    mean_y = mean(PO),
-    rvar_mean_y_ppc = rvar_mean(y_ppc)
-  )
-ppc_epoch <- ppc_dat %>%
-  group_by(grp = epoch) %>%
-  summarise(
-    mean_y = mean(PO),
-    rvar_mean_y_ppc = rvar_mean(y_ppc)
-  )
+ppc_C <- grp_ppc(sym("CAssignment"))
+ppc_ctry <- grp_ppc(sym("country"))
+ppc_epoch <- grp_ppc(sym("epoch"))
 ppc_site <- ppc_dat %>%
-  group_by(Country = ctry, grp = site) %>%
+  group_by(Country = country, grp = site_raw) %>%
   summarise(
     mean_y = mean(PO),
     rvar_mean_y_ppc = rvar_mean(y_ppc)
@@ -1540,20 +1517,18 @@ ppc_site <- ppc_dat %>%
 p1 <- plot_grp_ppc(ppc_C, "Anticoagulation\nintervention") + labs(x = "")
 p2 <- plot_grp_ppc(ppc_ctry, "Country") + labs(x = "")
 p3 <- plot_grp_ppc(ppc_epoch, "Epoch") + labs(x = "")
-p4 <- plot_grp_ppc(ppc_site %>% filter(Country == "IN"), "Sites India")  + labs(x = "")
-p5 <- plot_grp_ppc(ppc_site %>% filter(Country == "AU"), "Sites Australia") + labs(x = "")
-p6 <- plot_grp_ppc(ppc_site %>% filter(Country == "NP"), "Sites Nepal")
-p7 <- plot_grp_ppc(ppc_site %>% filter(Country == "NZ"), "Sites NZ")
-```
-
-```{r}
-#| label: fig-primary-model-acs-itt-ppc-1
-p <- ((p3 | p1 / p2) / ( (p4 | p5) / (p6 | p7) + plot_layout(heights = c(2, 1)) ) ) +
-  plot_layout(heights = c(1, 1.5))
-p
+p4 <- plot_grp_ppc(ppc_site %>% filter(Country == "IN"), "Sites\nIndia")  + labs(x = "")
+p5 <- plot_grp_ppc(ppc_site %>% filter(Country == "AU"), "Sites\nAustralia") + labs(x = "")
+p6 <- plot_grp_ppc(ppc_site %>% filter(Country == "NP"), "Sites\nNepal")
+p7 <- plot_grp_ppc(ppc_site %>% filter(Country == "NZ"), "Sites\nNZ")
+p <- ((p3 | p1 / p2) / 
+        ( (p4 | p5) / (p6 | p7) + 
+            plot_layout(heights = c(3, 1)) ) ) +
+  plot_layout(heights = c(1, 1.5), guides = "collect")
 pth <- file.path("outputs", "figures", "outcomes", "primary",
                  "primary-model-acs-itt-ppc.pdf")
-ggsave(pth, p, width = 6, height = 5)
+ggsave(pth, p, width = 6, height = 5.5)
+p
 ```
 
 ### Subgroups
@@ -3184,7 +3159,7 @@ make_po_table(acs_pp_dat)
 ```
 
 ```{r}
-#| label: model-primary-sampling
+#| label: model-primary-sampling-acs-pp
 #| code-summary: Data and sampling primary model
 mdat <- make_primary_model_data(
   acs_pp_nona_dat,
