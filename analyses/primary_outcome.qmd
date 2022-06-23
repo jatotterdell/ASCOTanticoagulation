@@ -95,17 +95,17 @@ acs_pp_nona_dat <- acs_pp_dat %>%
   filter(!is.na(PO))
 
 # Concurrent enrolments for C2
-acs_itt_concurc2_dat <- acs_itt_dat %>%
+acs_itt_concurc2_dat <- acs_itt_dat2 %>%
   filter_concurrent_intermediate()
 acs_itt_concurc2_nona_dat <- acs_itt_concurc2_dat %>% 
   filter(!is.na(PO))
 # Concurrent enrolments for C3
-acs_itt_concurc3_dat <- acs_itt_dat %>%
+acs_itt_concurc3_dat <- acs_itt_dat2 %>%
   filter_concurrent_std_aspirin()
 acs_itt_concurc3_nona_dat <- acs_itt_concurc3_dat %>% 
   filter(!is.na(PO))
 # Concurrent enrolments for C4
-acs_itt_concurc4_dat <- acs_itt_dat %>%
+acs_itt_concurc4_dat <- acs_itt_dat2 %>%
   filter_concurrent_therapeutic()
 acs_itt_concurc4_nona_dat <- acs_itt_concurc4_dat %>% 
   filter(!is.na(PO))
@@ -1364,6 +1364,8 @@ mrvs$Acon <- as.vector(Ca %**% mrvs$beta[6])
 mrvs$Ccon <- as.vector(Cc %**% mrvs$beta[2:nC])
 names(mrvs$Ccon) <- c("Standard", "Intermediate", "Standard plus aspirin", "Therapeutic")
 
+mrvs$Ctrt <- mrvs$Ccon[-1] - mrvs$Ccon[1]
+
 mrvs$prob <- 1 / (1 + exp(-mrvs$eta))
 mrvs$beta_trt <- as.vector(transform_coding(Co, Ct) %**% mrvs$beta[1:nC])
 mrvs$OR <- setNames(
@@ -1381,26 +1383,21 @@ mrvs$ORsites <- setNames(exp(mrvs$gamma_site), site_map$site)
 ```{r}
 #| label: odds-ratio-summary-table-primary-model
 #| tbl-cap: Posterior summaries for model parameters.
+save_tex_table(
+  odds_ratio_summary_table(mrvs$OR, "latex"),
+  "outcomes/primary/primary-model-acs-itt-summary-table")
 odds_ratio_summary_table(mrvs$OR)
 ```
 
 ```{r}
-#| label: odds-ratio-summary-table-primary-model-save
-save_tex_table(
-  odds_ratio_summary_table(mrvs$OR, "latex"),
-  "outcomes/primary/primary-model-acs-itt-summary-table")
-```
-
-```{r}
-decision_quantity_summary_table(
-  c("Standard" = rvar(1), mrvs$OR[1:3])
-)
-```
-
-```{r}
+#| label: tbl-decision-quantities
+#| tbl-cap: Decision quantity summaries
 save_tex_table(
   decision_quantity_summary_table(c("Standard" = rvar(1), mrvs$OR[1:3]), "latex"),
   "outcomes/primary/primary-model-acs-itt-decision-table")
+decision_quantity_summary_table(
+  c("Standard" = rvar(1), mrvs$OR[1:3])
+)
 ```
 
 ```{r}
@@ -1429,21 +1426,11 @@ p_site <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
   scale_x_log10("Odds ratio (log scale)") +
   labs(y = "Site") +
   theme(panel.border = element_rect(fill = NA))
-
 p <- p_epoch | p_site
-p
-```
-
-```{r}
 pth <- file.path("outputs", "figures", "outcomes", "primary", "primary-model-acs-itt-epoch-site-terms.pdf")
 ggsave(pth, p, width = 6, height = 4.5)
+p
 ```
-
-```{r}
-#| echo: false
-do.call(cbind, mfit$diagnostic_summary())
-```
-:::
 
 ```{r}
 #| label: primary-summary
@@ -2552,27 +2539,16 @@ In the following section, we undertake analyses where the analysis set is restri
 #### Intermediate dose
 
 ```{r}
-acs_itt_c2_dat <- acs_itt_dat2 %>%
-  filter(CAssignment %in% c("C1", "C2")) %>%
-  mutate(
-    CAssignment = droplevels(CAssignment),
-    ctry = droplevels(ctry)
-  )
-acs_itt_nona_c2_dat <- acs_itt_c2_dat %>% 
-  filter(!is.na(PO))
-```
-
-```{r}
 #| label: tbl-acs-itt-c2-summary-table
 #| tbl-cap: Primary outcome summary for participants randomised to either
 #|   standard dose or intermediate dose arms (ACS-ITT).
-make_po_table(acs_itt_c2_dat)
+make_po_table(acs_itt_concurc2_dat)
 ```
 
 ```{r}
 save_tex_table(
   make_po_table(
-    acs_itt_c2_dat,
+    acs_itt_concurc2_dat,
     "latex"), 
   "outcomes/primary/acs-itt-c2-summary")
 ```
@@ -2580,13 +2556,12 @@ save_tex_table(
 ```{r}
 #| label: fit-model-acs-itt-c2
 
-# ctr <- contr.treatment
 ctr <- contr.orthonorm
 X <- model.matrix(
   ~ CAssignment + agegte60 + ctry, 
-  data = acs_itt_nona_c2_dat,
+  data = acs_itt_concurc2_nona_dat,
   contrasts.arg = list(CAssignment = ctr))
-y <- acs_itt_nona_c2_dat$PO
+y <- acs_itt_concurc2_nona_dat$PO
 sdat <- list(
   N = nrow(X),
   K = ncol(X),
@@ -2622,14 +2597,10 @@ sdrws$OR <- c(
 ```{r}
 #| label: tbl-acs-itt-c2-primary-model-summary
 #| tbl-cap: Parameter posterior summaries.
-odds_ratio_summary_table(sdrws$OR)
-```
-
-```{r}
-#| label: odds-ratio-summary-table-primary-model-acs-itt-c2-save
 save_tex_table(
   odds_ratio_summary_table(sdrws$OR, "latex"),
   "outcomes/primary/primary-model-acs-itt-c2-summary-table")
+odds_ratio_summary_table(sdrws$OR)
 ```
 
 #### Standard plus aspirin
@@ -2637,31 +2608,16 @@ save_tex_table(
 In what follows, the analysis set is restricted to participants in the ACS-ITT set who were randomised between study start and 2021-09-10. A summary of the number of participants randomised and meeting the primary outcome are provided in @tbl-acs-itt-c3-summary-table, noting that 35 participants were ineligible for the standard dose plus aspirin intervention.
 
 ```{r}
-acs_itt_c3_dat <- acs_itt_dat2 %>%
-  filter(RandDate < get_intervention_dates()$endate[3]) %>%
-  mutate(
-    CAssignment = droplevels(CAssignment),
-    ctry = droplevels(ctry)
-  )
-acs_itt_nona_c3_dat <- acs_itt_c3_dat %>% 
-  filter(!is.na(PO))
-```
-
-```{r}
 #| label: tbl-acs-itt-c3-summary-table
 #| tbl-cap: Primary outcome summary for participants randomised whilst the
 #|   standard dose plus aspirin arm was available (ACS-ITT).
-make_po_table(acs_itt_c3_dat)
-```
-
-```{r}
 save_tex_table(
   make_po_table(
-    acs_itt_c3_dat,
+    acs_itt_concurc3_dat,
     "latex"), 
   "outcomes/primary/acs-itt-c3-summary")
+make_po_table(acs_itt_concurc3_dat)
 ```
-
 
 Given there was non RAR activated in the domain, the only factor influencing allocation probabilities are eligibility for the standard dose plus aspirin intervention, and the region of enrolment (antiviral interventions open to Aus/NZ but not India). Therefore, a reduced model is fit to the data where the only terms are:
 
@@ -2675,16 +2631,16 @@ No terms are included for site, epoch, or for the antiviral intervention receive
 ```{r}
 #| label: fit-model-acs-itt-c3
 X <- model.matrix(
-  ~ CAssignment + inelgc3 + agegte60 + ctry, 
-  data = acs_itt_nona_c3_dat,
+  ~ CAssignment + agegte60 + ctry, 
+  data = acs_itt_concurc3_nona_dat,
   contrasts.arg = list(CAssignment = contr.orthonorm))
-y <- acs_itt_nona_c3_dat$PO
+y <- acs_itt_concurc3_nona_dat$PO
 sdat <- list(
   N = nrow(X),
   K = ncol(X),
   X = X,
   y = y,
-  beta_sd = c(2.5, 1, 1, 10, 2.5, 1)
+  beta_sd = c(2.5, 1, 1, 2.5, 1)
 )
 snk <- capture.output(
   sfit <- logistic_mod$sample(
@@ -2706,49 +2662,30 @@ sdrws$beta_trt <- as.vector(
 sdrws$OR <- c(
   "Intermediate dose" = exp(sdrws$beta_trt[2]),
   "Standard dose plus aspirin" = exp(sdrws$beta_trt[3]),
-  "Ineligible aspirin" = exp(sdrws$beta[4]),
-  "Age 60+" = exp(sdrws$beta[5]),
-  "Aus/NZ" = exp(sdrws$beta[6])
+  "Age 60+" = exp(sdrws$beta[4]),
+  "Aus/NZ" = exp(sdrws$beta[5])
 )
 ```
 
 ```{r}
 #| label: tbl-acs-itt-c3-primary-model-summary
 #| tbl-cap: Parameter posterior summaries.
-odds_ratio_summary_table(sdrws$OR)
-```
-
-```{r}
-#| label: odds-ratio-summary-table-primary-model-acs-itt-c3-save
 save_tex_table(
   odds_ratio_summary_table(sdrws$OR, "latex"),
   "outcomes/primary/primary-model-acs-itt-c3-summary-table")
+odds_ratio_summary_table(sdrws$OR)
 ```
 
 #### Therapeutic dose
 
 ```{r}
-acs_itt_c4_dat <- acs_itt_dat2 %>%
-  filter(RandDate >= get_intervention_dates()$stdate[4] & RandDate < get_intervention_dates()$endate[4]) %>%
-  mutate(
-    CAssignment = droplevels(CAssignment),
-    ctry = droplevels(ctry)
-  )
-acs_itt_nona_c4_dat <- acs_itt_c4_dat %>%
-  filter(!is.na(PO))
-```
-
-```{r}
 #| label: tbl-acs-itt-c4-summary-table
-make_po_table(acs_itt_c4_dat)
-```
-
-```{r}
 save_tex_table(
   make_po_table(
-    acs_itt_c4_dat,
+    acs_itt_concurc4_dat,
     "latex"), 
   "outcomes/primary/acs-itt-c4-summary")
+make_po_table(acs_itt_concurc4_dat)
 ```
 
 ```{r}
@@ -2756,17 +2693,15 @@ save_tex_table(
 
 X <- model.matrix(
   ~ CAssignment + agegte60 + ctry,
-  # ~ CAssignment, 
-  data = acs_itt_nona_c4_dat,
+  data = acs_itt_concurc4_nona_dat,
   contrasts.arg = list(CAssignment = contr.orthonorm))
-y <- acs_itt_nona_c4_dat$PO
+y <- acs_itt_concurc4_nona_dat$PO
 sdat <- list(
   N = nrow(X),
   K = ncol(X),
   X = X,
   y = y,
   beta_sd = c(2.5, 1, 1, 2.5, 1, 1)
-  # beta_sd = c(2.5, 1, 1)
 )
 snk <- capture.output(
   sfit <- logistic_mod$sample(
@@ -2797,14 +2732,10 @@ sdrws$OR <- c(
 ```{r}
 #| label: tbl-acs-itt-c4-primary-model-summary
 #| tbl-cap: Parameter posterior summaries.
-odds_ratio_summary_table(sdrws$OR)
-```
-
-```{r}
-#| label: odds-ratio-summary-table-primary-model-acs-itt-c4-save
 save_tex_table(
   odds_ratio_summary_table(sdrws$OR, "latex"),
   "outcomes/primary/primary-model-acs-itt-c4-summary-table")
+odds_ratio_summary_table(sdrws$OR)
 ```
 
 #### Therapeutic dose - exclude India

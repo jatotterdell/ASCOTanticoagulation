@@ -756,6 +756,49 @@ mcmc_trace(mdrws["beta"])
 ```
 :::
 
+
+### Intermediate Expanded
+
+```{r}
+#| code-summary: Fit model
+mdat <- make_stan_data(
+  acs_itt_concurc2_nona_dat,
+  c("agegte60", "ctry"),
+  "D28_death",
+  c(2.5, 1, 1)
+)
+snk <- capture.output(
+  mfit <- model_site_only$sample(
+    data = mdat,
+    seed = 38135,
+    chains = 8,
+    parallel_chains = 8,
+    iter_warmup = 1000,
+    iter_sampling = 2500,
+    refresh = 0
+))
+mdrws <- as_draws_rvars(mfit$draws())
+names(mdrws$beta) <- colnames(mdat$X)
+names(mdrws$gamma_site) <- acs_itt_concurc2_nona_dat %>% dplyr::count(site_num, site) %>% pull(site)
+site_facet <- factor(mdat$region_by_site, labels = c("India", "Australia\nNew Zealand", "Nepal"))
+
+mdrws$Ccon <- attr(mdat$X, "contrasts")$randC %**% mdrws$beta[2]
+mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
+mdrws$compare <- c("Intermediate vs standard" = exp(mdrws$Ctrt[1]))
+mdrws$OR <- c(
+  setNames(exp(mdrws$Ctrt), c("Intermediate")),
+  setNames(exp(mdrws$beta[-(1:4)]), c("Age 60+", "Australia/New Zealand", "Nepal"))
+)
+```
+
+```{r}
+odds_ratio_summary_table(mdrws$OR)
+```
+
+```{r}
+plot_site_terms(exp(mdrws$gamma_site), site_facet)
+```
+
 ### Standard plus aspirin
 
 ```{r}
