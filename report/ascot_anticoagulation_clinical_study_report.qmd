@@ -179,6 +179,8 @@ tab <- readLines(file.path("..", "outputs", "tables", "baseline", "demographics.
 writeLines(tab[-which(grepl("caption", tab))])
 ```
 
+\clearpage
+
 #### Co-morbidities
 
 Baseline co-morbidities stratified by anticoagulation interventions are reported in @tbl-baseline-comorbidities.
@@ -192,7 +194,20 @@ tab <- readLines(file.path("..", "outputs", "tables", "baseline", "comorbidities
 writeLines(tab[-which(grepl("caption", tab))])
 ```
 
+\clearpage
+
 #### Prognostics
+
+Baseline prognostics stratified by anticoagulation interventions are reported below.
+
+```{r}
+#| label: tbl-baseline-prognostics
+#| tbl-cap: |
+#|   Baseline prognostics for participants randomised to the anticoagulation domain.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "baseline", "prognostics.tex"))
+writeLines(tab[-which(grepl("caption", tab))])
+```
 
 The relative timing (in days) of hospitalisation, symptom onset, randomisation, and first positive test are presented in @fig-days-to-events-overall.
 
@@ -204,17 +219,6 @@ The relative timing (in days) of hospitalisation, symptom onset, randomisation, 
 knitr::include_graphics(
   "../outputs/figures/baseline/days-between-events-overall.pdf"
 )
-```
-
-Baseline prognostics stratified by anticoagulation interventions are reported in @tbl-baseline-prognostics.
-
-```{r}
-#| label: tbl-baseline-prognostics
-#| tbl-cap: |
-#|   Baseline prognostics for participants randomised to the anticoagulation domain.
-#| results: asis
-tab <- readLines(file.path("..", "outputs", "tables", "baseline", "prognostics.tex"))
-writeLines(tab[-which(grepl("caption", tab))])
 ```
 
 \clearpage
@@ -988,7 +992,7 @@ This section reports on the analysis of the secondary outcome: all-cause mortali
 
 @tbl-7-3-summary presents the number of participants where the outcome was observed by the allocated anticoagulation arm. The model parameters (odds ratios) are summarised in @tbl-7-3-primary-model-acs-itt-summary for the fixed-effect terms and in @fig-7-3-primary-model-acs-itt-site-epoch-parameters for the site and epoch specific terms.
 
-The proportion who had died by day 28 was 3.3% (50 / 1530) amongst all randomised participants. Compared with standard dose, the median adjusted odds ratios (95% CrI) from the primary model were: 0.84 (0.42, 1.69) for intermediate dose, 0.81 (0.36, 1.82) for standard dose plus aspirin, and 3.17 (0.94, 10.3) for therapeutic dose. The corresponding posterior probabilities for effectiveness were 0.69, 0.69 and 0.03 respectively.  
+The proportion who had died by day 28 was 3.3% (50 / 1530) amongst all randomised participants. Compared with standard dose, the median adjusted odds ratios (95% CrI) from the primary model were: 0.84 (0.41, 1.67) for intermediate dose, 0.82 (0.36, 1.81) for standard dose plus aspirin, and 3.16 (0.95, 10.5) for therapeutic dose. The corresponding posterior probabilities for effectiveness were 0.69, 0.69 and 0.03 respectively.  
 
 ```{r}
 #| label: tbl-7-3-summary
@@ -1628,7 +1632,7 @@ tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "
 writeLines(tab)
 ```
 
-The SAP described a formal analysis of the two composite outcomes: any thrombotic event (or death), and any clinical relevant bleeding. Due to the small number of bleeding events (6 of 1,521 known outcomes) this analysis was not undertaken. Similarly, for any thrombotic event or death, due to the majority of the events being due to death, the results were expected to be similar to those for all-cause mortality to day 28. Despite this, the analysis *was* performed for any thrombotic event or death and the results reported below.
+The SAP described a formal analysis of the two composite outcomes: any thrombotic event (or death), and any clinical relevant bleeding. Due to the small number of bleeding events (10 of 1,521 known outcomes) this analysis was not undertaken. Similarly, for any thrombotic event or death, due to the majority of the events being due to death, the results were expected to be similar to those for all-cause mortality to day 28. Despite this, the analysis *was* performed for any thrombotic event or death and the results reported below.
 
 ### Any thrombotic event (or death) to day 28
 
@@ -1940,9 +1944,9 @@ knitr::include_graphics(
 
 \clearpage
 
-## Posterior Predictive 
+## Primary Model Posterior Predictive 
 
-### Primary Model ACS-ITT
+### Primary Outcome
 
 ```{r}
 #| label: fig-primary-model-acs-itt-ppc
@@ -1952,6 +1956,21 @@ knitr::include_graphics(
 #|   Vertical red line indicates observed proportions.
 pth <- file.path("..", "outputs", "figures", "outcomes", "primary",
                  "primary-model-acs-itt-ppc.pdf")
+knitr::include_graphics(pth)
+```
+
+\clearpage
+
+### WHO outcome scale dat day 28
+
+```{r}
+#| label: fig-7-2-primary-model-acs-itt-ppc
+#| fig-cap: |
+#|   Posterior predictive distribution for outcome 
+#|   by model covariates for primary model using ACS-ITT.
+#|   Red diamond indicates observed proportions.
+pth <- file.path("..", "outputs", "figures", "outcomes", "secondary",
+                 "7-2-primary-model-acs-itt-ppc.pdf")
 knitr::include_graphics(pth)
 ```
 
