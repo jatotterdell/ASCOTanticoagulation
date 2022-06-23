@@ -55,8 +55,17 @@ devtools::load_all()
 all_dat <- read_all_no_daily()
 all_dat_daily <- read_all_daily()
 
+daily_events <- all_dat_daily %>%
+  filter_acs_itt() %>%
+  group_by(StudyPatientID) %>%
+  summarise(
+    dd_mb = as.numeric(any(DD_AE_C_MajorBleedingISTH == "Yes")),
+    dd_hit = as.numeric(any(DD_AE_C_HeparinHIT == "Yes"))
+  )
+
 acs_itt_dat <- all_dat %>% 
   filter_acs_itt() %>%
+  left_join(daily_events, by = "StudyPatientID") %>%
   mutate(
     # 8.0 death
     out_dth = D28_death,
@@ -95,6 +104,12 @@ acs_itt_dat <- all_dat %>%
       D28_ABOtherThromboEvent == "Yes" ~ 1,
       TRUE ~ 0
     ),
+    # Any thrombotic event
+    out_ate = case_when(
+      out_dvt == 1 | out_pe == 1 | out_ami == 1  | out_ice == 1 | out_ote == 1 ~ 1,
+      is.na(out_dvt) | is.na(out_pe) | is.na(out_ami) | is.na(out_ice) | is.na(out_ote) ~ NA_real_,
+      out_dvt == 0 & out_pe == 0 & out_ami == 0  & out_ice == 0 & out_ote == 0 ~ 0
+    ),
     # 8.1 - any thrombotic event or death
     out_ated = case_when(
       out_dth == 1 | out_dvt == 1 | out_pe == 1 | out_ami == 1  | out_ice == 1 | out_ote == 1 ~ 1,
@@ -103,6 +118,7 @@ acs_itt_dat <- all_dat %>%
     ),
     # 8.7 - major bleeding
     out_mb = case_when(
+      dd_mb == 1 ~ 1, # from daily data
       D28_AECNone == "Yes" ~ 0,
       D28_AECMajorBleeding == "No" ~ 0,
       D28_AECMajorBleeding == "Yes" ~ 1,
@@ -121,8 +137,9 @@ acs_itt_dat <- all_dat %>%
       is.na(out_mb) | is.na(out_nmb) ~ NA_real_,
       out_mb == 0 & out_nmb == 0 ~ 0
     ),
-    # 8.9 - heparain-induced thrombocytopenia
+    # 8.9 - heparin-induced thrombocytopenia
     out_hit = case_when(
+      dd_hit == 1 ~ 1, # from daily data
       D28_AECNone == "Yes" ~ 0,
       D28_AECUnknown == "Yes" ~ NA_real_,
       D28_AECHIT == "Yes" ~ 1,
@@ -157,7 +174,7 @@ The following table describes the anticoagulation domain-specific outcomes by an
 ```{r}
 gtab <- acs_itt_dat %>%
   select(CAssignment, out_dth, 
-         out_ated, out_dvt, out_pe, out_ami, out_ice, out_ote, 
+         out_ated, out_ate, out_dvt, out_pe, out_ami, out_ice, out_ote, 
          out_crb, out_mb, out_nmb, out_hit) %>%
   group_by(CAssignment) %>%
   summarise(
@@ -176,6 +193,8 @@ gtab <- acs_itt_dat %>%
       sprintf("%i (%.0f)", sum(out_ice, na.rm = TRUE), 100 * mean(out_ice, na.rm = TRUE)),
     `Thrombotic events_Other confirmed thrombotic event` = 
       sprintf("%i (%.0f)", sum(out_ote, na.rm = TRUE), 100 * mean(out_ote, na.rm = TRUE)),
+    `Thrombotic events_Any thrombotic event` = 
+      sprintf("%i (%.0f)", sum(out_ate, na.rm = TRUE), 100 * mean(out_ate, na.rm = TRUE)),
     `Thrombotic events_Any thrombotic event or death` = 
       sprintf("%i (%.0f)", sum(out_ated, na.rm = TRUE), 100 * mean(out_ated, na.rm = TRUE)),
     `Bleeding_Unknown` = 
@@ -197,7 +216,7 @@ gtab <- gtab[-1, ]
 
 otab <- acs_itt_dat %>%
   select(CAssignment, out_dth, 
-         out_ated, out_dvt, out_pe, out_ami, out_ice, out_ote, 
+         out_ated, out_ate, out_dvt, out_pe, out_ami, out_ice, out_ote, 
          out_crb, out_mb, out_nmb, out_hit) %>%
   group_by(CAssignment = "Overall") %>%
   summarise(
@@ -216,6 +235,8 @@ otab <- acs_itt_dat %>%
       sprintf("%i (%.0f)", sum(out_ice, na.rm = TRUE), 100 * mean(out_ice, na.rm = TRUE)),
     `Thrombotic events_Other confirmed thrombotic event` = 
       sprintf("%i (%.0f)", sum(out_ote, na.rm = TRUE), 100 * mean(out_ote, na.rm = TRUE)),
+    `Thrombotic events_Any thrombotic event` = 
+      sprintf("%i (%.0f)", sum(out_ate, na.rm = TRUE), 100 * mean(out_ate, na.rm = TRUE)),
     `Thrombotic events_Any thrombotic event or death` = 
       sprintf("%i (%.0f)", sum(out_ated, na.rm = TRUE), 100 * mean(out_ated, na.rm = TRUE)),
     `Bleeding_Unknown` = 
@@ -236,6 +257,7 @@ colnames(otab)[-(1:2)] <- paste0("Overall<br>(n = ", otab[1, -(1:2)], ")")
 otab <- otab[-1, ]
 
 tab <- left_join(gtab, otab, by = c("Type", "Outcome"))
+colnames(tab)[2] <- "Outcome, n (\\%)"
 
 kable(
   tab[, -1],
@@ -247,8 +269,8 @@ kable(
     latex_options = "HOLD_position"
   ) %>%
   pack_rows("Mortality", 1, 2) %>%
-  pack_rows("Thrombotic events", 3, 9) %>%
-  pack_rows("Bleeding", 10, 14)
+  pack_rows("Thrombotic events", 3, 10) %>%
+  pack_rows("Bleeding", 11, 15)
 ```
 
 ```{r}
@@ -257,7 +279,7 @@ out <- kable(
   tab[, -1],
   format = "latex",
   booktabs = TRUE,
-  align = "lrrrrr",
+  align = "lrrrrrr",
   escape = FALSE
 ) %>%
   kable_styling(
@@ -265,8 +287,8 @@ out <- kable(
     latex_options = "HOLD_position"
   ) %>%
   pack_rows("Mortality", 1, 2) %>%
-  pack_rows("Thrombotic events", 3, 9) %>%
-  pack_rows("Bleeding", 10, 14)
+  pack_rows("Thrombotic events", 3, 10) %>%
+  pack_rows("Bleeding", 11, 15)
 save_tex_table(out, file.path("outcomes", "secondary", "8-0-anticoagulation-specific-summary"))
 ```
 
@@ -293,12 +315,8 @@ acs_itt_nona_dat <- acs_itt_dat %>%
             by = "StudyPatientID")
 
 ctr <- contr.orthonorm
-X <- model.matrix(
-  ~ CAssignment + AAssignment + agegte60 + inelgc3 + ctry,
-  data = acs_itt_nona_dat,
-  contrasts.arg = list(CAssignment = ctr, AAssignment = ctr)
-)
-nXassign <- sum(grepl("Assignment", colnames(X)))
+X <- make_X_design(acs_itt_nona_dat, c("inelgc3", "agegte60", "ctry"), ctr)
+nXassign <- sum(grepl("rand", colnames(X))) - 1
 epoch  <- acs_itt_nona_dat$epoch
 M_epoch  <- max(acs_itt_nona_dat$epoch)
 region <- acs_itt_nona_dat[["ctry_num"]]
@@ -315,11 +333,10 @@ mdat <- list(N = nrow(X), K = ncol(X), X = X, y = acs_itt_nona_dat$out_ated,
        M_region = M_region, M_site = M_site, site = site,
        M_epoch = M_epoch, epoch = epoch,
        region_by_site = region_by_site,
-       beta_mu = c(0, rep(0, 9)),
-       beta_sd = c(2.5, rep(1, nXassign), 2.5, 10, rep(1, 2)))
+       beta_sd = c(2.5, rep(1, nXassign), 10, 2.5, rep(1, 2)))
 
 snk <- capture.output(
-  mfit <- primary_mod3$sample(
+  mfit <- primary_mod2$sample(
     data = mdat,
     seed = 28497,
     refresh = 0,
@@ -335,64 +352,40 @@ names(drws$beta) <- colnames(X)
 names(drws$gamma_epoch) <- epoch_map$epoch_lab
 names(drws$gamma_site) <- site_map$site
 
+drws$Acon <- attr(X, "contrasts")$randA %**% drws$beta[6]
+drws$Ccon <- attr(X, "contrasts")$randC %**% drws$beta[2:4]
+drws$Atrt <- drws$Acon[-1] - drws$Acon[1]
+drws$Ctrt <- drws$Ccon[-1] - drws$Ccon[1]
+
 drws$treat <- (transform_coding(cbind(1, contr.orthonorm(4)), cbind(1, contr.treatment(4))) %**%
   drws$beta[1:4])[2:4]
 
-drws$OR <- exp(c(rvar(0), drws$treat, rvar(0), drws$beta[7], rvar(0), drws$beta[8], rvar(0), drws$beta[9:10]))
+drws$OR <- exp(c(
+  rvar(0), drws$treat, 
+  rvar(0), drws$beta[7], 
+  rvar(0), drws$beta[8], 
+  rvar(0), drws$beta[9:10]))
 names(drws$OR) <- c(
   "Standard (ref)", "Intermediate", "Standard plus aspirin", "Therapeutic", 
-  "Age < 60 (ref)", "Age 60+", "Eligible aspirin (ref)", "Ineligible aspirin", 
+  "Eligible aspirin (ref)", "Ineligible aspirin", "Age < 60 (ref)", "Age 60+", 
   "India (ref)", "Australia/NZ", "Nepal")
 ```
 
 ```{r}
+save_tex_table(
+  odds_ratio_summary_table(drws$OR, "latex"),
+  "outcomes/secondary/8-1-primary-model-acs-itt-summary-table")
 odds_ratio_summary_table(drws$OR)
 ```
 
 ```{r}
-#| label: odds-ratio-summary-table-primary-model-save
-save_tex_table(
-  odds_ratio_summary_table(drws$OR, "latex"),
-  "outcomes/secondary/8-1-primary-model-acs-itt-summary-table")
-```
-
-
-```{r}
 epoch_rvs <- exp(drws$gamma_epoch)
 site_rvs <- exp(drws$gamma_site)
-
-orsdat <- tibble(
-  Group = "Epoch",
-  Parameter = fct_inorder(names(epoch_rvs)),
-  posterior = epoch_rvs
-)
-p_epoch <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
-  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
-  geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_log10("Odds ratio (log scale)") +
-  labs(y = "Epoch")
-
-orsdat <- tibble(
-  Group = "Site",
-  Region = factor(mdat$region_by_site, labels = c("India", "Australia/NZ", "Nepal")),
-  Parameter = fct_inorder(names(site_rvs)),
-  posterior = site_rvs
-)
-p_site <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
-  facet_grid(Region ~ ., scales = "free_y", space = "free_y") +
-  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
-  geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_log10("Odds ratio (log scale)") +
-  labs(y = "Site") +
-  theme(panel.border = element_rect(fill = NA))
-
-p <- p_epoch | p_site
-p
-```
-
-```{r}
+facets <- factor(mdat$region_by_site, labels = c("India", "Australia/NZ", "Nepal"))
+p <- plot_epoch_site_terms(epoch_rvs, site_rvs, facets)
 pth <- file.path("outputs", "figures", "outcomes", "secondary", "8-1-primary-model-epoch-site-terms.pdf")
 ggsave(pth, p, width = 6, height = 4.5)
+p
 ```
 
 ### Prior Sensitivity
@@ -401,12 +394,8 @@ The analysis is repeated using treatment coding rather than the orthonormal codi
 
 ```{r}
 ctr <- contr.treatment
-X <- model.matrix(
-  ~ CAssignment + AAssignment + agegte60 + inelgc3 + ctry,
-  data = acs_itt_nona_dat,
-  contrasts.arg = list(CAssignment = ctr, AAssignment = ctr)
-)
-nXassign <- sum(grepl("Assignment", colnames(X)))
+X <- make_X_design(acs_itt_nona_dat, c("inelgc3", "agegte60", "ctry"), ctr)
+nXassign <- sum(grepl("rand", colnames(X))) - 1
 epoch  <- acs_itt_nona_dat$epoch
 M_epoch  <- max(acs_itt_nona_dat$epoch)
 region <- acs_itt_nona_dat[["ctry_num"]]
@@ -423,11 +412,10 @@ mdat <- list(N = nrow(X), K = ncol(X), X = X, y = acs_itt_nona_dat$out_ated,
        M_region = M_region, M_site = M_site, site = site,
        M_epoch = M_epoch, epoch = epoch,
        region_by_site = region_by_site,
-       beta_mu = c(0, rep(0, 9)),
-       beta_sd = c(2.5, rep(1, nXassign), 2.5, 10, rep(1, 2)))
+       beta_sd = c(2.5, rep(1, nXassign), 10, 2.5, rep(1, 2)))
 
 snk <- capture.output(
-  mfit <- primary_mod3$sample(
+  mfit <- primary_mod2$sample(
     data = mdat,
     seed = 28497,
     refresh = 0,
@@ -457,32 +445,7 @@ odds_ratio_summary_table(drws$OR)
 ```{r}
 epoch_rvs <- exp(drws$gamma_epoch)
 site_rvs <- exp(drws$gamma_site)
-
-orsdat <- tibble(
-  Group = "Epoch",
-  Parameter = fct_inorder(names(epoch_rvs)),
-  posterior = epoch_rvs
-)
-p_epoch <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
-  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
-  geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_log10("Odds ratio (log scale)") +
-  labs(y = "Epoch")
-
-orsdat <- tibble(
-  Group = "Site",
-  Region = factor(mdat$region_by_site, labels = c("India", "Australia/NZ", "Nepal")),
-  Parameter = fct_inorder(names(site_rvs)),
-  posterior = site_rvs
-)
-p_site <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
-  facet_grid(Region ~ ., scales = "free_y", space = "free_y") +
-  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
-  geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_log10("Odds ratio (log scale)") +
-  labs(y = "Site") +
-  theme(panel.border = element_rect(fill = NA))
-
-p <- p_epoch | p_site
+facets <- factor(mdat$region_by_site, labels = c("India", "Australia/NZ", "Nepal"))
+p <- plot_epoch_site_terms(epoch_rvs, site_rvs, facets)
 p
 ```
