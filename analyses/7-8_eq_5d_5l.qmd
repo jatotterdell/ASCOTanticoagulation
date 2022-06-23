@@ -9,3 +9,91 @@ author:
     affiliation: University of Melbourne
 date: last-modified
 ---
+
+## Preamble
+
+```{r}
+#| label: pkgs
+#| code-summary: Load packages
+library(tidyverse)
+library(labelled)
+library(kableExtra)
+library(cmdstanr)
+library(posterior)
+library(bayestestR)
+library(bayesplot)
+library(matrixStats)
+library(ggdist)
+library(patchwork)
+library(lubridate)
+library(eq5d)
+
+theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank()))
+bayesplot_theme_set(theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank())))
+```
+
+```{r}
+#| label: data
+#| code-summary: Prepare dataset
+devtools::load_all()
+all_dat <- read_all_no_daily()
+
+acs_itt_dat <- all_dat %>% 
+  filter_acs_itt() %>%
+  transmute_model_cols_grp_aus_nz() %>%
+  left_join(
+    all_dat %>% select(StudyPatientID, starts_with("D28_EQ")),
+    by = "StudyPatientID")
+acs_itt_nona_dat <- acs_itt_dat %>%
+  filter(!is.na(D28_EQMobility))
+```
+
+
+## Descriptive
+
+```{r}
+acs_itt_nona_dat %>% 
+  dplyr::count(CAssignment, 
+        D28_EQAnxietyDepression, 
+        D28_EQMobility,
+        D28_EQPersonalCare,
+        D28_EQUsualActivities,
+        D28_EQPainDiscomfort) %>%
+  gather(key, value, -n, -CAssignment) %>%
+  group_by(CAssignment, key) %>%
+  filter(!is.na(value), value != 0) %>%
+  mutate(p = n / sum(n)) %>%
+  ungroup() %>%
+  mutate(value = factor(value)) %>%
+  ggplot(., aes(CAssignment, p, fill = value)) +
+  facet_wrap( ~ key) +
+  geom_bar(stat = "identity") +
+  scale_fill_viridis_d(option = "A", direction = -1, begin = 0, end = 0.9) +
+  labs(x = "Assigned intervention - domain C", y = "Cumulative proportion", fill = "Score") +
+  theme(legend.position = "right", legend.direction = "vertical",
+        panel.grid.major = element_blank(),
+        axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5))
+```
+
+```{r}
+acs_itt_dat %>% 
+  filter(!is.na(D28_EQOverallHealthScore)) %>%
+  dplyr::count(CAssignment, 
+        D28_EQOverallHealthScore = factor(D28_EQOverallHealthScore, 0:100)) %>%
+  complete(CAssignment, D28_EQOverallHealthScore, fill = list(n = 0)) %>%
+  group_by(CAssignment) %>%
+  mutate(p = n / sum(n)) %>%
+  ungroup() %>%
+  ggplot(., aes(CAssignment, p, fill = D28_EQOverallHealthScore)) +
+  geom_bar(stat = "identity") +
+  scale_fill_viridis_d(option = "A", direction = -1, begin = 0, end = 0.9) +
+  labs(x = "Assigned intervention - domain C", y = "Cumulative proportion", fill = "Score") +
+  theme(legend.position = "right", legend.direction = "vertical",
+        panel.grid.major = element_blank(),
+        axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5)) + 
+  guides(fill = guide_legend(ncol = 4))
+```
