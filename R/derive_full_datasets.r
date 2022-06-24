@@ -314,6 +314,20 @@ add_shortness_of_breath <- function(dat) {
 }
 
 
+add_breathlessness_scale <- function(dat) {
+  out <- dat %>%
+    mutate(
+      out_mmrc_scale = case_when(
+        is.na(D28_BreathSinceGettingCovid) ~ NA_real_,
+        D28_BreathSinceGettingCovid == "Unknown" ~ NA_real_,
+        D28_BreathSinceGettingCovid == "No" ~ -1,
+        TRUE ~ D28_BreathScale
+      )
+    )
+  return(out)
+}
+
+
 add_time_to_recovery <- function(dat) {
   out <- dat %>%
     mutate(
@@ -604,6 +618,7 @@ create_fulldata_no_daily <- function() {
     add_days_alive_and_free() %>%
     add_days_alive_and_free_ventilation() %>%
     add_shortness_of_breath() %>%
+    add_breathlessness_scale() %>%
     add_time_to_recovery() %>%
     # restrict to randomisations prior to closure of anticoagulation
     filter(RandDate <= as.Date("2022-04-08") | is.na(RandDate))
