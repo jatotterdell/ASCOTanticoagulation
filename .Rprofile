@@ -5,7 +5,7 @@ ANTICOAG_DATA <- file.path(ASCOT_DATA)
 if (!dir.exists("outputs")) {
   dir.create(file.path("outputs", "tables", "baseline"), recursive = TRUE)
   dir.create(file.path("outputs", "tables", "outcomes"), recursive = TRUE)
-  dir.create(file.path("outputs", "tables", "outcomes", "primary"), recursive = TRUE)
+  dir.create(file.path("outputs", "tables", "outcomes", "primary", "subgroup"), recursive = TRUE)
   dir.create(file.path("outputs", "tables", "outcomes", "secondary"), recursive = TRUE)
   dir.create(file.path("outputs", "figures", "baseline"), recursive = TRUE)
   dir.create(file.path("outputs", "figures", "outcomes", "primary"), recursive = TRUE)

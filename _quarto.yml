@@ -6,6 +6,10 @@ project:
     - "index.qmd"
     - "analyses/*.qmd"
     - "eda/*.qmd"
+    - "!eda/data-overview.qmd"
+    - "!analyses/7-2_who_ordinal_scale.qmd"
+    - "!analyses/7-1*"
+    - "!analyses/7-7_breathlessness_scale.qmd"
 
 website:
   sidebar:
@@ -18,16 +22,20 @@ website:
         file: index.qmd
       - section: "Overview and Baseline"
         contents:
-          - eda/data-overview.qmd
+          # - eda/data-overview.qmd
           - eda/patient-disposition.qmd
           - eda/baseline-summaries.qmd
       - section: "Outcomes"
         contents:
-          - analyses/primary_outcome.qmd
-          - "analyses/7-1_time_to_clinical_recovery.qmd"
-          - "analyses/7-2_who_ordinal_scale.qmd"
+          - "analyses/primary_outcome.qmd"
+          - "analyses/7-2_who_ordinal_scale_JT.qmd"
           - "analyses/7-3_all_cause_mortality.qmd"
           - "analyses/7-4_days_alive_hospital_free.qmd"
+          - "analyses/7-5_days_alive_ventilation_free.qmd"
+          - "analyses/7-6_shortness_of_breath.qmd"
+          - "analyses/7-7_breathlessness_scale_JT.qmd"
+          - "analyses/7-8_eq-5d-5l.qmd"
+          - "analyses/8-0_anticoagulation_specific_secondary.qmd"
 
 format:
   html:
@@ -42,6 +50,7 @@ format:
     reference-location: margin
     theme: journal
     fontsize: 1em
+    max-width: "2000px"
     self-contained: true
     standalone: true
     code-tools: true

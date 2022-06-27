@@ -1,6 +1,6 @@
 ---
 title: "ASCOT Anticoagulation Clinical Study Report"
-date: '2022-06-23'
+date: '2022-06-30'
 author:
   - name: James Totterdell
     affiliation: University of Sydney
@@ -927,6 +927,7 @@ knitr::include_graphics(
 #|   Posterior summary of cause-specific odds ratios for time to recovery or death to day28,
 #|   ACS-ITT-intermediate
 #| results: asis
+#| eval: false
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "secondary",
   "7-1-primary-model-acs-itt-intermediate-summary-table.tex"))
@@ -945,6 +946,7 @@ writeLines(tab)
 #|   Posterior summary of cause-specific odds ratios for time to recovery or death to day28,
 #|   ACS-ITT-aspirin.
 #| results: asis
+#| eval: false
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "secondary",
   "7-1-primary-model-acs-itt-stdaspirin-summary-table.tex"))
