@@ -268,6 +268,8 @@ As per the statistical appendix to the core protocol, the following decision qua
 
 ## Primary Outcome
 
+### Descriptive
+
 The primary outcome is a composite comprised of:
 
 -   day 28 mortality
@@ -304,6 +306,16 @@ writeLines(tab)
 #|   Breakdown of primary composite combinations by treatment group.
 #| results: asis
 tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "composite-combinations.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-primary-composite-interims
+#| tbl-cap: |
+#|   Breakdown of primary composite outcomes by treatment group and
+#|   interim of enrolment.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-composite-interims.tex"))
 writeLines(tab)
 ```
 
@@ -370,6 +382,8 @@ Domain-specific subgroups were additionally specified as:
 
 For each sub-group analysis, the primary model was extended to include an interaction term between the covariate of interest and the anticoagulation interventions. In some cases, there may be no information on the subgroup-specific effect (for example, there were no participants in Nepal who were randomised to receive standard dose plus aspirin), but the results are reported in any case noting that the posterior is essentially driven by the prior.
 
+In these subgroup analyses, the reference group is generally taken to be the largest group and the intervention effect in this reference group has a normal prior with mean 0 and standard deviation 2.5. For each additional subgroup, the interaction between each intervention and subgroup level has a normal prior with mean 0 and standard deviation 1.
+
 #### Region
 
 A subgroup analysis of region is undertaken using the ACS-ITT set. A summary of the primary outcome by country and intervention is reported in @tbl-descriptive-acs-itt-subgroup-region. Note that no participants enrolled in Nepal or New Zealand received standard dose plus aspirin, and very few in Australia received it, due to the timing of its removal from the domain. Despite this, an interaction term for country and standard dose plus aspirin was retained in the model, however, the associated effect corresponds to the assumed prior given there is no data available.
@@ -386,6 +400,29 @@ tab <- readLines(file.path(
 writeLines(tab)
 ```
 
+```{r}
+#| label: tbl-odds-ratio-acs-itt-subgroup-region
+#| tbl-cap: |
+#|   Summary of odds ratios for treatment effects by region of enrolment in
+#|   the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup", 
+  "country-odds-ratios.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-odds-ratio-compare-acs-itt-subgroup-region
+#| tbl-cap: |
+#|   Summary of odds ratio comparisons of treatment effects by region of enrolment in
+#|   the ACS-ITT set, (reference is India).
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup", 
+  "country-odds-ratios-compare.tex"))
+writeLines(tab)
+```
 ```{r}
 #| label: fig-subgroup-acs-itt-region
 #| fig-cap: |
@@ -474,7 +511,79 @@ knitr::include_graphics(
 
 #### Receipt of Remdesivir
 
+```{r}
+#| label: tbl-descriptive-acs-itt-subgroup-remdesivir
+#| tbl-cap: |
+#|   Summary of participant outcomes by receipt of remdesivir during index
+#|   hospital stay in the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", 
+  "descriptive-acs-itt-subgroup-remdesivir-descriptive.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-subgroup-acs-itt-remdesivir
+#| fig-cap: |
+#|   Posterior densities of odds ratio for anticoagulation interventions 
+#|   relative to standard dose by receipt of remdesivir subgroup using 
+#|   ACS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/acs-itt-subgroup-remdesivir-hte.pdf"
+)
+```
+
+#### Receipt of other antiviral agent
+
+```{r}
+#| label: tbl-descriptive-acs-itt-subgroup-antiviral
+#| tbl-cap: |
+#|   Summary of participant outcomes by receipt of other antiviral during index
+#|   hospital stay in the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", 
+  "descriptive-acs-itt-subgroup-antiviral-descriptive.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-subgroup-acs-itt-antiviral
+#| fig-cap: |
+#|   Posterior densities of odds ratio for anticoagulation interventions 
+#|   relative to standard dose by receipt of other antiviral subgroup using 
+#|   ACS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/acs-itt-subgroup-antiviral-hte.pdf"
+)
+```
+
 #### D-dimer
+
+Patients with unknown D-dimer at baseline were included as their own subgroup.
+
+```{r}
+#| label: tbl-descriptive-acs-itt-subgroup-ddimer
+#| tbl-cap: |
+#|   Summary of participant outcomes by whether D-dimer was out 
+#|   range at enrolment in the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", 
+  "descriptive-acs-itt-subgroup-ddimer-descriptive.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-subgroup-acs-itt-ddimer
+#| fig-cap: |
+#|   Posterior densities of odds ratio for anticoagulation interventions 
+#|   relative to standard dose by D-dimer subgroup using ACS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/acs-itt-subgroup-ddimer-hte.pdf"
+)
+```
 
 #### Weight
 
@@ -800,6 +909,46 @@ For all secondary outcomes, the primary model (adjusting for interventions, age 
 knitr::include_graphics(
   "../outputs/figures/outcomes/secondary/outcome-7-1-descriptive.pdf"
 )
+```
+
+\clearpage
+
+#### Sensitivity: Concurrent Enrolments
+
+##### Intermediate dose
+
+-   **Model**: multinomial logistic regression
+-   **Terms**: anticoagulation intervention, age group, region
+-   **Set**: ACS-ITT-intermediate
+
+```{r}
+#| label: tbl-7-1-concurrent-intermediate-summary
+#| tbl-cap: |
+#|   Posterior summary of cause-specific odds ratios for time to recovery or death to day28,
+#|   ACS-ITT-intermediate
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary",
+  "7-1-primary-model-acs-itt-intermediate-summary-table.tex"))
+writeLines(tab)
+```
+
+#### Standard plus aspirin
+
+-   **Model**: multinomial logistic regression
+-   **Terms**: anticoagulation intervention, age group, region
+-   **Set**: ACS-ITT-aspirin
+
+```{r}
+#| label: tbl-7-1-concurrent-stdaspirin-summary
+#| tbl-cap: |
+#|   Posterior summary of cause-specific odds ratios for time to recovery or death to day28,
+#|   ACS-ITT-aspirin.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary",
+  "7-1-primary-model-acs-itt-stdaspirin-summary-table.tex"))
+writeLines(tab)
 ```
 
 \clearpage
@@ -1717,6 +1866,46 @@ knitr::include_graphics(
 \clearpage
 
 ## Time to recovery to day 28 by model covariates (ACS-ITT) {#sec-app-7-1-model-cov}
+
+```{r}
+#| label: fig-7-1-age
+#| fig-cap: |
+#|   Time to clinical recovery to day 28
+#|   by age group at randomisation.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-1-age.pdf"
+)
+```
+
+```{r}
+#| label: fig-7-1-country
+#| fig-cap: |
+#|   Time to clinical recovery to day 28
+#|   by country of randomisation.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-1-country.pdf"
+)
+```
+
+```{r}
+#| label: fig-7-1-country-site
+#| fig-cap: |
+#|   Time to clinical recovery to day 28
+#|   by country and site of randomisation.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-1-country-site.pdf"
+)
+```
+
+```{r}
+#| label: fig-7-1-calendar-time
+#| fig-cap: |
+#|   Time to clinical recovery to day 28
+#|   by calendar time (month) of randomisation.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-1-calendar-time.pdf"
+)
+```
 
 \clearpage
 

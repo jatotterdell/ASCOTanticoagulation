@@ -48,21 +48,15 @@ all_dat <- read_all_no_daily()
 # FAS-ITT
 fas_itt_dat <- all_dat %>% 
   filter_fas_itt() %>%
-  transmute_model_cols()
+  transmute_model_cols_grp_aus_nz()
 # FAS-ITT excluding missing values
 fas_itt_nona_dat <- fas_itt_dat %>% 
-  filter(!is.na(PO))
-# with Aus/NZ grouped into region rather than 2 countries
-fas_itt_dat2 <- all_dat %>% 
-  filter_fas_itt() %>%
-  transmute_model_cols_grp_aus_nz()
-fas_itt_nona_dat2 <- fas_itt_dat2 %>% 
   filter(!is.na(PO))
 
 # ACS-ITT
 acs_itt_dat <- all_dat %>% 
   filter_acs_itt() %>%
-  transmute_model_cols()
+  transmute_model_cols_grp_aus_nz()
 # ACS-ITT excluding missing values
 acs_itt_nona_dat <- acs_itt_dat %>% 
   filter(!is.na(PO))
@@ -71,17 +65,6 @@ acs_itt_wc_dat <- acs_itt_dat %>%
   mutate(PO = if_else(is.na(PO) | PO == 1, 1, 0))
 # ACS-ITT best case
 acs_itt_bc_dat <- acs_itt_dat %>%
-  mutate(PO = if_else(is.na(PO) | PO == 0, 0, 1))
-
-# ACS-ITT with Aus/NZ grouped into region rather than 2 countries
-acs_itt_dat2 <- all_dat %>% 
-  filter_acs_itt() %>%
-  transmute_model_cols_grp_aus_nz()
-acs_itt_nona_dat2 <- acs_itt_dat2 %>% 
-  filter(!is.na(PO))
-acs_itt_wc_dat2 <- acs_itt_dat2 %>%
-  mutate(PO = if_else(is.na(PO) | PO == 1, 1, 0))
-acs_itt_bc_dat2 <- acs_itt_dat2 %>%
   mutate(PO = if_else(is.na(PO) | PO == 0, 0, 1))
 
 # ACS-PP - exclude participants not per-protocol
@@ -95,17 +78,17 @@ acs_pp_nona_dat <- acs_pp_dat %>%
   filter(!is.na(PO))
 
 # Concurrent enrolments for C2
-acs_itt_concurc2_dat <- acs_itt_dat2 %>%
+acs_itt_concurc2_dat <- acs_itt_dat %>%
   filter_concurrent_intermediate()
 acs_itt_concurc2_nona_dat <- acs_itt_concurc2_dat %>% 
   filter(!is.na(PO))
 # Concurrent enrolments for C3
-acs_itt_concurc3_dat <- acs_itt_dat2 %>%
+acs_itt_concurc3_dat <- acs_itt_dat %>%
   filter_concurrent_std_aspirin()
 acs_itt_concurc3_nona_dat <- acs_itt_concurc3_dat %>% 
   filter(!is.na(PO))
 # Concurrent enrolments for C4
-acs_itt_concurc4_dat <- acs_itt_dat2 %>%
+acs_itt_concurc4_dat <- acs_itt_dat %>%
   filter_concurrent_therapeutic()
 acs_itt_concurc4_nona_dat <- acs_itt_concurc4_dat %>% 
   filter(!is.na(PO))
@@ -114,11 +97,10 @@ acs_itt_concurc4_nona_dat <- acs_itt_concurc4_dat %>%
 ```{r}
 #| label: stan-models
 #| code-summary: Load models
-logistic_mod <- cmdstan_model("stan/logistic_bernoulli.stan")
-noepoch_mod <- cmdstan_model("stan/primary_logistic_model_site.stan")
-noesite_mod <- cmdstan_model("stan/primary_logistic_model_epoch.stan")
-primary_mod <- cmdstan_model("stan/primary_logistic_model_site_epoch.stan")
-primary_mod2 <- cmdstan_model("stan/primary_logistic_model_site_epoch2.stan")
+logistic_mod <- cmdstan_model("stan/binary/logistic.stan")
+logistic_site_mod <- cmdstan_model("stan/binary/logistic_site.stan")
+logistic_epoch_mod <- cmdstan_model("stan/binary/logistic_epoch.stan")
+primary_mod <- cmdstan_model("stan/binary/logistic_site_epoch.stan")
 ```
 
 ```{r}
@@ -139,13 +121,11 @@ make_stan_data <- function(
       AAssignment = ctr,
       CAssignment = ctr)
   )
-  
   nXassign <- sum(grepl("Assignment", colnames(X)))
 
   y <- dat[[outcome]]
   N <- dim(X)[1]
   K <- dim(X)[2]  
-  
     epoch  <- dat$epoch
   M_epoch  <- max(dat$epoch)
     region <- dat[["ctry_num"]]
@@ -164,39 +144,6 @@ make_stan_data <- function(
        beta_sd = beta_sd)
 }
 
-make_model_data_primary <- function(dat, ctr = contr.orthonorm) {
-
-  epoch <- dat$epoch
-  M_epoch <- max(dat$epoch)
-  region <- dat$ctry_num
-  M_region <- max(region)
-  site <- dat$site_num
-  M_site <- max(site)
-  region_by_site <- dat %>% 
-    dplyr::count(ctry_num, site_num) %>% 
-    pull(ctry_num)
-  
-  X <- model.matrix(
-     ~ CAssignment + AAssignment + agegte60 + inelgc3,
-    data = dat,
-    contrast = list(
-      AAssignment = ctr,
-      CAssignment = ctr
-    )
-  )
-  nXassign <- sum(grepl("Assignment", colnames(X)))
-  y <- as.integer(dat$PO)
-  N <- dim(X)[1]
-  K <- dim(X)[2]  
-  list(N = N, K = K, X = X, y = y,
-       M_region = M_region, region = region,
-       M_site = M_site, site = site,
-       M_epoch = M_epoch, epoch = epoch,
-       region_by_site = region_by_site,
-       beta_sd = c(2.5, rep(1, nXassign), 2.5, 10))
-}
-
-
 make_primary_model_data <- function(
     dat, 
     vars = NULL,
@@ -204,27 +151,14 @@ make_primary_model_data <- function(
     ctr = contr.orthonorm) {
   
   # Domain specific intercept as in interims
-  XA <- model.matrix(
-  ~ randA,
-  model.frame(~ randA, dat, na.action = na.pass),
-  contrasts = list(randA = ctr))
-# If not randomised to A
-  XA[is.na(XA[, 2]), ] <- 0
-  colnames(XA)[1] <- "randA"
-  
+  XA <- make_domA_design(dat, ctr)
   # Domain specific intercept as in interims
-  XC <- model.matrix(
-  ~ randC,
-  model.frame(~ randC, dat, na.action = na.pass),
-  contrasts = list(randC = ctr))
-# If not randomised to C
-  if (any(is.na(XC[, 2]))) {
+  XC <- make_domC_design(dat, ctr)
+  if (any(XC[, 1] != 1)) {
     add_intercept = TRUE
   } else {
     add_intercept = FALSE
   }
-  XC[is.na(XC[, 2]), ] <- 0
-  colnames(XC)[1] <- "randC"
   
   if (!is.null(vars)) {
     Xother <- model.matrix(
@@ -239,7 +173,7 @@ make_primary_model_data <- function(
   if(add_intercept) {
     X <- cbind(randPlatform = 1, X)
   }
-  nXtrt <- ncol(XC) + ncol(XA) - !add_intercept
+  nXtrt <- sum(grepl("rand", colnames(X))) - 1
   
   epoch  <- dat[["epoch"]]
   M_epoch  <- max(epoch)
@@ -266,6 +200,71 @@ make_primary_model_data <- function(
     ctrA = attr(XA, "contrasts")[[1]]
   )
   return(out)
+}
+
+summarise_posterior <- function(dat) {
+  dat %>%
+    mutate(
+      Median = 
+        sprintf("%.2f", median(Posterior)),
+      `95\\% CrI` = 
+        sprintf("(%.2f, %.2f)", quantile(Posterior, 0.025), quantile(Posterior, 0.975)),
+      `Mean (SD)` = 
+        sprintf("%.2f (%.2f)", mean(Posterior), sd(Posterior)),
+      `Pr(OR < 1)` = 
+        sprintf("%.2f", Pr(Posterior < 1)),
+      `Pr(OR > 1/1.1)` = 
+        sprintf("%.2f", Pr(Posterior > 1/1.1))
+    )
+}
+
+make_subgroup_summary_table <- function(dat, format = "html") {
+  L <- nrow(dat)
+  row_st <- seq(1, L, by = L / 3)
+  row_ed <- seq(L/3, L, by = L / 3)
+  kable(
+    dat[, -1] %>% select(-Posterior),
+    format = format,
+    booktabs = TRUE,
+    align = "lrrrrr",
+      escape = FALSE
+  ) %>%
+    kable_styling(
+      latex_options = "HOLD_position",
+      font_size = 9
+    ) %>%
+    group_rows("Intermediate", row_st[1], row_ed[1]) %>%
+    pack_rows("Standard plus aspirin", row_st[2], row_ed[2]) %>%
+    pack_rows("Therapeutic", row_st[3], row_ed[3])  
+}
+
+plot_subgroup_or <- function(dat, grp) {
+  ggplot(ordat, aes(xdist = Posterior, y = !!grp)) +
+    facet_grid( ~ Contrast) +
+    stat_slabinterval(
+      aes(fill = 
+            stat(cut_cdf_qi(
+              cdf, 
+              .width = c(.5, .8, .95), 
+              labels = scales::percent_format()))),
+      adjust = 1, n = 1001, .width = c(0.5, 0.8, 0.95),
+      fatten_point = 1
+      ) + 
+    scale_fill_brewer(
+      palette = "Reds",
+      direction = -1, 
+      na.translate = FALSE) + 
+    labs(
+      x = "Odds ratio contrast",
+      fill = "Interval"
+    ) +
+    geom_vline(xintercept = 1, linetype = 2) +
+    scale_x_log10("Odds ratio (log scale)", 
+                  breaks = c(0.1, 0.2, 0.5, 1, 2, 5, 10)) +
+    scale_colour_manual("", values = c("red", "black")) +
+    guides(colour = "none") +
+    theme(panel.border = element_rect(fill = NA),
+          legend.position = "top")
 }
 ```
 
@@ -654,6 +653,98 @@ save_tex_table(out, fn = "outcomes/primary/composite-combinations")
 
 
 # Descriptive Analyses
+
+## By Interim Analysis
+
+```{r}
+intdat <- all_dat %>%
+  filter_acs_itt() %>%
+  mutate(
+    interim = as.character(case_when(
+      RandDate < get_interim_dates()$meet_date[1] ~ 1,
+      RandDate < get_interim_dates()$meet_date[2] ~ 2,
+      RandDate < get_interim_dates()$meet_date[3] ~ 3,
+      RandDate < get_interim_dates()$meet_date[4] ~ 4,
+      TRUE ~ 4
+    )),
+    CAssignment = factor(
+      CAssignment, labels = c("Standard", "Intermediate", "Standard\nplus aspirin", "Therapuetic"))
+  )
+intcounts <- intdat %>% 
+  dplyr::count(interim) %>% 
+  mutate(label = paste0("Interim ", interim, " (n = ", n, ")"))
+trtcounts <- intdat %>% dplyr::count(CAssignment)
+ovrtab <- intdat %>%
+  group_by(interim = "Overall", CAssignment) %>%
+  summarise(
+    Randomised = 
+      sprintf("%i", n()),
+    Known = 
+      sprintf("%i (%.0f)", sum(!is.na(PO)), 100 * mean(!is.na(PO))),
+    `Met primary outcome` = 
+      sprintf("%i (%.0f)", sum(PO, na.rm = T), 100 * mean(PO, na.rm = T)),
+    `Death` = 
+      sprintf("%i (%.0f)", sum(D28_death, na.rm = T), 100 * mean(D28_death, na.rm = T)),
+    `Vasopressor/inotropic support` = 
+      sprintf("%i (%.0f)", sum(ANY_vasop, na.rm = T), 100 * mean(ANY_vasop, na.rm = T)),
+    `Intensive respiratory support` = 
+      sprintf("%i (%.0f)", sum(ANY_vent, na.rm = T), 100 * mean(ANY_vent, na.rm = T))
+  ) %>%
+  pivot_longer(`Randomised`:`Intensive respiratory support`, names_to = "Outcome") %>%
+  pivot_wider(names_from = CAssignment, values_from = value, values_fill = "-")
+inttab <- intdat %>%
+  group_by(interim, CAssignment) %>%
+  summarise(
+    Randomised = 
+      sprintf("%i", n()),
+    Known = 
+      sprintf("%i (%.0f)", sum(!is.na(PO)), 100 * mean(!is.na(PO))),
+    `Met primary outcome` = 
+      sprintf("%i (%.0f)", sum(PO, na.rm = T), 100 * mean(PO, na.rm = T)),
+    `Death` = 
+      sprintf("%i (%.0f)", sum(D28_death, na.rm = T), 100 * mean(D28_death, na.rm = T)),
+    `Vasopressor/inotropic support` = 
+      sprintf("%i (%.0f)", sum(ANY_vasop, na.rm = T), 100 * mean(ANY_vasop, na.rm = T)),
+    `Intensive respiratory support` = 
+      sprintf("%i (%.0f)", sum(ANY_vent, na.rm = T), 100 * mean(ANY_vent, na.rm = T))
+  ) %>%
+  pivot_longer(`Randomised`:`Intensive respiratory support`, names_to = "Outcome") %>%
+  pivot_wider(names_from = CAssignment, values_from = value, values_fill = "-")
+tab <- bind_rows(ovrtab, inttab)
+
+savetab <- kable(
+  tab[, -1],
+  format = "latex",
+  align = "lrrrr",
+  booktabs = TRUE
+) %>%
+  kable_styling(
+    font_size = 9,
+    latex_options = "HOLD_position"
+  ) %>%
+  group_rows(paste0("Overall (n = ", sum(intcounts$n), ")"), 1, 6) %>%
+  group_rows(intcounts$label[1], 7, 12) %>%
+  group_rows(intcounts$label[2], 13, 18) %>%
+  group_rows(intcounts$label[3], 19, 24) %>%
+  group_rows(intcounts$label[4], 25, 30)
+save_tex_table(savetab, fn = "outcomes/primary/primary-composite-interims")
+
+kable(
+  tab[, -1],
+  format = "html",
+  align = "lrrrr",
+) %>%
+  kable_styling(
+    font_size = 9,
+    latex_options = "HOLD_position"
+  ) %>%
+  group_rows(paste0("Overall (n = ", sum(intcounts$n), ")"), 1, 6) %>%
+  group_rows(intcounts$label[1], 7, 12) %>%
+  group_rows(intcounts$label[2], 13, 18) %>%
+  group_rows(intcounts$label[3], 19, 24) %>%
+  group_rows(intcounts$label[4], 25, 30)
+```
+
 
 ## Age
 
@@ -1059,71 +1150,61 @@ In these analyses, the population is restricted to participants who were randomi
 #| label: sample-trtonly-acs-itt-model
 #| code-summary: Data and sampling treatment only model
 seed <- 17250
-mod_dat <- make_primary_model_data(acs_itt_nona_dat2)
+mdat <- make_primary_model_data(acs_itt_nona_dat)
 snk <- capture.output(
-  trtonly_acs_itt_fit <- logistic_mod$sample(
-    data = mod_dat,
+  mfit <- logistic_mod$sample(
+    data = mdat,
     seed = seed,
     refresh = 0,
+    iter_warmup = 1000,
     iter_sampling = 2500,
     chains = 8,
     parallel_chains = 8
 ))
-mod_rvs <- as_draws_rvars(trtonly_acs_itt_fit$draws(c("beta")))
+mdrws <- as_draws_rvars(mfit$draws(c("beta")))
+names(mdrws$beta) <- colnames(mdat$X)
 
 # Transformed samples
-Ca <- mod_dat$ctrA
-Cc <- mod_dat$ctrC
-nC <- ncol(Cc) + 1
-Co <- cbind(1, Cc)
-Ct <- cbind(1, contr.treatment(nC))
+Ca <- mdat$ctrA
+Cc <- mdat$ctrC
 
-mod_rvs$eta <- as.vector(Co %**% mod_rvs$beta[1:nC])
-mod_rvs$beta_uncon <- as.vector(Cc %**% mod_rvs$beta[2:nC])
-mod_rvs$prob <- 1 / (1 + exp(-mod_rvs$eta))
-mod_rvs$beta_trt <- as.vector(transform_coding(Co, Ct) %**% mod_rvs$beta[1:nC])
-mod_rvs$OR <- setNames(
-  exp(mod_rvs$beta_trt[-1]), 
-  c("Intermediate", "Standard plus aspirin", "Therapeutic"))
-mod_rvs$OR <- c(mod_rvs$OR, "Intermediate vs Therapeutic" = mod_rvs$OR[1] / mod_rvs$OR[3])
+mdrws$Acon <- Ca %**% mdrws$beta[grepl("randA[0-9]", names(mdrws$beta))]
+mdrws$Ccon <- Cc %**% mdrws$beta[grepl("randC[0-9]", names(mdrws$beta))]
+mdrws$Atrt <- mdrws$Acon[-1] - mdrws$Acon[1]
+mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
+mdrws$OR <- setNames(exp(mdrws$Ctrt), c("Intermediate", "Standard plus aspirin", "Therapeutic"))
 ```
 
 ```{r}
 #| label: fig-or-densities-trtonly-acs-itt-model
 #| fig-cap: Posterior densities for odds ratio contrasts.
-plot_or_densities(mod_rvs$OR)
+plot_or_densities(mdrws$OR)
 ```
 
 ```{r}
 #| label: tbl-or-densities-trtonly-acs-itt-model
 #| tbl-cap: Posterior summaries for odds ratio contrasts.
-odds_ratio_summary_table(mod_rvs$OR)
+odds_ratio_summary_table(mdrws$OR)
 ```
 
+:::{.callout-caution collapse="true"}
+#### Diagnostics
 ```{r}
-#| label: summary-trtonly-acs-itt-model
-#| code-summary: Summaries
-trtonly_acs_itt_fit$summary("beta")
+mfit$summary("beta")
+mfit$diagnostic_summary()
 ```
+:::
 
+:::{.callout-caution collapse="true"}
+#### Trace plots
 ```{r}
-#| label: diagnostics-trtonly-acs-itt-model
-#| echo: false
-do.call(cbind, trtonly_acs_itt_fit$diagnostic_summary())
+mcmc_trace(mdrws["beta"])
 ```
-
-```{r}
-#| label: fig-trace-trtonly-acs-itt-model
-#| fig-cap: "Trace plots"
-#| fig-height: 3
-#| code-summary: Trace plots
-mcmc_trace(trtonly_acs_itt_fit$draws("beta_raw", format = "matrix"))
-rm(trtonly_acs_itt_fit)
-```
+:::
 
 ### Treatment plus covariates (no site or epoch)
 
-Under this model a component is added for country (region), $\mathbb{I}[\text{age}\geq 60]$ (sample-mean centred), and intervention specific ineligibility (C3 only)
+Under this model a component is added for country (region), $\mathbb{I}[\text{age}\geq 60]$, and intervention specific ineligibility (C3 only)
 
 ::: column-margin
 New terms:
@@ -1141,76 +1222,62 @@ $$
 ```{r}
 #| label: sample-no-site-epoch-acs-itt-model
 seed <- 71236
-mod_dat <- make_primary_model_data(
-  acs_itt_nona_dat2,
-  c("inelgc3", "agegte60"),
-  c(10, 2.5)
+mdat <- make_primary_model_data(
+  acs_itt_nona_dat,
+  c("inelgc3", "agegte60", "ctry"),
+  c(10, 2.5, 1, 1)
 )
 snk <- capture.output(
-  noepochsite_acs_itt_fit <- logistic_mod$sample(
-    data = mod_dat,
+  mfit <- logistic_mod$sample(
+    data = mdat,
     seed = seed,
     refresh = 0,
+    iter_warmup = 1000,
     iter_sampling = 2500,
     chains = 8,
     parallel_chains = 8
 ))
-mod_rvs <- as_draws_rvars(noepochsite_acs_itt_fit$draws(c("beta")))
+mdrws <- as_draws_rvars(mfit$draws(c("beta")))
+names(mdrws$beta) <- colnames(mdat$X)
 
 # Transformed samples
-Ca <- mod_dat$ctrA
-Cc <- mod_dat$ctrC
-nC <- ncol(Cc) + 1
-Co <- cbind(1, Cc)
-Ct <- cbind(1, contr.treatment(nC))
+Ca <- mdat$ctrA
+Cc <- mdat$ctrC
 
-mod_rvs$eta <- as.vector(Co %**% mod_rvs$beta[1:nC])
-mod_rvs$beta_uncon <- as.vector(Cc %**% mod_rvs$beta[2:nC])
-mod_rvs$prob <- 1 / (1 + exp(-mod_rvs$eta))
-mod_rvs$beta_trt <- as.vector(transform_coding(Co, Ct) %**% mod_rvs$beta[1:nC])
-mod_rvs$OR <- setNames(
-  exp(mod_rvs$beta_trt[-1]), 
-  c("Intermediate", "Standard plus aspirin", "Therapeutic"))
-mod_rvs$OR <- c(mod_rvs$OR, "Intermediate vs Therapeutic" = mod_rvs$OR[1] / mod_rvs$OR[3])
-mod_rvs$OR <- c(mod_rvs$OR, 
-                "Ineligible aspirin" = exp(mod_rvs$beta[7]), 
-                "Age 60+" = exp(mod_rvs$beta[8]))
+mdrws$Acon <- Ca %**% mdrws$beta[grepl("randA[0-9]", names(mdrws$beta))]
+mdrws$Ccon <- Cc %**% mdrws$beta[grepl("randC[0-9]", names(mdrws$beta))]
+mdrws$Atrt <- mdrws$Acon[-1] - mdrws$Acon[1]
+mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
+mdrws$OR <- setNames(exp(mdrws$Ctrt), c("Intermediate", "Standard plus aspirin", "Therapeutic"))
+mdrws$OR <- c(mdrws$OR, setNames(exp(mdrws$beta[7:8]), c("Inelgible aspirin", "Age 60+")))
 ```
 
 ```{r}
 #| label: fig-or-densities-noepochsite-acs-itt-model
 #| fig-cap: Posterior densities for odds ratio contrasts.
-plot_or_densities(mod_rvs$OR)
+plot_or_densities(mdrws$OR)
 ```
 
 ```{r}
 #| label: tbl-or-densities-noepochsite-acs-itt-model
 #| tbl-cap: Posterior summaries for odds ratio contrasts.
-odds_ratio_summary_table(mod_rvs$OR)
+odds_ratio_summary_table(mdrws$OR)
 ```
 
-
+:::{.callout-caution collapse="true"}
+#### Diagnostics
 ```{r}
-#| label: summary-noepochsite-acs-itt-model
-#| code-summary: Summaries
-noepochsite_acs_itt_fit$summary("beta")
+mfit$summary("beta")
+mfit$diagnostic_summary()
 ```
+:::
 
+:::{.callout-caution collapse="true"}
+#### Trace plots
 ```{r}
-#| label: diagnostics-noepochsite-acs-itt-model
-#| echo: false
-do.call(cbind, noepochsite_acs_itt_fit$diagnostic_summary())
+mcmc_trace(mdrws["beta"])
 ```
-
-```{r}
-#| label: fig-trace-noepochsite-acs-itt-model
-#| fig-cap: "Trace plots"
-#| fig-height: 4
-#| code-summary: Trace plots
-mcmc_trace(noepochsite_acs_itt_fit$draws("beta_raw", format = "matrix"))
-rm(noepochsite_acs_itt_fit)
-```
-
+:::
 
 ### Treatment plus covariates plus site (no epoch)
 
@@ -1231,14 +1298,14 @@ $$
 #| label: model-noepoch-acs-itt-fit
 #| code-summary: Data and sampling no site or epoch model
 seed <- 71236
-mod_dat <- make_primary_model_data(
-  acs_itt_nona_dat2,
-  c("inelgc3", "agegte60"),
-  c(10, 2.5)
+mdat <- make_primary_model_data(
+  acs_itt_nona_dat,
+  c("inelgc3", "agegte60", "ctry"),
+  c(10, 2.5, 1, 1)
 )
 snk <- capture.output(
-  noepoch_acs_itt_fit <- noepoch_mod$sample(
-    data = mod_dat,
+  mfit <- logistic_site_mod$sample(
+    data = mdat,
     seed = seed,
     refresh = 0,
     iter_sampling = 2500,
@@ -1246,82 +1313,67 @@ snk <- capture.output(
     parallel_chains = 8,
     adapt_delta = 0.95
 ))
-mod_rvs <- as_draws_rvars(noepoch_acs_itt_fit$draws(c("beta")))
+mdrws <- as_draws_rvars(mfit$draws(c("beta", "gamma_site", "tau_site")))
+names(mdrws$beta) <- colnames(mdat$X)
+site_map <- acs_itt_nona_dat %>% dplyr::count(site_num, site)
+names(mdrws$gamma_site) <- site_map$site
 
 # Transformed samples
-Ca <- mod_dat$ctrA
-Cc <- mod_dat$ctrC
-nC <- ncol(Cc) + 1
-Co <- cbind(1, Cc)
-Ct <- cbind(1, contr.treatment(nC))
+Ca <- mdat$ctrA
+Cc <- mdat$ctrC
 
-mod_rvs$eta <- as.vector(Co %**% mod_rvs$beta[1:nC])
-mod_rvs$beta_uncon <- as.vector(Cc %**% mod_rvs$beta[2:nC])
-mod_rvs$prob <- 1 / (1 + exp(-mod_rvs$eta))
-mod_rvs$beta_trt <- as.vector(transform_coding(Co, Ct) %**% mod_rvs$beta[1:nC])
-mod_rvs$OR <- setNames(
-  exp(mod_rvs$beta_trt[-1]), 
-  c("Intermediate", "Standard plus aspirin", "Therapeutic"))
-mod_rvs$OR <- c(mod_rvs$OR, "Intermediate vs Therapeutic" = mod_rvs$OR[1] / mod_rvs$OR[3])
-mod_rvs$OR <- c(mod_rvs$OR, 
-                "Ineligible aspirin" = exp(mod_rvs$beta[7]), 
-                "Age 60+" = exp(mod_rvs$beta[8]))
+mdrws$Acon <- Ca %**% mdrws$beta[grepl("randA[0-9]", names(mdrws$beta))]
+mdrws$Ccon <- Cc %**% mdrws$beta[grepl("randC[0-9]", names(mdrws$beta))]
+mdrws$Atrt <- mdrws$Acon[-1] - mdrws$Acon[1]
+mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
+mdrws$OR <- setNames(exp(mdrws$Ctrt), c("Intermediate", "Standard plus aspirin", "Therapeutic"))
+mdrws$OR <- c(mdrws$OR, setNames(exp(mdrws$beta[7:10]), c("Inelgible aspirin", "Age 60+", "Australia/New Zealand", "Nepal")))
 ```
 
 ```{r}
 #| label: fig-or-densities-noepoch-acs-itt-model
 #| fig-cap: Posterior densities for odds ratio contrasts.
-plot_or_densities(mod_rvs$OR)
+plot_or_densities(mdrws$OR)
 ```
 
 ```{r}
 #| label: tbl-or-densities-noepoch-acs-itt-model
 #| tbl-cap: Posterior summaries for odds ratio contrasts.
-odds_ratio_summary_table(mod_rvs$OR)
+odds_ratio_summary_table(mdrws$OR)
 ```
 
 ```{r}
-#| label: summary-noepoch-acs-itt-fit
-#| code-summary: Summaries
-noepoch_acs_itt_fit$summary("beta")
+#| label: fig-site-effects-noepoch-acs-itt-model
+#| fig-cap: Site effect odds ratios.
+plot_site_terms(
+  exp(mdrws$gamma_site), 
+  factor(
+    mdat$region_by_site, 
+    labels = c("India", "Australia\nNew Zealand", "Nepal"))
+)
 ```
 
+:::{.callout-caution collapse="true"}
+#### Diagnostics
 ```{r}
-#| label: diagnostics-noepoch-acs-itt-fit
-#| echo: false
-do.call(cbind, noepoch_acs_itt_fit$diagnostic_summary())
+mfit$summary(c("beta", "gamma_site", "tau_site"))
+mfit$diagnostic_summary()
 ```
+:::
 
+:::{.callout-caution collapse="true"}
+#### Trace plots
 ```{r}
-#| label: fig-trace-beta-noepoch-acs-itt-fit
-#| fig-cap: "Trace plots"
-#| fig-height: 4
-#| code-summary: Trace plots
-mcmc_trace(noepoch_acs_itt_fit$draws(
-  c("beta_raw"), 
-  format = "matrix"))
+mcmc_trace(mdrws["beta"])
+mcmc_trace(mdrws["gamma_site"])
+mcmc_trace(mdrws["tau_site"])
 ```
+:::
 
-```{r}
-#| label: fig-trace-site-noepoch-acs-itt-fit
-#| fig-cap: "Trace plots"
-#| fig-cap-location: bottom
-#| caption-location: bottom
-#| fig-height: 8
-#| fig-width: 10
-#| code-summary: Trace plots site terms
-#| column: page
-mcmc_trace(noepoch_acs_itt_fit$draws(
-  c("epsilon_site", "tau_site"), 
-  format = "matrix"))
-```
-
-### Primary Model
-
-Under this model a component is added for epoch (calendar time).
+### Treatment plus covariates plus epoch (no site)
 
 ::: column-margin
-New terms
+Replace site terms with epoch terms
 
 $$
 \begin{aligned}
@@ -1334,12 +1386,87 @@ $$
 :::
 
 ```{r}
+#| label: model-nosite-acs-itt-fit
+#| code-summary: Data and sampling no site model
+seed <- 71236
+mdat <- make_primary_model_data(
+  acs_itt_nona_dat,
+  c("inelgc3", "agegte60", "ctry"),
+  c(10, 2.5, 1, 1)
+)
+snk <- capture.output(
+  mfit <- logistic_epoch_mod$sample(
+    data = mdat,
+    seed = seed,
+    refresh = 0,
+    iter_sampling = 2500,
+    chains = 8,
+    parallel_chains = 8,
+    adapt_delta = 0.98
+))
+mdrws <- as_draws_rvars(mfit$draws(c("beta", "gamma_epoch", "tau_epoch")))
+names(mdrws$beta) <- colnames(mdat$X)
+epoch_map <- acs_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)
+names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
+
+# Transformed samples
+Ca <- mdat$ctrA
+Cc <- mdat$ctrC
+
+mdrws$Acon <- Ca %**% mdrws$beta[grepl("randA[0-9]", names(mdrws$beta))]
+mdrws$Ccon <- Cc %**% mdrws$beta[grepl("randC[0-9]", names(mdrws$beta))]
+mdrws$Atrt <- mdrws$Acon[-1] - mdrws$Acon[1]
+mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
+mdrws$OR <- setNames(exp(mdrws$Ctrt), c("Intermediate", "Standard plus aspirin", "Therapeutic"))
+mdrws$OR <- c(mdrws$OR, setNames(exp(mdrws$beta[7:10]), c("Inelgible aspirin", "Age 60+", "Australia/New Zealand", "Nepal")))
+```
+
+```{r}
+#| label: fig-or-densities-nosite-acs-itt-model
+#| fig-cap: Posterior densities for odds ratio contrasts.
+plot_or_densities(mdrws$OR)
+```
+
+```{r}
+#| label: tbl-or-densities-nosite-acs-itt-model
+#| tbl-cap: Posterior summaries for odds ratio contrasts.
+odds_ratio_summary_table(mdrws$OR)
+```
+
+```{r}
+#| label: fig-epoch-effects-nosite-acs-itt-model
+#| fig-cap: Epoch effect odds ratios.
+plot_epoch_terms(
+  exp(mdrws$gamma_epoch)
+)
+```
+
+:::{.callout-caution collapse="true"}
+#### Diagnostics
+```{r}
+mfit$summary(c("beta", "gamma_epoch", "tau_epoch"))
+mfit$diagnostic_summary()
+```
+:::
+
+:::{.callout-caution collapse="true"}
+#### Trace plots
+```{r}
+mcmc_trace(mdrws["beta"])
+mcmc_trace(mdrws["gamma_epoch"])
+mcmc_trace(mdrws["tau_epoch"])
+```
+:::
+
+### Primary Model
+
+```{r}
 #| label: model-primary-sampling
 #| code-summary: Data and sampling primary model
 mdat <- make_primary_model_data(
-  acs_itt_nona_dat2,
-  c("inelgc3", "agegte60"),
-  c(10, 2.5)
+  acs_itt_nona_dat,
+  c("inelgc3", "agegte60", "ctry"),
+  c(10, 2.5, 1, 1)
 )
 snk <- capture.output(
   mfit <- primary_mod$sample(
@@ -1352,134 +1479,88 @@ snk <- capture.output(
     parallel_chains = 8,
     adapt_delta = 0.99
 ))
-mrvs <- as_draws_rvars(mfit$draws(c(
-  "beta", "beta_region", 
+mdrws <- as_draws_rvars(mfit$draws(c(
+  "beta", 
   "gamma_site", "tau_site", 
-  "gamma_epoch", "tau_epoch", "y_ppc")))
-names(mrvs$beta) <- colnames(mdat$X)
+  "gamma_epoch", "tau_epoch", 
+  "y_ppc")))
+names(mdrws$beta) <- colnames(mdat$X)
+epoch_map <- acs_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)
+site_map <- acs_itt_nona_dat %>% dplyr::count(site_num, site)
+names(mdrws$gamma_site) <- site_map$site
+names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
 
 # Transformed samples
-epoch_map <- acs_itt_nona_dat2 %>% dplyr::count(epoch, epoch_lab)
-site_map <- acs_itt_nona_dat2 %>% dplyr::count(site_num, site)
 Ca <- mdat$ctrA
 Cc <- mdat$ctrC
-nC <- ncol(Cc) + 1
-Co <- cbind(1, Cc)
-Ct <- cbind(1, contr.treatment(nC))
 
-mrvs$eta <- as.vector(Co %**% mrvs$beta[1:nC])
+mdrws$Acon <- Ca %**% mdrws$beta[grepl("randA[0-9]", names(mdrws$beta))]
+mdrws$Ccon <- Cc %**% mdrws$beta[grepl("randC[0-9]", names(mdrws$beta))]
+mdrws$Atrt <- mdrws$Acon[-1] - mdrws$Acon[1]
+mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
 
-mrvs$Acon <- as.vector(Ca %**% mrvs$beta[6])
-mrvs$Ccon <- as.vector(Cc %**% mrvs$beta[2:nC])
-names(mrvs$Ccon) <- c("Standard", "Intermediate", "Standard plus aspirin", "Therapeutic")
-
-mrvs$Ctrt <- mrvs$Ccon[-1] - mrvs$Ccon[1]
-
-mrvs$prob <- 1 / (1 + exp(-mrvs$eta))
-mrvs$beta_trt <- as.vector(transform_coding(Co, Ct) %**% mrvs$beta[1:nC])
-mrvs$OR <- setNames(
-  exp(mrvs$beta_trt[-1]), 
-  c("Intermediate", "Standard plus aspirin", "Therapeutic"))
-mrvs$OR <- c(mrvs$OR, "Intermediate vs Therapeutic" = mrvs$OR[1] / mrvs$OR[3])
-mrvs$OR <- c(mrvs$OR, 
-                "Ineligible aspirin" = exp(mrvs$beta[7]), 
-                "Age 60+" = exp(mrvs$beta[8]),
-             setNames(exp(mrvs$beta_region), c("India (ref)", "Australia/New Zealand", "Nepal")))
-mrvs$ORepoch <- setNames(exp(mrvs$gamma_epoch), epoch_map$epoch_lab)
-mrvs$ORsites <- setNames(exp(mrvs$gamma_site), site_map$site)
+mdrws$OR <- setNames(exp(mdrws$Ctrt), c("Intermediate", "Standard plus aspirin", "Therapeutic"))
+mdrws$OR <- c(mdrws$OR, setNames(exp(mdrws$beta[7:10]), c("Inelgible aspirin", "Age 60+", "Australia/New Zealand", "Nepal")))
 ```
 
 ```{r}
 #| label: odds-ratio-summary-table-primary-model
 #| tbl-cap: Posterior summaries for model parameters.
 save_tex_table(
-  odds_ratio_summary_table(mrvs$OR, "latex"),
+  odds_ratio_summary_table(mdrws$OR, "latex"),
   "outcomes/primary/primary-model-acs-itt-summary-table")
-odds_ratio_summary_table(mrvs$OR)
+odds_ratio_summary_table(mdrws$OR)
 ```
 
 ```{r}
 #| label: tbl-decision-quantities
 #| tbl-cap: Decision quantity summaries
 save_tex_table(
-  decision_quantity_summary_table(c("Standard" = rvar(1), mrvs$OR[1:3]), "latex"),
+  decision_quantity_summary_table(c("Standard" = rvar(1), mdrws$OR[1:3]), "latex"),
   "outcomes/primary/primary-model-acs-itt-decision-table")
 decision_quantity_summary_table(
-  c("Standard" = rvar(1), mrvs$OR[1:3])
+  c("Standard" = rvar(1), mdrws$OR[1:3])
 )
 ```
 
 ```{r}
 #| label: odds-ratio-summary-primary-model-acs-itt-epoch-site-terms
-orsdat <- tibble(
-  Group = "Epoch",
-  Parameter = fct_inorder(names(mrvs$ORepoch)),
-  posterior = mrvs$ORepoch
+p <- plot_epoch_site_terms(
+  exp(mdrws$gamma_epoch), 
+  exp(mdrws$gamma_site),
+  factor(
+    mdat$region_by_site, 
+    labels = c("India", "Australia\nNew Zealand", "Nepal"))
 )
-p_epoch <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
-  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
-  geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_log10("Odds ratio (log scale)") +
-  labs(y = "Epoch")
-
-orsdat <- tibble(
-  Group = "Site",
-  Country = factor(mdat$region_by_site, labels = c("India", "Australia\nNew Zealand", "Nepal")),
-  Parameter = fct_inorder(names(mrvs$ORsites)),
-  posterior = mrvs$ORsites
-)
-p_site <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
-  facet_grid(Country ~ ., scales = "free_y", space = "free_y") +
-  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
-  geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_log10("Odds ratio (log scale)") +
-  labs(y = "Site") +
-  theme(panel.border = element_rect(fill = NA))
-p <- p_epoch | p_site
 pth <- file.path("outputs", "figures", "outcomes", "primary", "primary-model-acs-itt-epoch-site-terms.pdf")
 ggsave(pth, p, width = 6, height = 4.5)
 p
 ```
 
+:::{.callout-caution collapse="true"}
+#### Diagnostics
 ```{r}
-#| label: primary-summary
-#| code-summary: Summaries
-mfit$summary(c("beta", "beta_region"))
+mfit$summary(c("beta", "gamma_epoch", "tau_epoch", "gamma_site", "tau_site"))
+mfit$diagnostic_summary()
 ```
+:::
 
+:::{.callout-caution collapse="true"}
+#### Trace plots
 ```{r}
-#| label: fig-primary-trace-site
-#| fig-cap: "Trace plots"
-#| fig-cap-location: bottom
-#| caption-location: bottom
-#| fig-height: 8
-#| fig-width: 10
-#| code-summary: Trace plots site terms
-#| column: page
-mcmc_trace(mfit$draws(
-  c("epsilon_site", "tau_site"), 
-  format = "matrix"))
+mcmc_trace(mdrws["beta"])
+mcmc_trace(mdrws["gamma_epoch"])
+mcmc_trace(mdrws["tau_epoch"])
+mcmc_trace(mdrws["gamma_site"])
+mcmc_trace(mdrws["tau_site"])
 ```
-
-```{r}
-#| label: fig-primary-trace-epoch
-#| fig-cap: "Trace plots"
-#| fig-cap-location: bottom
-#| caption-location: bottom
-#| fig-height: 6
-#| fig-width: 10
-#| code-summary: Trace plots epoch terms
-#| column: page
-mcmc_trace(mfit$draws(
-  c("epsilon_epoch", "tau_epoch"), 
-  format = "matrix"))
-```
+:::
 
 #### Posterior Predictive Checks
 
 ```{r}
 #| label: primary-acs-itt-ppc
-y_ppc <- mrvs$y_ppc
+y_ppc <- mdrws$y_ppc
 ppc_dat <- bind_cols(acs_itt_nona_dat, tibble(y_ppc = y_ppc))
 
 grp_ppc <- function(grp) {
@@ -1533,62 +1614,54 @@ p
 
 ```{r}
 #| tbl-cap: Primary outcome by anti-coagulation intervention by country.
-tdat <- all_dat %>%
-  filter_acs_itt() %>%
-  dplyr::count(
-    Country = fct_collapse(fct_infreq(PT_CountryName), 
-                       `Australia/New Zealand` = c("Australia", "New Zealand")),
-    `Anticoagulation intervention` = factor(
-      CAssignment, labels = str_replace(intervention_labels()$CAssignment[-1], "<br>", " ")),
-    PO) %>%
-  complete(Country, `Anticoagulation intervention`, PO, fill = list(n = 0)) %>%
-  group_by(Country, `Anticoagulation intervention`) %>%
-  spread(PO, n, fill = 0) %>%
-  ungroup() %>%
-  mutate(
-    Patients = `0` + `1` + `<NA>`,
-    Known = `0` + `1`,
-    `Primary outcome` = sprintf("%i (%.0f%%)", `1`, 100 * `1` / Known)
-  ) %>%
-  mutate(`Primary outcome` = str_replace(`Primary outcome`, "0 \\(NaN\\%\\)", "- (-%)")) %>%
-  select(-Country, -`0`, -`1`, -`<NA>`)
-kable(tdat,
+make_subgroup_country_table <- function(format = "html") {
+  tdat <- acs_itt_dat %>%
+    dplyr::count(
+      Country = fct_infreq(ctry),
+      `Anticoagulation intervention` = factor(
+        CAssignment, labels = str_replace(intervention_labels()$CAssignment[-1], "<br>", " ")),
+      PO) %>%
+    complete(Country, `Anticoagulation intervention`, PO, fill = list(n = 0)) %>%
+    group_by(Country, `Anticoagulation intervention`) %>%
+    spread(PO, n, fill = 0) %>%
+    ungroup() %>%
+    mutate(
+      Patients = `0` + `1` + `<NA>`,
+      Known = `0` + `1`,
+      `Primary outcome` = sprintf("%i (%.0f%%)", `1`, 100 * `1` / Known)
+    ) %>%
+    mutate(`Primary outcome` = str_replace(`Primary outcome`, "0 \\(NaN\\%\\)", "- (-%)")) %>%
+    select(-Country, -`0`, -`1`, -`<NA>`)
+  kable(
+    tdat,
+    format = format,
     digits = 2,
     align = "lrrr",
     booktabs = TRUE) %>%
   kable_styling(
+    font_size = 9,
     bootstrap_options = "striped",
     latex_options = "HOLD_position") %>%
   pack_rows("India", 1, 4) %>%
   pack_rows("Australia/New Zealand", 5, 8) %>%
-  pack_rows("Nepal", 9, 12)
-
-tab <- kable(
-  tdat,
-  format = "latex",
-  digits = 2,
-  align = "lrrr",
-  booktabs = TRUE) %>%
-kable_styling(
-  font_size = 9,
-  bootstrap_options = "striped",
-  latex_options = "HOLD_position") %>%
-pack_rows("India", 1, 4) %>%
-pack_rows("Australia/New Zealand", 5, 8) %>%
-pack_rows("Nepal", 9, 12)
+  pack_rows("Nepal", 9, 12) 
+}
+tab <- make_subgroup_country_table("latex")
 save_tex_table(tab, "outcomes/primary/descriptive-acs-itt-subgroup-country-descriptive")
+make_subgroup_country_table()
 ```
 
 ```{r}
 mdat <- make_stan_data(
-  acs_itt_nona_dat2 %>% mutate(AAssignment = relevel(AAssignment, ref = "A0")),
+  acs_itt_nona_dat %>% 
+    mutate(AAssignment = relevel(AAssignment, ref = "A0")),
   c("CAssignment", "AAssignment", "inelgc3", "agegte60", "ctry", "CAssignment:ctry"),
   "PO",
   beta_sd = c(2.5, rep(1, 5), 10, 2.5, rep(1, 8)),
   contr.treatment
 )
 snk <- capture.output(
-  mfit <- primary_mod2$sample(
+  mfit <- primary_mod$sample(
     data = mdat,
     seed = 44106,
     refresh = 0,
@@ -1598,127 +1671,123 @@ snk <- capture.output(
     parallel_chains = 8,
     adapt_delta = 0.98
 ))
-mrvs <- as_draws_rvars(mfit$draws(c(
-  "beta", "gamma_site", "tau_site", 
-  "gamma_epoch", "tau_epoch", "y_ppc")))
-names(mrvs$beta) <- colnames(mdat$X)
+mdrws <- as_draws_rvars(mfit$draws(c(
+  "beta", 
+  "gamma_site", "tau_site", 
+  "gamma_epoch", "tau_epoch", 
+  "y_ppc")))
+names(mdrws$beta) <- colnames(mdat$X)
+epoch_map <- acs_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)
+site_map <- acs_itt_nona_dat %>% dplyr::count(site_num, site)
+names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
+names(mdrws$gamma_site) <- site_map$site
 
-# Transformed parameters
-epoch_map <- acs_itt_nona_dat2 %>% dplyr::count(epoch, epoch_lab)
-site_map <- acs_itt_nona_dat2 %>% dplyr::count(site_num, site)
-Ca <- cbind(1, attr(mdat$X, "contrasts")$AAssignment)
-Cc <- cbind(1, attr(mdat$X, "contrasts")$CAssignment)
-nC <- ncol(Cc) + 1
-Co <- cbind(1, Cc)
-Ct <- cbind(1, contr.treatment(nC))
-
-mrvs$Acon <- as.vector(Ca[, -1, drop = F] %**% mrvs$beta[5:6])
-mrvs$Ccon <- as.vector(Cc[, -1] %**% mrvs$beta[2:4])
+Ca <- attr(mdat$X, "contrasts")$AAssignment
+Cc <- attr(mdat$X, "contrasts")$CAssignment
+mdrws$Acon <- Ca %**% mdrws$beta[grepl("AAssignment[0-9]", names(mdrws$beta))]
+mdrws$Ccon <- Cc %**% mdrws$beta[grepl("CAssignment[0-9]$", names(mdrws$beta))]
+mdrws$Atrt <- mdrws$Acon[-2] - mdrws$Acon[2]
+mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
 
 labs <- c("Intermediate", "Standard plus aspirin", "Therapeutic")
-mrvs$CtrtIndia <- setNames(as.vector(mrvs$beta[2:4]), labs)
-mrvs$CtrtAuNZ <- setNames(as.vector(mrvs$beta[2:4] + mrvs$beta[11:13]), labs)
-mrvs$CtrtNepal <- setNames(as.vector(mrvs$beta[2:4] + mrvs$beta[14:16]), labs)
-mrvs$OR <- exp(
-  c(mrvs$CtrtIndia, mrvs$CtrtAuNZ, mrvs$CtrtNepal)
-)
+mdrws$CtrtIN <- setNames(mdrws$beta[2:4], labs)
+mdrws$CtrtAUNZ <- setNames(mdrws$beta[2:4] + mdrws$beta[11:13], labs)
+mdrws$CtrtNP <- setNames(mdrws$beta[2:4] + mdrws$beta[14:16], labs)
+
+mdrws$OR <- exp(rbind(mdrws$CtrtIN, mdrws$CtrtAUNZ, mdrws$CtrtNP))
+rownames(mdrws$OR) <- c("India", "Australia/New Zealand", "Nepal")
+colnames(mdrws$OR) <- c("Intermediate", "Standard plus aspirin", "Therapeutic")
+# Compare treatment effects across regions
+mdrws$compare <- sweep(mdrws$OR[-1, ], 2, mdrws$OR[1, ], FUN = "/")
+
+# Summarise subgroup effects
 ordat <- expand_grid(
-  Region = c("India", "Australia\nNew Zealand", "Nepal"),
-  Contrast = labs
-)
-ordat$Posterior <- mrvs$OR
+  Contrast = labs,
+  Region = c("India", "Australia/New Zealand", "Nepal"),
+) %>%
+  mutate(Posterior = c(mdrws$OR)) %>%
+  summarise_posterior()
+# Summarise comparison of effects (reference is India)
+compdat <- expand_grid(
+  Contrast = labs,
+  Region = c("Australia/New Zealand", "Nepal")
+) %>%
+  mutate(Posterior = c(mdrws$compare)) %>%
+  summarise_posterior() %>%
+  select(-`Pr(OR > 1/1.1)`)
 ```
 
 ```{r}
-p <- ggplot(ordat, aes(xdist = Posterior, y = Region)) +
-  facet_grid( ~ Contrast) +
-  stat_slabinterval(
-    aes(fill = 
-          stat(cut_cdf_qi(
-            cdf, 
-            .width = c(.5, .8, .95), 
-            labels = scales::percent_format()))),
-    adjust = 1, n = 1001, .width = c(0.5, 0.8, 0.95),
-    fatten_point = 1
-    ) + 
-  scale_fill_brewer(
-    palette = "Reds",
-    direction = -1, 
-    na.translate = FALSE) + 
-  labs(
-    x = "Odds ratio contrast",
-    fill = "Interval"
-  ) +
-  geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_log10("Odds ratio (log scale)", 
-                breaks = c(0.1, 0.2, 0.5, 1, 2, 5, 10),
-                limits = c(0.05, 10)) +
-  scale_colour_manual("", values = c("red", "black")) +
-  guides(colour = "none") +
-  theme(panel.border = element_rect(fill = NA),
-        legend.position = "top")
-ggsave(file.path("outputs", "figures", "outcomes", "primary", "acs-itt-subgroup-country-hte.pdf"),
-       p,
-       height = 3, width = 6)
+p <- plot_subgroup_or(ordat, sym("Region"))
+ggsave(
+  file.path("outputs", "figures", "outcomes", "primary", "acs-itt-subgroup-country-hte.pdf"),
+  p, height = 3, width = 6)
+p
+```
+
+```{r}
+tab <- make_subgroup_summary_table(ordat, "latex")
+save_tex_table(tab, "outcomes/primary/subgroup/country-odds-ratios")
+make_subgroup_summary_table(ordat)
+```
+
+```{r}
+tab <- make_subgroup_summary_table(compdat, "latex")
+save_tex_table(tab, "outcomes/primary/subgroup/country-odds-ratios-compare")
+make_subgroup_summary_table(compdat)
 ```
 
 #### Age
 
 ```{r}
 #| tbl-cap: Primary outcome by anti-coagulation intervention by age group
-tdat <- all_dat %>%
-  filter_acs_itt() %>%
-  dplyr::count(
-    Age = factor(agegte60, levels = 0:1),
-    `Anticoagulation intervention` = factor(
-      CAssignment, labels = str_replace(intervention_labels()$CAssignment[-1], "<br>", " ")),
-    PO) %>%
-  complete(Age, `Anticoagulation intervention`, PO, fill = list(n = 0)) %>%
-  group_by(Age, `Anticoagulation intervention`) %>%
-  spread(PO, n, fill = 0) %>%
-  ungroup() %>%
-  mutate(
-    Patients = `0` + `1` + `<NA>`,
-    Known = `0` + `1`,
-    `Primary outcome` = sprintf("%i (%.0f%%)", `1`, 100 * `1` / Known)
-  ) %>%
-  mutate(`Primary outcome` = str_replace(`Primary outcome`, "0 \\(NaN\\%\\)", "- (-%)")) %>%
-  select(-Age, -`0`, -`1`, -`<NA>`)
-kable(tdat,
+make_subgroup_age_table <- function(format = "html") {
+  tdat <- all_dat %>%
+    filter_acs_itt() %>%
+    dplyr::count(
+      Age = factor(agegte60, levels = 0:1),
+      `Anticoagulation intervention` = factor(
+        CAssignment, labels = str_replace(intervention_labels()$CAssignment[-1], "<br>", " ")),
+      PO) %>%
+    complete(Age, `Anticoagulation intervention`, PO, fill = list(n = 0)) %>%
+    group_by(Age, `Anticoagulation intervention`) %>%
+    spread(PO, n, fill = 0) %>%
+    ungroup() %>%
+    mutate(
+      Patients = `0` + `1` + `<NA>`,
+      Known = `0` + `1`,
+      `Primary outcome` = sprintf("%i (%.0f%%)", `1`, 100 * `1` / Known)
+    ) %>%
+    mutate(`Primary outcome` = str_replace(`Primary outcome`, "0 \\(NaN\\%\\)", "- (-%)")) %>%
+    select(-Age, -`0`, -`1`, -`<NA>`)
+  kable(
+    tdat,
+    format = format,
     digits = 2,
     align = "lrrr",
     booktabs = TRUE) %>%
   kable_styling(
+    font_size = 9,
     bootstrap_options = "striped",
     latex_options = "HOLD_position") %>%
   pack_rows("Age < 60 years", 1, 4) %>%
-  pack_rows("Age 60+ years", 5, 8)
-
-tab <- kable(
-  tdat,
-  format = "latex",
-  digits = 2,
-  align = "lrrr",
-  booktabs = TRUE) %>%
-kable_styling(
-  font_size = 9,
-  bootstrap_options = "striped",
-  latex_options = "HOLD_position") %>%
-  pack_rows("Age < 60 years", 1, 4) %>%
-  pack_rows("Age 60+ years", 5, 8)
+  pack_rows("Age 60+ years", 5, 8)  
+}
+tab <- make_subgroup_age_table("latex")
 save_tex_table(tab, "outcomes/primary/descriptive-acs-itt-subgroup-age-descriptive")
+make_subgroup_age_table()
 ```
 
 ```{r}
 mdat <- make_stan_data(
-  acs_itt_nona_dat2 %>% mutate(AAssignment = relevel(AAssignment, ref = "A0")),
+  acs_itt_nona_dat %>% mutate(AAssignment = relevel(AAssignment, ref = "A0")),
   c("CAssignment", "AAssignment", "inelgc3", "agegte60", "ctry", "CAssignment:agegte60"),
   "PO",
   beta_sd = c(2.5, rep(1, 5), 10, 2.5, rep(1, 5)),
   contr.treatment
 )
 snk <- capture.output(
-  mfit <- primary_mod2$sample(
+  mfit <- primary_mod$sample(
     data = mdat,
     seed = 44106,
     refresh = 0,
@@ -1728,125 +1797,85 @@ snk <- capture.output(
     parallel_chains = 8,
     adapt_delta = 0.98
 ))
-mrvs <- as_draws_rvars(mfit$draws(c(
-  "beta", "gamma_site", "tau_site", 
-  "gamma_epoch", "tau_epoch", "y_ppc")))
-names(mrvs$beta) <- colnames(mdat$X)
-
-# Transformed parameters
-epoch_map <- acs_itt_nona_dat2 %>% dplyr::count(epoch, epoch_lab)
-site_map <- acs_itt_nona_dat2 %>% dplyr::count(site_num, site)
-Ca <- cbind(1, attr(mdat$X, "contrasts")$AAssignment)
-Cc <- cbind(1, attr(mdat$X, "contrasts")$CAssignment)
-nC <- ncol(Cc) + 1
-Co <- cbind(1, Cc)
-Ct <- cbind(1, contr.treatment(nC))
-
-mrvs$Acon <- as.vector(Ca[, -1, drop = F] %**% mrvs$beta[5:6])
-mrvs$Ccon <- as.vector(Cc[, -1] %**% mrvs$beta[2:4])
+mdrws <- as_draws_rvars(mfit$draws(c(
+  "beta", 
+  "gamma_site", "tau_site", 
+  "gamma_epoch", "tau_epoch", 
+  "y_ppc")))
+names(mdrws$beta) <- colnames(mdat$X)
+epoch_map <- acs_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)
+site_map <- acs_itt_nona_dat %>% dplyr::count(site_num, site)
+names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
+names(mdrws$gamma_site) <- site_map$site
 
 labs <- c("Intermediate", "Standard plus aspirin", "Therapeutic")
-mrvs$CtrtAgelt60 <- setNames(as.vector(mrvs$beta[2:4]), labs)
-mrvs$CtrtAgegt60 <- setNames(as.vector(mrvs$beta[2:4] + mrvs$beta[11:13]), labs)
-mrvs$OR <- exp(
-  c(mrvs$CtrtAgelt60, mrvs$CtrtAgegt60)
-)
+mdrws$CtrtAgelt60 <- setNames(as.vector(mdrws$beta[2:4]), labs)
+mdrws$CtrtAgegt60 <- setNames(as.vector(mdrws$beta[2:4] + mdrws$beta[11:13]), labs)
+mdrws$OR <- exp(c(mdrws$CtrtAgelt60, mdrws$CtrtAgegt60))
 ordat <- expand_grid(
   Age = c("Age < 60", "Age 60+"),
   Contrast = labs
-)
-ordat$Posterior <- mrvs$OR
+) %>%
+  mutate(Posterior = mdrws$OR)
 ```
 
 ```{r}
-p <- ggplot(ordat, aes(xdist = Posterior, y = Age)) +
-  facet_grid( ~ Contrast) +
-  stat_slabinterval(
-    aes(fill = 
-          stat(cut_cdf_qi(
-            cdf, 
-            .width = c(.5, .8, .95), 
-            labels = scales::percent_format()))),
-    adjust = 1, n = 1001, .width = c(0.5, 0.8, 0.95),
-    fatten_point = 1
-    ) + 
-  scale_fill_brewer(
-    palette = "Reds",
-    direction = -1, 
-    na.translate = FALSE) + 
-  labs(
-    x = "Odds ratio contrast",
-    fill = "Interval"
-  ) +
-  geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_log10("Odds ratio (log scale)", 
-                breaks = c(0.1, 0.2, 0.5, 1, 2, 5, 10),
-                limits = c(0.05, 10)) +
-  scale_colour_manual("", values = c("red", "black")) +
-  guides(colour = "none") +
-  theme(panel.border = element_rect(fill = NA),
-        legend.position = "top")
-ggsave(file.path("outputs", "figures", "outcomes", "primary", "acs-itt-subgroup-age-hte.pdf"),
-       p,
-       height = 3, width = 6)
+p <- plot_subgroup_or(ordat, sym("Age"))
+ggsave(
+  file.path("outputs", "figures", "outcomes", "primary", "acs-itt-subgroup-age-hte.pdf"),
+  p, height = 3, width = 6)
+p
 ```
 
 #### Days since symptom onset only
 
 ```{r}
-#| tbl-cap: Primary outcome by anti-coagulation intervention by age group
-tdat <- acs_itt_dat %>%
-  dplyr::count(
-    dsfs = factor(dsfsgt7, levels = 0:1),
-    `Anticoagulation intervention` = factor(
-      CAssignment, labels = str_replace(intervention_labels()$CAssignment[-1], "<br>", " ")),
-    PO) %>%
-  complete(dsfs, `Anticoagulation intervention`, PO, fill = list(n = 0)) %>%
-  group_by(dsfs, `Anticoagulation intervention`) %>%
-  spread(PO, n, fill = 0) %>%
-  ungroup() %>%
-  mutate(
-    Patients = `0` + `1` + `<NA>`,
-    Known = `0` + `1`,
-    `Primary outcome` = sprintf("%i (%.0f%%)", `1`, 100 * `1` / Known)
-  ) %>%
-  mutate(`Primary outcome` = str_replace(`Primary outcome`, "0 \\(NaN\\%\\)", "- (-%)")) %>%
-  select(-dsfs, -`0`, -`1`, -`<NA>`)
-kable(tdat,
-    digits = 2,
-    align = "lrrr",
-    booktabs = TRUE) %>%
-  kable_styling(
-    bootstrap_options = "striped",
-    latex_options = "HOLD_position") %>%
-  pack_rows("Days since first symptoms <= 7", 1, 4) %>%
-  pack_rows("Days since first symptoms > 7", 5, 8)
-
-tab <- kable(
-  tdat,
-  format = "latex",
-  digits = 2,
-  align = "lrrr",
-  booktabs = TRUE) %>%
-kable_styling(
-  font_size = 9,
-  bootstrap_options = "striped",
-  latex_options = "HOLD_position") %>%
-  pack_rows("Days since first symptoms $\\leq$ 7", 1, 4, escape = FALSE) %>%
-  pack_rows("Days since first symptoms > 7", 5, 8)
+#| tbl-cap: Primary outcome by anti-coagulation intervention by days since first symptom group.
+make_subgroup_dsfs_table <- function(format = "html") {
+  tdat <- acs_itt_dat %>%
+    dplyr::count(
+      dsfs = factor(dsfsgt7, levels = 0:1),
+      `Anticoagulation intervention` = factor(
+        CAssignment, labels = str_replace(intervention_labels()$CAssignment[-1], "<br>", " ")),
+      PO) %>%
+    complete(dsfs, `Anticoagulation intervention`, PO, fill = list(n = 0)) %>%
+    group_by(dsfs, `Anticoagulation intervention`) %>%
+    spread(PO, n, fill = 0) %>%
+    ungroup() %>%
+    mutate(
+      Patients = `0` + `1` + `<NA>`,
+      Known = `0` + `1`,
+      `Primary outcome` = sprintf("%i (%.0f%%)", `1`, 100 * `1` / Known)
+    ) %>%
+    mutate(`Primary outcome` = str_replace(`Primary outcome`, "0 \\(NaN\\%\\)", "- (-%)")) %>%
+    select(-dsfs, -`0`, -`1`, -`<NA>`)
+  kable(tdat,
+        format = format,
+      digits = 2,
+      align = "lrrr",
+      booktabs = TRUE) %>%
+    kable_styling(
+      font_size = 9,
+      bootstrap_options = "striped",
+      latex_options = "HOLD_position") %>%
+    pack_rows("Days since first symptoms <= 7", 1, 4) %>%
+    pack_rows("Days since first symptoms > 7", 5, 8) 
+}
+tab <- make_subgroup_dsfs_table("latex")
 save_tex_table(tab, "outcomes/primary/descriptive-acs-itt-subgroup-dsfs-descriptive")
+make_subgroup_dsfs_table()
 ```
 
 ```{r}
 mdat <- make_stan_data(
-  acs_itt_nona_dat2 %>% mutate(AAssignment = relevel(AAssignment, ref = "A0")),
+  acs_itt_nona_dat %>% mutate(AAssignment = relevel(AAssignment, ref = "A0")),
   c("CAssignment", "AAssignment", "inelgc3", "agegte60", "dsfsgt7", "ctry", "CAssignment:dsfsgt7"),
   "PO",
   beta_sd = c(2.5, rep(1, 5), 10, 2.5, 2.5, rep(1, 5)),
   contr.treatment
 )
 snk <- capture.output(
-  mfit <- primary_mod2$sample(
+  mfit <- primary_mod$sample(
     data = mdat,
     seed = 49173,
     refresh = 0,
@@ -1856,66 +1885,34 @@ snk <- capture.output(
     parallel_chains = 8,
     adapt_delta = 0.98
 ))
-mrvs <- as_draws_rvars(mfit$draws(c(
-  "beta", "gamma_site", "tau_site", 
-  "gamma_epoch", "tau_epoch", "y_ppc")))
-names(mrvs$beta) <- colnames(mdat$X)
-
-# Transformed parameters
-epoch_map <- acs_itt_nona_dat2 %>% dplyr::count(epoch, epoch_lab)
-site_map <- acs_itt_nona_dat2 %>% dplyr::count(site_num, site)
-Ca <- cbind(1, attr(mdat$X, "contrasts")$AAssignment)
-Cc <- cbind(1, attr(mdat$X, "contrasts")$CAssignment)
-nC <- ncol(Cc) + 1
-Co <- cbind(1, Cc)
-Ct <- cbind(1, contr.treatment(nC))
-
-mrvs$Acon <- as.vector(Ca[, -1, drop = F] %**% mrvs$beta[5:6])
-mrvs$Ccon <- as.vector(Cc[, -1] %**% mrvs$beta[2:4])
+mdrws <- as_draws_rvars(mfit$draws(c(
+  "beta", 
+  "gamma_site", "tau_site", 
+  "gamma_epoch", "tau_epoch", 
+  "y_ppc")))
+names(mdrws$beta) <- colnames(mdat$X)
+epoch_map <- acs_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)
+site_map <- acs_itt_nona_dat %>% dplyr::count(site_num, site)
+names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
+names(mdrws$gamma_site) <- site_map$site
 
 labs <- c("Intermediate", "Standard plus aspirin", "Therapeutic")
-mrvs$CtrtDSFSlt7 <- setNames(as.vector(mrvs$beta[2:4]), labs)
-mrvs$CtrtDSFSgt7 <- setNames(as.vector(mrvs$beta[2:4] + mrvs$beta[12:14]), labs)
-mrvs$OR <- exp(
-  c(mrvs$CtrtDSFSlt7, mrvs$CtrtDSFSgt7)
-)
+mdrws$CtrtDSFSlt7 <- setNames(as.vector(mdrws$beta[2:4]), labs)
+mdrws$CtrtDSFSgt7 <- setNames(as.vector(mdrws$beta[2:4] + mdrws$beta[12:14]), labs)
+mdrws$OR <- exp(c(mdrws$CtrtDSFSlt7, mdrws$CtrtDSFSgt7))
 ordat <- expand_grid(
   `Days since first symptoms` = c("DSFS <= 7", "DSFS > 7"),
   Contrast = labs
-)
-ordat$Posterior <- mrvs$OR
+) %>%
+  mutate(Posterior = mdrws$OR)
 ```
 
 ```{r}
-p <- ggplot(ordat, aes(xdist = Posterior, y = `Days since first symptoms`)) +
-  facet_grid( ~ Contrast, scales = "free_x") +
-  stat_slabinterval(
-    aes(fill = 
-          stat(cut_cdf_qi(
-            cdf, 
-            .width = c(.5, .8, .95), 
-            labels = scales::percent_format()))),
-    adjust = 1, n = 1001, .width = c(0.5, 0.8, 0.95),
-    fatten_point = 1
-    ) + 
-  scale_fill_brewer(
-    palette = "Reds",
-    direction = -1, 
-    na.translate = FALSE) + 
-  labs(
-    x = "Odds ratio contrast",
-    fill = "Interval"
-  ) +
-  geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_log10("Odds ratio (log scale)", 
-                breaks = c(0.1, 0.2, 0.5, 1, 2, 5, 10)) +
-  scale_colour_manual("", values = c("red", "black")) +
-  guides(colour = "none") +
-  theme(panel.border = element_rect(fill = NA),
-        legend.position = "top")
+p <- plot_subgroup_or(ordat, sym("Days since first symptoms"))
 ggsave(file.path("outputs", "figures", "outcomes", "primary", "acs-itt-subgroup-dsfs-hte.pdf"),
        p,
        height = 3, width = 6)
+p
 ```
 
 #### Received corticosteroids
@@ -1923,8 +1920,9 @@ ggsave(file.path("outputs", "figures", "outcomes", "primary", "acs-itt-subgroup-
 It is noted that receipt of corticosteroids is a post-randomisation event, and therefore may be affected by both the assigned treatment and the patients progression making interpretation difficult.
 
 ```{r}
-#| tbl-cap: Primary outcome by anti-coagulation intervention by age group
-tdat <- acs_itt_dat2 %>%
+#| tbl-cap: Primary outcome by anti-coagulation intervention by receipt of corticosteroids.
+make_subgroup_steroids_table <- function(format = "html") {
+  tdat <- acs_itt_dat %>%
   dplyr::count(
     rec_steroids,
     `Anticoagulation intervention` = factor(
@@ -1942,41 +1940,32 @@ tdat <- acs_itt_dat2 %>%
   mutate(`Primary outcome` = str_replace(`Primary outcome`, "0 \\(NaN\\%\\)", "- (-%)")) %>%
   select(-rec_steroids, -`0`, -`1`, -`<NA>`)
 kable(tdat,
+      format = format,
     digits = 2,
     align = "lrrr",
     booktabs = TRUE) %>%
   kable_styling(
+    font_size = 9,
     bootstrap_options = "striped",
     latex_options = "HOLD_position") %>%
   pack_rows("Did not receive corticosteroids", 1, 4) %>%
   pack_rows("Received corticosteroids", 5, 8)
-
-tab <- kable(
-  tdat,
-  format = "latex",
-  digits = 2,
-  align = "lrrr",
-  booktabs = TRUE) %>%
-kable_styling(
-  font_size = 9,
-  bootstrap_options = "striped",
-  latex_options = "HOLD_position") %>%
-  pack_rows("Did not receive corticosteroids", 1, 4) %>%
-  pack_rows("Received corticosteroids", 5, 8)
+}
+tab <- make_subgroup_steroids_table("latex")
 save_tex_table(tab, "outcomes/primary/descriptive-acs-itt-subgroup-steroids-descriptive")
+make_subgroup_steroids_table()
 ```
 
 ```{r}
 mdat <- make_stan_data(
-  acs_itt_nona_dat2 %>% mutate(AAssignment = relevel(AAssignment, ref = "A0")),
-  c("CAssignment", "AAssignment", "inelgc3", "agegte60", 
-    "rec_steroids", "ctry", "CAssignment:rec_steroids"),
+  acs_itt_nona_dat %>% mutate(AAssignment = relevel(AAssignment, ref = "A0")),
+  c("CAssignment", "AAssignment", "inelgc3", "agegte60", "rec_steroids", "ctry", "CAssignment:rec_steroids"),
   "PO",
   beta_sd = c(2.5, rep(1, 5), 10, 2.5, 2.5, rep(1, 5)),
   contr.treatment
 )
 snk <- capture.output(
-  mfit <- primary_mod2$sample(
+  mfit <- primary_mod$sample(
     data = mdat,
     seed = 49173,
     refresh = 0,
@@ -1986,69 +1975,319 @@ snk <- capture.output(
     parallel_chains = 8,
     adapt_delta = 0.98
 ))
-mrvs <- as_draws_rvars(mfit$draws(c(
-  "beta", "gamma_site", "tau_site", 
-  "gamma_epoch", "tau_epoch", "y_ppc")))
-names(mrvs$beta) <- colnames(mdat$X)
-
-# Transformed parameters
-epoch_map <- acs_itt_nona_dat2 %>% dplyr::count(epoch, epoch_lab)
-site_map <- acs_itt_nona_dat2 %>% dplyr::count(site_num, site)
-Ca <- cbind(1, attr(mdat$X, "contrasts")$AAssignment)
-Cc <- cbind(1, attr(mdat$X, "contrasts")$CAssignment)
-nC <- ncol(Cc) + 1
-Co <- cbind(1, Cc)
-Ct <- cbind(1, contr.treatment(nC))
-
-mrvs$Acon <- as.vector(Ca[, -1, drop = F] %**% mrvs$beta[5:6])
-mrvs$Ccon <- as.vector(Cc[, -1] %**% mrvs$beta[2:4])
+mdrws <- as_draws_rvars(mfit$draws(c(
+  "beta", 
+  "gamma_site", "tau_site", 
+  "gamma_epoch", "tau_epoch", 
+  "y_ppc")))
+names(mdrws$beta) <- colnames(mdat$X)
+epoch_map <- acs_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)
+site_map <- acs_itt_nona_dat %>% dplyr::count(site_num, site)
+names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
+names(mdrws$gamma_site) <- site_map$site
 
 labs <- c("Intermediate", "Standard plus aspirin", "Therapeutic")
-mrvs$noSteroids <- setNames(as.vector(mrvs$beta[2:4]), labs)
-mrvs$recSteroids <- setNames(as.vector(mrvs$beta[2:4] + mrvs$beta[12:14]), labs)
-mrvs$OR <- exp(
-  c(mrvs$noSteroids, mrvs$recSteroids)
-)
+mdrws$noSteroids <- setNames(as.vector(mdrws$beta[2:4]), labs)
+mdrws$recSteroids <- setNames(as.vector(mdrws$beta[2:4] + mdrws$beta[12:14]), labs)
+mdrws$OR <- exp(c(mdrws$noSteroids, mdrws$recSteroids))
 ordat <- expand_grid(
   `Received corticosteroids` = c("No", "Yes"),
   Contrast = labs
-)
-ordat$Posterior <- mrvs$OR
+) %>%
+  mutate(Posterior = mdrws$OR)
 ```
 
 ```{r}
-p <- ggplot(ordat, aes(xdist = Posterior, y = `Received corticosteroids`)) +
-  facet_grid( ~ Contrast, scales = "free_x") +
-  stat_slabinterval(
-    aes(fill = 
-          stat(cut_cdf_qi(
-            cdf, 
-            .width = c(.5, .8, .95), 
-            labels = scales::percent_format()))),
-    adjust = 1, n = 1001, .width = c(0.5, 0.8, 0.95),
-    fatten_point = 1
-    ) + 
-  scale_fill_brewer(
-    palette = "Reds",
-    direction = -1, 
-    na.translate = FALSE) + 
-  labs(
-    x = "Odds ratio contrast",
-    fill = "Interval"
-  ) +
-  geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_log10("Odds ratio (log scale)", 
-                breaks = c(0.1, 0.2, 0.5, 1, 2, 5, 10)) +
-  scale_colour_manual("", values = c("red", "black")) +
-  guides(colour = "none") +
-  theme(panel.border = element_rect(fill = NA),
-        legend.position = "top")
+p <- plot_subgroup_or(ordat, sym("Received corticosteroids"))
 ggsave(file.path("outputs", "figures", "outcomes", "primary", "acs-itt-subgroup-steroids-hte.pdf"),
        p,
        height = 3, width = 6)
+p
+```
+
+#### Received remdesivir
+
+It is noted that receipt of remdesivir is a post-randomisation event, and therefore may be affected by both the assigned treatment and the patients progression making interpretation difficult.
+
+```{r}
+#| tbl-cap: Primary outcome by anti-coagulation intervention by receipt of remdesivir.
+make_subgroup_remdesivir_table <- function(format = "html") {
+  tdat <- acs_itt_dat %>%
+  dplyr::count(
+    rec_remdesivir,
+    `Anticoagulation intervention` = factor(
+      CAssignment, labels = str_replace(intervention_labels()$CAssignment[-1], "<br>", " ")),
+    PO) %>%
+  complete(rec_remdesivir, `Anticoagulation intervention`, PO, fill = list(n = 0)) %>%
+  group_by(rec_remdesivir, `Anticoagulation intervention`) %>%
+  spread(PO, n, fill = 0) %>%
+  ungroup() %>%
+  mutate(
+    Patients = `0` + `1` + `<NA>`,
+    Known = `0` + `1`,
+    `Primary outcome` = sprintf("%i (%.0f%%)", `1`, 100 * `1` / Known)
+  ) %>%
+  mutate(`Primary outcome` = str_replace(`Primary outcome`, "0 \\(NaN\\%\\)", "- (-%)")) %>%
+  select(-rec_remdesivir, -`0`, -`1`, -`<NA>`)
+kable(tdat,
+      format = format,
+    digits = 2,
+    align = "lrrr",
+    booktabs = TRUE) %>%
+  kable_styling(
+    font_size = 9,
+    bootstrap_options = "striped",
+    latex_options = "HOLD_position") %>%
+  pack_rows("Did not receive remdesivir", 1, 4) %>%
+  pack_rows("Received remdesivir", 5, 8)
+}
+tab <- make_subgroup_remdesivir_table("latex")
+save_tex_table(tab, "outcomes/primary/descriptive-acs-itt-subgroup-remdesivir-descriptive")
+make_subgroup_remdesivir_table()
+```
+
+```{r}
+mdat <- make_stan_data(
+  acs_itt_nona_dat %>% mutate(AAssignment = relevel(AAssignment, ref = "A0")),
+  c("CAssignment", "AAssignment", "inelgc3", "agegte60", "rec_remdesivir", "ctry", "CAssignment:rec_remdesivir"),
+  "PO",
+  beta_sd = c(2.5, rep(1, 5), 10, 2.5, 2.5, rep(1, 5)),
+  contr.treatment
+)
+snk <- capture.output(
+  mfit <- primary_mod$sample(
+    data = mdat,
+    seed = 49171,
+    refresh = 0,
+    iter_warmup = 1000,
+    iter_sampling = 2500,
+    chains = 8,
+    parallel_chains = 8,
+    adapt_delta = 0.98
+))
+mdrws <- as_draws_rvars(mfit$draws(c(
+  "beta", 
+  "gamma_site", "tau_site", 
+  "gamma_epoch", "tau_epoch", 
+  "y_ppc")))
+names(mdrws$beta) <- colnames(mdat$X)
+epoch_map <- acs_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)
+site_map <- acs_itt_nona_dat %>% dplyr::count(site_num, site)
+names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
+names(mdrws$gamma_site) <- site_map$site
+
+labs <- c("Intermediate", "Standard plus aspirin", "Therapeutic")
+mdrws$noRem <- setNames(as.vector(mdrws$beta[2:4]), labs)
+mdrws$recRem <- setNames(as.vector(mdrws$beta[2:4] + mdrws$beta[12:14]), labs)
+mdrws$OR <- exp(c(mdrws$noRem, mdrws$recRem))
+ordat <- expand_grid(
+  `Received remdesivir` = c("No", "Yes"),
+  Contrast = labs
+) %>%
+  mutate(Posterior = mdrws$OR)
+```
+
+```{r}
+p <- plot_subgroup_or(ordat, sym("Received remdesivir"))
+ggsave(
+  file.path("outputs", "figures", "outcomes", "primary", "acs-itt-subgroup-remdesivir-hte.pdf"),
+  p, height = 3, width = 6)
+p
+```
+
+#### Receipt of other agent intended to be an antiviral agent against SARS-CoV-2
+
+```{r}
+#| tbl-cap: Primary outcome by anti-coagulation intervention by receipt of remdesivir.
+make_subgroup_antiviral_table <- function(format = "html") {
+  tdat <- acs_itt_dat %>%
+  dplyr::count(
+    rec_antiviral,
+    `Anticoagulation intervention` = factor(
+      CAssignment, labels = str_replace(intervention_labels()$CAssignment[-1], "<br>", " ")),
+    PO) %>%
+  complete(rec_antiviral, `Anticoagulation intervention`, PO, fill = list(n = 0)) %>%
+  group_by(rec_antiviral, `Anticoagulation intervention`) %>%
+  spread(PO, n, fill = 0) %>%
+  ungroup() %>%
+  mutate(
+    Patients = `0` + `1` + `<NA>`,
+    Known = `0` + `1`,
+    `Primary outcome` = sprintf("%i (%.0f%%)", `1`, 100 * `1` / Known)
+  ) %>%
+  mutate(`Primary outcome` = str_replace(`Primary outcome`, "0 \\(NaN\\%\\)", "- (-%)")) %>%
+  select(-rec_antiviral, -`0`, -`1`, -`<NA>`)
+kable(tdat,
+      format = format,
+    digits = 2,
+    align = "lrrr",
+    booktabs = TRUE) %>%
+  kable_styling(
+    font_size = 9,
+    bootstrap_options = "striped",
+    latex_options = "HOLD_position") %>%
+  pack_rows("Did not receive other antiviral", 1, 4) %>%
+  pack_rows("Received other antiviral", 5, 8)
+}
+tab <- make_subgroup_antiviral_table("latex")
+save_tex_table(tab, "outcomes/primary/descriptive-acs-itt-subgroup-antiviral-descriptive")
+make_subgroup_antiviral_table()
+```
+
+```{r}
+mdat <- make_stan_data(
+  acs_itt_nona_dat %>% mutate(AAssignment = relevel(AAssignment, ref = "A0")),
+  c("CAssignment", "AAssignment", "inelgc3", "agegte60", "rec_antiviral", "ctry", "CAssignment:rec_antiviral"),
+  "PO",
+  beta_sd = c(2.5, rep(1, 5), 10, 2.5, 2.5, rep(1, 5)),
+  contr.treatment
+)
+snk <- capture.output(
+  mfit <- primary_mod$sample(
+    data = mdat,
+    seed = 20195,
+    refresh = 0,
+    iter_warmup = 1000,
+    iter_sampling = 2500,
+    chains = 8,
+    parallel_chains = 8,
+    adapt_delta = 0.98
+))
+mdrws <- as_draws_rvars(mfit$draws(c(
+  "beta", 
+  "gamma_site", "tau_site", 
+  "gamma_epoch", "tau_epoch", 
+  "y_ppc")))
+names(mdrws$beta) <- colnames(mdat$X)
+epoch_map <- acs_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)
+site_map <- acs_itt_nona_dat %>% dplyr::count(site_num, site)
+names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
+names(mdrws$gamma_site) <- site_map$site
+
+labs <- c("Intermediate", "Standard plus aspirin", "Therapeutic")
+mdrws$noantiviral <- setNames(as.vector(mdrws$beta[2:4]), labs)
+mdrws$antiviral <- setNames(as.vector(mdrws$beta[2:4] + mdrws$beta[12:14]), labs)
+
+mdrws$compare <- mdrws$antiviral - mdrws$noantiviral
+
+mdrws$OR <- exp(c(mdrws$noantiviral, mdrws$antiviral))
+ordat <- expand_grid(
+  Contrast = labs,
+  `Received other antiviral` = c("No", "Yes"),
+) %>%
+  mutate(
+    Posterior = mdrws$OR,
+    Median = sprintf("%.2f", median(Posterior)),
+    `95\\% CrI` = sprintf("(%.2f, %.2f)", quantile(Posterior, 0.025), quantile(Posterior, 0.975)),
+    `Mean (SD)` = sprintf("%.2f (%.2f)", mean(Posterior), sd(Posterior)),
+    `Pr(OR < 1)` = sprintf("%.2f", Pr(Posterior < 1)),
+    `Pr(OR > 1/1.1)` = sprintf("%.2f", Pr(Posterior > 1/1.1))
+  )
+```
+
+```{r}
+
+make_subgroup_summary_table(ordat, "html")
+```
+
+
+```{r}
+p <- plot_subgroup_or(ordat, sym("Received other antiviral"))
+ggsave(
+  file.path("outputs", "figures", "outcomes", "primary", "acs-itt-subgroup-antiviral-hte.pdf"),
+  p, height = 3, width = 6)
+p
 ```
 
 #### D-dimer
+
+```{r}
+#| tbl-cap: Primary outcome by anti-coagulation intervention by D-dimer out of range.
+make_subgroup_ddimer_table <- function(format = "html") {
+  tdat <- acs_itt_dat %>%
+  dplyr::count(
+    ddimer_oor,
+    `Anticoagulation intervention` = factor(
+      CAssignment, labels = str_replace(intervention_labels()$CAssignment[-1], "<br>", " ")),
+    PO) %>%
+  complete(ddimer_oor, `Anticoagulation intervention`, PO, fill = list(n = 0)) %>%
+  group_by(ddimer_oor, `Anticoagulation intervention`) %>%
+  spread(PO, n, fill = 0) %>%
+  ungroup() %>%
+  mutate(
+    Patients = `0` + `1` + `<NA>`,
+    Known = `0` + `1`,
+    `Primary outcome` = sprintf("%i (%.0f%%)", `1`, 100 * `1` / Known)
+  ) %>%
+  mutate(`Primary outcome` = str_replace(`Primary outcome`, "0 \\(NaN\\%\\)", "- (-%)")) %>%
+  select(-ddimer_oor, -`0`, -`1`, -`<NA>`)
+kable(tdat,
+      format = format,
+    digits = 2,
+    align = "lrrr",
+    booktabs = TRUE) %>%
+  kable_styling(
+    font_size = 9,
+    bootstrap_options = "striped",
+    latex_options = "HOLD_position") %>%
+  pack_rows("D-Dimer in range", 1, 4) %>%
+  pack_rows("D-Dimer out of range", 5, 8) %>%
+  pack_rows("D-Dimer unknown", 9, 12)
+}
+tab <- make_subgroup_ddimer_table("latex")
+save_tex_table(tab, "outcomes/primary/descriptive-acs-itt-subgroup-ddimer-descriptive")
+make_subgroup_ddimer_table()
+```
+
+```{r}
+mdat <- make_stan_data(
+  acs_itt_nona_dat %>% mutate(AAssignment = relevel(AAssignment, ref = "A0")),
+  c("CAssignment", "AAssignment", "inelgc3", "agegte60", "ddimer_oor", "ctry", "CAssignment:ddimer_oor"),
+  "PO",
+  beta_sd = c(2.5, rep(1, 5), 10, 2.5, 2.5, 2.5, rep(1, 8)),
+  contr.treatment
+)
+snk <- capture.output(
+  mfit <- primary_mod$sample(
+    data = mdat,
+    seed = 91824,
+    refresh = 0,
+    iter_warmup = 1000,
+    iter_sampling = 2500,
+    chains = 8,
+    parallel_chains = 8,
+    adapt_delta = 0.98
+))
+mdrws <- as_draws_rvars(mfit$draws(c(
+  "beta", 
+  "gamma_site", "tau_site", 
+  "gamma_epoch", "tau_epoch", 
+  "y_ppc")))
+names(mdrws$beta) <- colnames(mdat$X)
+epoch_map <- acs_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)
+site_map <- acs_itt_nona_dat %>% dplyr::count(site_num, site)
+names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
+names(mdrws$gamma_site) <- site_map$site
+
+labs <- c("Intermediate", "Standard plus aspirin", "Therapeutic")
+mdrws$inrange <- setNames(as.vector(mdrws$beta[2:4]), labs)
+mdrws$outrange <- setNames(as.vector(mdrws$beta[2:4] + mdrws$beta[13:15]), labs)
+mdrws$unknown <- setNames(as.vector(mdrws$beta[2:4] + mdrws$beta[16:18]), labs)
+mdrws$OR <- exp(c(mdrws$inrange, mdrws$outrange, mdrws$unknown))
+ordat <- expand_grid(
+  `D-dimer out of range` = fct_inorder(c("No", "Yes", "Unknown")),
+  Contrast = labs
+) %>%
+  mutate(Posterior = mdrws$OR)
+```
+
+```{r}
+p <- plot_subgroup_or(ordat, sym("D-dimer out of range"))
+ggsave(
+  file.path("outputs", "figures", "outcomes", "primary", "acs-itt-subgroup-ddimer-hte.pdf"),
+  p, height = 3, width = 6)
+p
+```
 
 #### Weight
 
@@ -2056,97 +2295,83 @@ Due to small numbers and zero events this subgroup analysis was not undertaken.
 
 ```{r}
 #| tbl-cap: Primary outcome by anti-coagulation intervention by aspirin use
-tdat <- acs_itt_dat2 %>%
-  dplyr::count(
-    weightgt120,
-    `Anticoagulation intervention` = factor(
-      CAssignment, labels = str_replace(intervention_labels()$CAssignment[-1], "<br>", " ")),
-    PO) %>%
-  complete(weightgt120, `Anticoagulation intervention`, PO, fill = list(n = 0)) %>%
-  group_by(weightgt120, `Anticoagulation intervention`) %>%
-  spread(PO, n, fill = 0) %>%
-  ungroup() %>%
-  mutate(
-    Patients = `0` + `1` + `<NA>`,
-    Known = `0` + `1`,
-    `Primary outcome` = sprintf("%i (%.0f%%)", `1`, 100 * `1` / Known)
-  ) %>%
-  mutate(`Primary outcome` = str_replace(`Primary outcome`, "0 \\(NaN\\%\\)", "- (-%)")) %>%
-  select(-weightgt120, -`0`, -`1`, -`<NA>`)
-kable(tdat,
-    digits = 2,
-    align = "lrrr",
-    booktabs = TRUE) %>%
-  kable_styling(
-    bootstrap_options = "striped",
-    latex_options = "HOLD_position") %>%
-  pack_rows("Weight $\\leq$ 120 kg", 1, 4) %>%
-  pack_rows("Weight > 120 kg", 5, 8)
-
-tab <- kable(
-  tdat,
-  format = "latex",
-  digits = 2,
-  align = "lrrr",
-  booktabs = TRUE) %>%
-kable_styling(
-  font_size = 9,
-  bootstrap_options = "striped",
-  latex_options = "HOLD_position") %>%
-  pack_rows("Weight $\\\\leq$ 120 kg", 1, 4, escape = F) %>%
-  pack_rows("Weight > 120 kg", 5, 8)
+make_subgroup_weight_table <- function(format = "html") {
+  tdat <- acs_itt_dat %>%
+    dplyr::count(
+      weightgt120,
+      `Anticoagulation intervention` = factor(
+        CAssignment, labels = str_replace(intervention_labels()$CAssignment[-1], "<br>", " ")),
+      PO) %>%
+    complete(weightgt120, `Anticoagulation intervention`, PO, fill = list(n = 0)) %>%
+    group_by(weightgt120, `Anticoagulation intervention`) %>%
+    spread(PO, n, fill = 0) %>%
+    ungroup() %>%
+    mutate(
+      Patients = `0` + `1` + `<NA>`,
+      Known = `0` + `1`,
+      `Primary outcome` = sprintf("%i (%.0f%%)", `1`, 100 * `1` / Known)
+    ) %>%
+    mutate(`Primary outcome` = str_replace(`Primary outcome`, "0 \\(NaN\\%\\)", "- (-%)")) %>%
+    select(-weightgt120, -`0`, -`1`, -`<NA>`)
+  kable(tdat,
+        format = format,
+      digits = 2,
+      align = "lrrr",
+      booktabs = TRUE) %>%
+    kable_styling(
+      font_size = 9,
+      bootstrap_options = "striped",
+      latex_options = "HOLD_position") %>%
+    pack_rows("Weight $\\leq$ 120 kg", 1, 4) %>%
+    pack_rows("Weight > 120 kg", 5, 8) 
+}
+tab <- make_subgroup_weight_table("latex")
 save_tex_table(tab, "outcomes/primary/descriptive-acs-itt-subgroup-weight-descriptive")
+make_subgroup_weight_table()
 ```
 
 #### Aspirin
 
 ```{r}
 #| tbl-cap: Primary outcome by anti-coagulation intervention by aspirin use
-tdat <- acs_itt_dat2 %>%
-  dplyr::count(
-    aspirin,
-    `Anticoagulation intervention` = factor(
-      CAssignment, labels = str_replace(intervention_labels()$CAssignment[-1], "<br>", " ")),
-    PO) %>%
-  complete(aspirin, `Anticoagulation intervention`, PO, fill = list(n = 0)) %>%
-  group_by(aspirin, `Anticoagulation intervention`) %>%
-  spread(PO, n, fill = 0) %>%
-  ungroup() %>%
-  mutate(
-    Patients = `0` + `1` + `<NA>`,
-    Known = `0` + `1`,
-    `Primary outcome` = sprintf("%i (%.0f%%)", `1`, 100 * `1` / Known)
-  ) %>%
-  mutate(`Primary outcome` = str_replace(`Primary outcome`, "0 \\(NaN\\%\\)", "- (-%)")) %>%
-  select(-aspirin, -`0`, -`1`, -`<NA>`)
-kable(tdat,
-    digits = 2,
-    align = "lrrr",
-    booktabs = TRUE) %>%
-  kable_styling(
-    bootstrap_options = "striped",
-    latex_options = "HOLD_position") %>%
-  pack_rows("Patient not taking aspirin", 1, 4) %>%
-  pack_rows("Patient taking aspirin", 5, 8)
-
-tab <- kable(
-  tdat,
-  format = "latex",
-  digits = 2,
-  align = "lrrr",
-  booktabs = TRUE) %>%
-kable_styling(
-  font_size = 9,
-  bootstrap_options = "striped",
-  latex_options = "HOLD_position") %>%
-  pack_rows("Patient not taking aspirin", 1, 4) %>%
-  pack_rows("Patient taking aspirin", 5, 8)
+make_subgroup_aspirin_table <- function(format = "html") {
+  tdat <- acs_itt_dat %>%
+    dplyr::count(
+      aspirin,
+      `Anticoagulation intervention` = factor(
+        CAssignment, labels = str_replace(intervention_labels()$CAssignment[-1], "<br>", " ")),
+      PO) %>%
+    complete(aspirin, `Anticoagulation intervention`, PO, fill = list(n = 0)) %>%
+    group_by(aspirin, `Anticoagulation intervention`) %>%
+    spread(PO, n, fill = 0) %>%
+    ungroup() %>%
+    mutate(
+      Patients = `0` + `1` + `<NA>`,
+      Known = `0` + `1`,
+      `Primary outcome` = sprintf("%i (%.0f%%)", `1`, 100 * `1` / Known)
+    ) %>%
+    mutate(`Primary outcome` = str_replace(`Primary outcome`, "0 \\(NaN\\%\\)", "- (-%)")) %>%
+    select(-aspirin, -`0`, -`1`, -`<NA>`)
+  kable(tdat,
+        format = format,
+      digits = 2,
+      align = "lrrr",
+      booktabs = TRUE) %>%
+    kable_styling(
+      font_size = 9,
+      bootstrap_options = "striped",
+      latex_options = "HOLD_position") %>%
+    pack_rows("Patient not taking aspirin", 1, 4) %>%
+    pack_rows("Patient taking aspirin", 5, 8)  
+}
+tab <- make_subgroup_aspirin_table("latex")
 save_tex_table(tab, "outcomes/primary/descriptive-acs-itt-subgroup-aspirin-descriptive")
+make_subgroup_aspirin_table()
 ```
 
 ```{r}
 mdat <- make_stan_data(
-  acs_itt_nona_dat2 %>% mutate(AAssignment = relevel(AAssignment, ref = "A0")),
+  acs_itt_nona_dat %>% mutate(AAssignment = relevel(AAssignment, ref = "A0")),
   c("CAssignment", "AAssignment", "inelgc3", "agegte60", 
     "aspirin", "ctry", "CAssignment:aspirin"),
   "PO",
@@ -2154,7 +2379,7 @@ mdat <- make_stan_data(
   contr.treatment
 )
 snk <- capture.output(
-  mfit <- primary_mod2$sample(
+  mfit <- primary_mod$sample(
     data = mdat,
     seed = 49173,
     refresh = 0,
@@ -2164,66 +2389,35 @@ snk <- capture.output(
     parallel_chains = 8,
     adapt_delta = 0.98
 ))
-mrvs <- as_draws_rvars(mfit$draws(c(
-  "beta", "gamma_site", "tau_site", 
-  "gamma_epoch", "tau_epoch", "y_ppc")))
-names(mrvs$beta) <- colnames(mdat$X)
-
-# Transformed parameters
-epoch_map <- acs_itt_nona_dat2 %>% dplyr::count(epoch, epoch_lab)
-site_map <- acs_itt_nona_dat2 %>% dplyr::count(site_num, site)
-Ca <- cbind(1, attr(mdat$X, "contrasts")$AAssignment)
-Cc <- cbind(1, attr(mdat$X, "contrasts")$CAssignment)
-nC <- ncol(Cc) + 1
-Co <- cbind(1, Cc)
-Ct <- cbind(1, contr.treatment(nC))
-
-mrvs$Acon <- as.vector(Ca[, -1, drop = F] %**% mrvs$beta[5:6])
-mrvs$Ccon <- as.vector(Cc[, -1] %**% mrvs$beta[2:4])
+mdrws <- as_draws_rvars(mfit$draws(c(
+  "beta", 
+  "gamma_site", "tau_site", 
+  "gamma_epoch", "tau_epoch", 
+  "y_ppc")))
+names(mdrws$beta) <- colnames(mdat$X)
+epoch_map <- acs_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)
+site_map <- acs_itt_nona_dat %>% dplyr::count(site_num, site)
+names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
+names(mdrws$gamma_site) <- site_map$site
 
 labs <- c("Intermediate", "Standard plus aspirin", "Therapeutic")
-mrvs$noAspirin <- setNames(as.vector(mrvs$beta[2:4]), labs)
-mrvs$Aspirin <- setNames(as.vector(mrvs$beta[2:4] + mrvs$beta[12:14]), labs)
-mrvs$OR <- exp(
-  c(mrvs$noAspirin, mrvs$Aspirin)
+mdrws$noAspirin <- setNames(as.vector(mdrws$beta[2:4]), labs)
+mdrws$Aspirin <- setNames(as.vector(mdrws$beta[2:4] + mdrws$beta[12:14]), labs)
+mdrws$OR <- exp(
+  c(mdrws$noAspirin, mdrws$Aspirin)
 )
 ordat <- expand_grid(
   `Patient taking aspirin` = c("No", "Yes"),
   Contrast = labs
 )
-ordat$Posterior <- mrvs$OR
+ordat$Posterior <- mdrws$OR
 ```
 
 ```{r}
-p <- ggplot(ordat, aes(xdist = Posterior, y = `Patient taking aspirin`)) +
-  facet_grid( ~ Contrast, scales = "free_x") +
-  stat_slabinterval(
-    aes(fill = 
-          stat(cut_cdf_qi(
-            cdf, 
-            .width = c(.5, .8, .95), 
-            labels = scales::percent_format()))),
-    adjust = 1, n = 1001, .width = c(0.5, 0.8, 0.95),
-    fatten_point = 1
-    ) + 
-  scale_fill_brewer(
-    palette = "Reds",
-    direction = -1, 
-    na.translate = FALSE) + 
-  labs(
-    x = "Odds ratio contrast",
-    fill = "Interval"
-  ) +
-  geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_log10("Odds ratio (log scale)", 
-                breaks = c(0.1, 0.2, 0.5, 1, 2, 5, 10)) +
-  scale_colour_manual("", values = c("red", "black")) +
-  guides(colour = "none") +
-  theme(panel.border = element_rect(fill = NA),
-        legend.position = "top")
+p <- plot_subgroup_or(ordat, sym("Patient taking aspirin"))
 ggsave(file.path("outputs", "figures", "outcomes", "primary", "acs-itt-subgroup-aspirin-hte.pdf"),
-       p,
-       height = 3, width = 6)
+       p, height = 3, width = 6)
+p
 ```
 
 ## Sensitivity Analyses
@@ -2234,9 +2428,9 @@ The pre-specified model encoded priors on the orthonormal contrasts. In this sec
 
 ```{r}
 mdat <- make_primary_model_data(
-  acs_itt_nona_dat2,
-  c("inelgc3", "agegte60"),
-  c(10, 2.5),
+  acs_itt_nona_dat,
+  c("inelgc3", "agegte60", "ctry"),
+  c(10, 2.5, 1, 1),
   contr.treatment
 )
 snk <- capture.output(
@@ -2251,13 +2445,13 @@ snk <- capture.output(
     adapt_delta = 0.99
 ))
 mrvs <- as_draws_rvars(mfit$draws(c(
-  "beta", "beta_region", 
+  "beta", 
   "gamma_site", "tau_site", 
   "gamma_epoch", "tau_epoch", "y_ppc")))
 
 # Transformed samples
-epoch_map <- acs_itt_nona_dat2 %>% dplyr::count(epoch, epoch_lab)
-site_map <- acs_itt_nona_dat2 %>% dplyr::count(site_num, site)
+epoch_map <- acs_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)
+site_map <- acs_itt_nona_dat %>% dplyr::count(site_num, site)
 Ca <- mdat$ctrA
 Cc <- mdat$ctrC
 nC <- ncol(Cc) + 1
@@ -2275,11 +2469,10 @@ mrvs$OR <- c(mrvs$OR, "Intermediate vs Therapeutic" = mrvs$OR[1] / mrvs$OR[3])
 mrvs$OR <- c(mrvs$OR, 
                 "Ineligible aspirin" = exp(mrvs$beta[7]), 
                 "Age 60+" = exp(mrvs$beta[8]),
-             setNames(exp(mrvs$beta_region[-1]), c("Australia/New Zealand", "Nepal")))
+             setNames(exp(mrvs$beta[9:10]), c("Australia/New Zealand", "Nepal")))
 mrvs$ORepoch <- setNames(exp(mrvs$gamma_epoch), epoch_map$epoch_lab)
 mrvs$ORsites <- setNames(exp(mrvs$gamma_site), site_map$site)
 ```
-
 
 ```{r}
 #| tbl-cap: Posterior summaries for model parameters under treatment contrast priors.
@@ -2293,55 +2486,30 @@ save_tex_table(
 ```
 
 ```{r}
-orsdat <- tibble(
-  Group = "Epoch",
-  Parameter = fct_inorder(names(mrvs$ORepoch)),
-  posterior = mrvs$ORepoch
-)
-p_epoch <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
-  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
-  geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_log10("Odds ratio (log scale)") +
-  labs(y = "Epoch")
-
-orsdat <- tibble(
-  Group = "Site",
-  Country = factor(mdat$region_by_site, labels = c("India", "Australia\nNew Zealand", "Nepal")),
-  Parameter = fct_inorder(names(mrvs$ORsites)),
-  posterior = mrvs$ORsites
-)
-p_site <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
-  facet_grid(Country ~ ., scales = "free_y", space = "free_y") +
-  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
-  geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_log10("Odds ratio (log scale)") +
-  labs(y = "Site") +
-  theme(panel.border = element_rect(fill = NA))
-
-p <- p_epoch | p_site
-p
-```
-
-```{r}
+p <- plot_epoch_site_terms(
+  mrvs$ORepoch, 
+  mrvs$ORsites, 
+  factor(mdat$region_by_site, labels = c("India", "Australia\nNew Zealand", "Nepal")))
 pth <- file.path("outputs", "figures", "outcomes", "primary",
                  "primary-model-acs-itt-trt-ctr-epoch-site-terms.pdf")
 ggsave(pth, p, width = 6, height = 4.5)
+p
 ```
 
 ### Sens: Weakly Informative Priors
 
-As a prior sensitivity assessment, the primary model is re-fit under weakly informative priors (Normal(0, 1)) for all fixed-effect parameters.
+As a prior sensitivity assessment, the primary model is re-fit under weakly informative priors (Normal(0, 10)) for all fixed-effect parameters.
 
 ```{r}
 mdat <- make_primary_model_data(
-  acs_itt_nona_dat2,
+  acs_itt_nona_dat,
   c("inelgc3", "agegte60", "ctry"),
   c(10, 10, 10, 10),
   contr.treatment
 )
 mdat$beta_sd <- rep(10, length(mdat$beta_sd))
 snk <- capture.output(
-  mfit <- primary_mod2$sample(
+  mfit <- primary_mod$sample(
     data = mdat,
     seed = 32915,
     refresh = 0,
@@ -2358,8 +2526,8 @@ mrvs <- as_draws_rvars(mfit$draws(c(
 names(mrvs$beta) <- colnames(mdat$X)
 
 # Transformed samples
-epoch_map <- acs_itt_nona_dat2 %>% dplyr::count(epoch, epoch_lab)
-site_map <- acs_itt_nona_dat2 %>% dplyr::count(site_num, site)
+epoch_map <- acs_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)
+site_map <- acs_itt_nona_dat %>% dplyr::count(site_num, site)
 Ca <- mdat$ctrA
 Cc <- mdat$ctrC
 nC <- ncol(Cc) + 1
@@ -2390,32 +2558,10 @@ odds_ratio_summary_table(mrvs$OR)
 ```
 
 ```{r}
-orsdat <- tibble(
-  Group = "Epoch",
-  Parameter = fct_inorder(names(mrvs$ORepoch)),
-  posterior = mrvs$ORepoch
-)
-p_epoch <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
-  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
-  geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_log10("Odds ratio (log scale)") +
-  labs(y = "Epoch")
-
-orsdat <- tibble(
-  Group = "Site",
-  Country = factor(mdat$region_by_site, labels = c("India", "Australia\nNew Zealand", "Nepal")),
-  Parameter = fct_inorder(names(mrvs$ORsites)),
-  posterior = mrvs$ORsites
-)
-p_site <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
-  facet_grid(Country ~ ., scales = "free_y", space = "free_y") +
-  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
-  geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_log10("Odds ratio (log scale)") +
-  labs(y = "Site") +
-  theme(panel.border = element_rect(fill = NA))
-
-p <- p_epoch | p_site
+p <- plot_epoch_site_terms(
+  mrvs$ORepoch, 
+  mrvs$ORsites, 
+  factor(mdat$region_by_site, labels = c("India", "Australia\nNew Zealand", "Nepal")))
 p
 ```
 
@@ -2425,17 +2571,11 @@ In these analyses, the population is includes all participants who were randomis
 
 ```{r}
 #| label: sample-primary-fas-itt-model
-mdat <- make_stan_data(
-  fas_itt_nona_dat2,
-  c("CAssignment", "AAssignment", "inelgc3", "agegte60"),
-  "PO",
-  beta_sd = c(2.5, 1, 1, 1, 1, 1, 1, 10, 2.5),
-  contr.orthonorm
-)
 mdat <- make_primary_model_data(
-  fas_itt_nona_dat2,
-  c("inelgc3", "agegte60"),
-  c(10, 2.5)
+  fas_itt_nona_dat,
+  c("inelgc3", "agegte60", "ctry"),
+  beta_sd_var = c(10, 2.5, 1, 1),
+  contr.orthonorm
 )
 snk <- capture.output(
   mfit <- primary_mod$sample(
@@ -2448,14 +2588,14 @@ snk <- capture.output(
     adapt_delta = 0.98
 ))
 mrvs <- as_draws_rvars(mfit$draws(c(
-  "beta", "beta_region", 
+  "beta", 
   "gamma_site", "tau_site", 
   "gamma_epoch", "tau_epoch", "y_ppc")))
 names(mrvs$beta) <- colnames(mdat$X)
 
 # Transformed samples
-epoch_map <- fas_itt_nona_dat2 %>% dplyr::count(epoch, epoch_lab)
-site_map <- fas_itt_nona_dat2 %>% dplyr::count(site_num, site)
+epoch_map <- fas_itt_nona_dat %>% dplyr::count(epoch, epoch_lab)
+site_map <- fas_itt_nona_dat %>% dplyr::count(site_num, site)
 Ca <- mdat$ctrA
 Cc <- mdat$ctrC
 nC <- ncol(Cc) + 1
@@ -2479,7 +2619,7 @@ mrvs$OR <- c(mrvs$OR, "Intermediate vs Therapeutic" = mrvs$OR[1] / mrvs$OR[3])
 mrvs$OR <- c(mrvs$OR, 
                 "Ineligible aspirin" = exp(mrvs$beta[8]), 
                 "Age 60+" = exp(mrvs$beta[9]),
-             setNames(exp(mrvs$beta_region[-1]), c("Australia/New Zealand", "Nepal")))
+             setNames(exp(mrvs$beta[10:11]), c("Australia/New Zealand", "Nepal")))
 mrvs$ORepoch <- setNames(exp(mrvs$gamma_epoch), epoch_map$epoch_lab)
 mrvs$ORsites <- setNames(exp(mrvs$gamma_site), site_map$site)
 ```
@@ -2507,32 +2647,10 @@ save_tex_table(
 
 ```{r}
 #| label: odds-ratio-summary-primary-model-fas-itt-epoch-site-terms
-orsdat <- tibble(
-  Group = "Epoch",
-  Parameter = fct_inorder(names(mrvs$ORepoch)),
-  posterior = mrvs$ORepoch
-)
-p_epoch <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
-  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
-  geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_log10("Odds ratio (log scale)") +
-  labs(y = "Epoch")
-
-orsdat <- tibble(
-  Group = "Site",
-  Country = factor(mdat$region_by_site, labels = c("India", "Australia\nNew Zealand", "Nepal")),
-  Parameter = fct_inorder(names(mrvs$ORsites)),
-  posterior = mrvs$ORsites
-)
-p_site <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
-  facet_grid(Country ~ ., scales = "free_y", space = "free_y") +
-  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
-  geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_log10("Odds ratio (log scale)") +
-  labs(y = "Site") +
-  theme(panel.border = element_rect(fill = NA))
-
-p <- p_epoch | p_site
+p <- plot_epoch_site_terms(
+  mrvs$ORepoch, 
+  mrvs$ORsites,
+  factor(mdat$region_by_site, labels = c("India", "Australia\nNew Zealand", "Nepal")))
 p
 ```
 
@@ -2551,20 +2669,16 @@ In the following section, we undertake analyses where the analysis set is restri
 #| label: tbl-acs-itt-c2-summary-table
 #| tbl-cap: Primary outcome summary for participants randomised to either
 #|   standard dose or intermediate dose arms (ACS-ITT).
-make_po_table(acs_itt_concurc2_dat)
-```
-
-```{r}
 save_tex_table(
   make_po_table(
     acs_itt_concurc2_dat,
     "latex"), 
   "outcomes/primary/acs-itt-c2-summary")
+make_po_table(acs_itt_concurc2_dat)
 ```
 
 ```{r}
 #| label: fit-model-acs-itt-c2
-
 ctr <- contr.orthonorm
 X <- model.matrix(
   ~ CAssignment + agegte60 + ctry, 
@@ -2590,15 +2704,13 @@ snk <- capture.output(
 )
 sdrws <- as_draws_rvars(sfit$draws("beta"))
 names(sdrws$beta) <- colnames(X)
-
 sdrws$beta_trt <- as.vector(
   transform_coding(cbind(1, ctr(2)), cbind(1, contr.treatment(2))) %**% sdrws$beta[1:2]
 )
-
 sdrws$OR <- c(
   "Intermediate dose" = exp(sdrws$beta_trt[2]),
   "Age 60+" = exp(sdrws$beta[3]),
-  "Aus/NZ" = exp(sdrws$beta[4]),
+  "Australia/New Zealand" = exp(sdrws$beta[4]),
   "Nepal" = exp(sdrws$beta[5])
 )
 ```
@@ -2672,7 +2784,7 @@ sdrws$OR <- c(
   "Intermediate dose" = exp(sdrws$beta_trt[2]),
   "Standard dose plus aspirin" = exp(sdrws$beta_trt[3]),
   "Age 60+" = exp(sdrws$beta[4]),
-  "Aus/NZ" = exp(sdrws$beta[5])
+  "Australia/New Zealand" = exp(sdrws$beta[5])
 )
 ```
 
@@ -2699,7 +2811,6 @@ make_po_table(acs_itt_concurc4_dat)
 
 ```{r}
 #| label: fit-model-acs-itt-c4
-
 X <- model.matrix(
   ~ CAssignment + agegte60 + ctry,
   data = acs_itt_concurc4_nona_dat,
@@ -2733,7 +2844,7 @@ sdrws$OR <- c(
   "Intermediate dose" = exp(sdrws$beta_trt[2]),
   "Therapeutic dose" = exp(sdrws$beta_trt[3]),
   "Age 60+" = exp(sdrws$beta[4]),
-  "Aus/NZ" = exp(sdrws$beta[5]),
+  "Australia/New Zealand" = exp(sdrws$beta[5]),
   "Nepal" = exp(sdrws$beta[6])
 )
 ```
@@ -2747,103 +2858,23 @@ save_tex_table(
 odds_ratio_summary_table(sdrws$OR)
 ```
 
-#### Therapeutic dose - exclude India
-
-```{r}
-acs_itt_c4_noin_dat <- acs_itt_dat2 %>%
-  filter(RandDate >= get_intervention_dates()$stdate[4] & RandDate < get_intervention_dates()$endate[4]) %>%
-  filter(country != "IN") %>%
-  mutate(
-    CAssignment = droplevels(CAssignment),
-    ctry = droplevels(ctry)
-  )
-acs_itt_nona_c4_noin_dat <- acs_itt_c4_noin_dat %>%
-  filter(!is.na(PO))
-```
-
-```{r}
-#| label: tbl-acs-itt-c4-no-india-summary-table
-make_po_table(acs_itt_c4_noin_dat)
-```
-
-```{r}
-save_tex_table(
-  make_po_table(
-    acs_itt_c4_noin_dat,
-    "latex"), 
-  "outcomes/primary/acs-itt-c4-no-india-summary")
-```
-
-```{r}
-#| label: fit-model-acs-itt-c4-no-india
-
-X <- model.matrix(
-  ~ CAssignment + agegte60 + ctry,
-  data = acs_itt_nona_c4_noin_dat,
-  contrasts.arg = list(CAssignment = contr.orthonorm))
-y <- acs_itt_nona_c4_noin_dat$PO
-sdat <- list(
-  N = nrow(X),
-  K = ncol(X),
-  X = X,
-  y = y,
-  beta_sd = c(2.5, 1, 1, 2.5, 1)
-  # beta_sd = c(2.5, 1, 1)
-)
-snk <- capture.output(
-  sfit <- logistic_mod$sample(
-    data = sdat,
-    seed = 3274,
-    chains = 8,
-    parallel_chains = 8,
-    iter_warmup = 1000,
-    iter_sampling = 2500
-  )
-)
-sdrws <- as_draws_rvars(sfit$draws("beta"))
-names(sdrws$beta) <- colnames(X)
-
-sdrws$beta_trt <- as.vector(
-  transform_coding(cbind(1, contr.orthonorm(3)), cbind(1, contr.treatment(3))) %**% sdrws$beta[1:3]
-)
-
-sdrws$OR <- c(
-  "Intermediate dose" = exp(sdrws$beta_trt[2]),
-  "Therapeutic dose" = exp(sdrws$beta_trt[3]),
-  "Age 60+" = exp(sdrws$beta[4]),
-  "Nepal" = exp(sdrws$beta[5])
-)
-```
-
-```{r}
-#| label: tbl-acs-itt-c4-no-india-primary-model-summary
-odds_ratio_summary_table(sdrws$OR)
-```
-
-```{r}
-#| label: odds-ratio-summary-table-primary-model-acs-itt-c4-no-india-save
-save_tex_table(
-  odds_ratio_summary_table(sdrws$OR, "latex"),
-  "outcomes/primary/primary-model-acs-itt-c4-no-india-summary-table")
-```
-
 ### Sens:  Worst-Case
 
 Under this scenario, all participants with unknown primary outcome status were were to assumed to have met the primary outcome.
 
 ```{r}
-make_po_table(acs_itt_wc_dat2)
+make_po_table(acs_itt_wc_dat)
 save_tex_table(
-  make_po_table(acs_itt_wc_dat2, "latex"), 
+  make_po_table(acs_itt_wc_dat, "latex"), 
   "outcomes/primary/acs-itt-worst-case-anticoagulation-summary")
 ```
 
 ```{r}
 #| label: sample-primary-acs-itt-wc-model
 mdat <- make_primary_model_data(
-  acs_itt_wc_dat2,
-  c("inelgc3", "agegte60"),
-  c(10, 2.5)
+  acs_itt_wc_dat,
+  c("inelgc3", "agegte60", "ctry"),
+  c(10, 2.5, 1, 1)
 )
 snk <- capture.output(
   mfit <- primary_mod$sample(
@@ -2856,15 +2887,15 @@ snk <- capture.output(
     adapt_delta = 0.98
 ))
 mrvs <- as_draws_rvars(mfit$draws(c(
-  "beta", "beta_region", 
+  "beta", 
   "gamma_site", "tau_site", 
   "gamma_epoch", "tau_epoch", "y_ppc")))
 ```
 
 ```{r}
 # Transformed samples
-epoch_map <- acs_itt_wc_dat2 %>% dplyr::count(epoch, epoch_lab)
-site_map <- acs_itt_wc_dat2 %>% dplyr::count(site_num, site)
+epoch_map <- acs_itt_wc_dat %>% dplyr::count(epoch, epoch_lab)
+site_map <- acs_itt_wc_dat %>% dplyr::count(site_num, site)
 Ca <- mdat$ctrA
 Cc <- mdat$ctrC
 nC <- ncol(Cc) + 1
@@ -2882,7 +2913,7 @@ mrvs$OR <- c(mrvs$OR, "Intermediate vs Therapeutic" = mrvs$OR[1] / mrvs$OR[3])
 mrvs$OR <- c(mrvs$OR, 
                 "Ineligible aspirin" = exp(mrvs$beta[7]), 
                 "Age 60+" = exp(mrvs$beta[8]),
-             setNames(exp(mrvs$beta_region[-1]), c("Australia/New Zealand", "Nepal")))
+             setNames(exp(mrvs$beta[9:10]), c("Australia/New Zealand", "Nepal")))
 mrvs$ORepoch <- setNames(exp(mrvs$gamma_epoch), epoch_map$epoch_lab)
 mrvs$ORsites <- setNames(exp(mrvs$gamma_site), site_map$site)
 ```
@@ -2895,49 +2926,21 @@ plot_or_densities(mrvs$OR)
 
 ```{r}
 #| tbl-cap: Posterior summaries for model parameters.
+save_tex_table(
+  odds_ratio_summary_table(mrvs$OR, "latex"),
+  "outcomes/primary/primary-model-acs-itt-worst-case-summary-table")
 odds_ratio_summary_table(mrvs$OR)
 ```
 
 ```{r}
-save_tex_table(
-  odds_ratio_summary_table(mrvs$OR, "latex"),
-  "outcomes/primary/primary-model-acs-itt-worst-case-summary-table")
-```
-
-```{r}
-orsdat <- tibble(
-  Group = "Epoch",
-  Parameter = fct_inorder(names(mrvs$ORepoch)),
-  posterior = mrvs$ORepoch
-)
-p_epoch <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
-  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
-  geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_log10("Odds ratio (log scale)") +
-  labs(y = "Epoch")
-
-orsdat <- tibble(
-  Group = "Site",
-  Country = factor(mdat$region_by_site, labels = c("India", "Australia\nNew Zealand", "Nepal")),
-  Parameter = fct_inorder(names(mrvs$ORsites)),
-  posterior = mrvs$ORsites
-)
-p_site <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
-  facet_grid(Country ~ ., scales = "free_y", space = "free_y") +
-  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
-  geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_log10("Odds ratio (log scale)") +
-  labs(y = "Site") +
-  theme(panel.border = element_rect(fill = NA))
-
-p <- p_epoch | p_site
-p
-```
-
-```{r}
+p <- plot_epoch_site_terms(
+  mrvs$ORepoch, 
+  mrvs$ORsites, 
+  factor(mdat$region_by_site, labels = c("India", "Australia\nNew Zealand", "Nepal")))
 pth <- file.path("outputs", "figures", "outcomes", "primary", 
                  "primary-model-acs-itt-worst-case-epoch-site-terms.pdf")
 ggsave(pth, p, width = 6, height = 4.5)
+p
 ```
 
 ### Sens:  Best-Case
@@ -2945,18 +2948,18 @@ ggsave(pth, p, width = 6, height = 4.5)
 Under this scenario, all participants with unknown primary outcome status were were to assumed to have **not** met the primary outcome.
 
 ```{r}
-make_po_table(acs_itt_bc_dat2)
 save_tex_table(
-  make_po_table(acs_itt_bc_dat2, "latex"), 
+  make_po_table(acs_itt_bc_dat, "latex"), 
   "outcomes/primary/acs-itt-best-case-anticoagulation-summary")
+make_po_table(acs_itt_bc_dat)
 ```
 
 ```{r}
 #| label: sample-primary-acs-itt-bc-model
 mdat <- make_primary_model_data(
-  acs_itt_bc_dat2,
-  c("inelgc3", "agegte60"),
-  c(10, 2.5)
+  acs_itt_bc_dat,
+  c("inelgc3", "agegte60", "ctry"),
+  c(10, 2.5, 1, 1)
 )
 snk <- capture.output(
   mfit <- primary_mod$sample(
@@ -2969,15 +2972,15 @@ snk <- capture.output(
     adapt_delta = 0.98
 ))
 mrvs <- as_draws_rvars(mfit$draws(c(
-  "beta", "beta_region", 
+  "beta", 
   "gamma_site", "tau_site", 
   "gamma_epoch", "tau_epoch", "y_ppc")))
 ```
 
 ```{r}
 # Transformed samples
-epoch_map <- acs_itt_bc_dat2 %>% dplyr::count(epoch, epoch_lab)
-site_map <- acs_itt_bc_dat2 %>% dplyr::count(site_num, site)
+epoch_map <- acs_itt_bc_dat %>% dplyr::count(epoch, epoch_lab)
+site_map <- acs_itt_bc_dat %>% dplyr::count(site_num, site)
 Ca <- mdat$ctrA
 Cc <- mdat$ctrC
 nC <- ncol(Cc) + 1
@@ -2995,7 +2998,7 @@ mrvs$OR <- c(mrvs$OR, "Intermediate vs Therapeutic" = mrvs$OR[1] / mrvs$OR[3])
 mrvs$OR <- c(mrvs$OR, 
                 "Ineligible aspirin" = exp(mrvs$beta[7]), 
                 "Age 60+" = exp(mrvs$beta[8]),
-             setNames(exp(mrvs$beta_region[-1]), c("Australia/New Zealand", "Nepal")))
+             setNames(exp(mrvs$beta[9:10]), c("Australia/New Zealand", "Nepal")))
 mrvs$ORepoch <- setNames(exp(mrvs$gamma_epoch), epoch_map$epoch_lab)
 mrvs$ORsites <- setNames(exp(mrvs$gamma_site), site_map$site)
 ```
@@ -3008,49 +3011,21 @@ plot_or_densities(mrvs$OR)
 
 ```{r}
 #| tbl-cap: Posterior summaries for model parameters.
+save_tex_table(
+  odds_ratio_summary_table(mrvs$OR, "latex"),
+  "outcomes/primary/primary-model-acs-itt-best-case-summary-table")
 odds_ratio_summary_table(mrvs$OR)
 ```
 
 ```{r}
-save_tex_table(
-  odds_ratio_summary_table(mrvs$OR, "latex"),
-  "outcomes/primary/primary-model-acs-itt-best-case-summary-table")
-```
-
-```{r}
-orsdat <- tibble(
-  Group = "Epoch",
-  Parameter = fct_inorder(names(mrvs$ORepoch)),
-  posterior = mrvs$ORepoch
-)
-p_epoch <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
-  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
-  geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_log10("Odds ratio (log scale)") +
-  labs(y = "Epoch")
-
-orsdat <- tibble(
-  Group = "Site",
-  Country = factor(mdat$region_by_site, labels = c("India", "Australia\nNew Zealand", "Nepal")),
-  Parameter = fct_inorder(names(mrvs$ORsites)),
-  posterior = mrvs$ORsites
-)
-p_site <- ggplot(orsdat, aes(xdist = posterior, y = Parameter)) +
-  facet_grid(Country ~ ., scales = "free_y", space = "free_y") +
-  stat_pointinterval(.width = c(0.75, 0.95), fatten_point = 1.5) +
-  geom_vline(xintercept = 1, linetype = 2) +
-  scale_x_log10("Odds ratio (log scale)") +
-  labs(y = "Site") +
-  theme(panel.border = element_rect(fill = NA))
-
-p <- p_epoch | p_site
-p
-```
-
-```{r}
+p <- plot_epoch_site_terms(
+  mrvs$ORepoch, 
+  mrvs$ORsites, 
+  factor(mdat$region_by_site, labels = c("India", "Australia\nNew Zealand", "Nepal")))
 pth <- file.path("outputs", "figures", "outcomes", "primary", 
                  "primary-model-acs-itt-best-case-epoch-site-terms.pdf")
 ggsave(pth, p, width = 6, height = 4.5)
+p
 ```
 
 ### Sens: Account for timing of adaptations
@@ -3075,12 +3050,12 @@ all_pp %>%
 ```
 
 ```{r}
-acs_itt_dat2 %>%
+acs_itt_dat %>%
   left_join(pp, by = "StudyPatientID") %>%
   dplyr::count(CAssignment, Reason) %>%
   spread(CAssignment, n, fill = 0)
 
-acs_itt_dat2 %>%
+acs_itt_dat %>%
   left_join(pp, by = "StudyPatientID") %>%
   dplyr::count(country, Reason) %>%
   spread(country, n, fill = 0)
@@ -3103,8 +3078,8 @@ make_po_table(acs_pp_dat)
 #| code-summary: Data and sampling primary model
 mdat <- make_primary_model_data(
   acs_pp_nona_dat,
-  c("inelgc3", "agegte60"),
-  c(10, 2.5)
+  c("inelgc3", "agegte60", "ctry"),
+  c(10, 2.5, 1, 1)
 )
 snk <- capture.output(
   mfit <- primary_mod$sample(
@@ -3117,52 +3092,46 @@ snk <- capture.output(
     parallel_chains = 8,
     adapt_delta = 0.99
 ))
-mrvs <- as_draws_rvars(mfit$draws(c(
-  "beta", "beta_region", 
+mdrws <- as_draws_rvars(mfit$draws(c(
+  "beta", 
   "gamma_site", "tau_site", 
   "gamma_epoch", "tau_epoch", "y_ppc")))
-names(mrvs$beta) <- colnames(mdat$X)
+names(mdrws$beta) <- colnames(mdat$X)
 
 # Transformed samples
 epoch_map <- acs_pp_nona_dat %>% dplyr::count(epoch, epoch_lab)
 site_map <- acs_pp_nona_dat %>% dplyr::count(site_num, site)
 site_facet <- factor(mdat$region_by_site, labels = c("India", "Australia\nNew Zealand", "Nepal"))
+
 Ca <- mdat$ctrA
 Cc <- mdat$ctrC
-nC <- ncol(Cc) + 1
-Co <- cbind(1, Cc)
-Ct <- cbind(1, contr.treatment(nC))
 
-mrvs$eta <- as.vector(Co %**% mrvs$beta[1:nC])
+mdrws$Acon <- Ca %**% mdrws$beta[grepl("randA[0-9]", names(mdrws$beta))]
+mdrws$Ccon <- Cc %**% mdrws$beta[grepl("randC[0-9]", names(mdrws$beta))]
+mdrws$Atrt <- mdrws$Acon[-1] - mdrws$Acon[1]
+mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
 
-mrvs$Acon <- as.vector(Ca %**% mrvs$beta[6])
-mrvs$Ccon <- as.vector(Cc %**% mrvs$beta[2:nC])
-names(mrvs$Ccon) <- c("Standard", "Intermediate", "Standard plus aspirin", "Therapeutic")
-
-mrvs$prob <- 1 / (1 + exp(-mrvs$eta))
-mrvs$beta_trt <- as.vector(transform_coding(Co, Ct) %**% mrvs$beta[1:nC])
-mrvs$OR <- setNames(
-  exp(mrvs$beta_trt[-1]), 
-  c("Intermediate", "Standard plus aspirin", "Therapeutic"))
-mrvs$OR <- c(mrvs$OR, 
-                "Ineligible aspirin" = exp(mrvs$beta[7]), 
-                "Age 60+" = exp(mrvs$beta[8]),
-             setNames(exp(mrvs$beta_region[-1]), c("Australia/New Zealand", "Nepal")))
-mrvs$ORepoch <- setNames(exp(mrvs$gamma_epoch), epoch_map$epoch_lab)
-mrvs$ORsites <- setNames(exp(mrvs$gamma_site), site_map$site)
+mdrws$OR <- setNames(exp(mdrws$Ctrt), c("Intermediate", "Standard plus aspirin", "Therapeutic"))
+mdrws$OR <- c(
+  mdrws$OR, 
+  "Ineligible aspirin" = exp(mdrws$beta[7]), 
+  "Age 60+" = exp(mdrws$beta[8]),
+   setNames(exp(mdrws$beta[9:10]), c("Australia/New Zealand", "Nepal")))
+mdrws$ORepoch <- setNames(exp(mdrws$gamma_epoch), epoch_map$epoch_lab)
+mdrws$ORsites <- setNames(exp(mdrws$gamma_site), site_map$site)
 ```
 
 ```{r}
 #| label: tbl-odds-ratio-summary-table-primary-model-acs-pp
 #| tbl-cap: Posterior summaries for model parameters.
 save_tex_table(
-  odds_ratio_summary_table(mrvs$OR, "latex"),
+  odds_ratio_summary_table(mdrws$OR, "latex"),
   "outcomes/primary/primary-model-acs-pp-summary-table")
-odds_ratio_summary_table(mrvs$OR)
+odds_ratio_summary_table(mdrws$OR)
 ```
 
 ```{r}
-p <- plot_epoch_site_terms(mrvs$ORepoch, mrvs$ORsites, site_facet)
+p <- plot_epoch_site_terms(mdrws$ORepoch, mdrws$ORsites, site_facet)
 pth <- file.path("outputs", "figures", "outcomes", "primary", 
                  "primary-model-acs-pp-epoch-site-terms.pdf")
 ggsave(pth, p, width = 6, height = 4.5)

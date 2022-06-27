@@ -234,12 +234,26 @@ transmute_model_cols <- function(dat) {
       out_mmrc_scale,
       AgeAtEntry,
       aspirin = if_else(BAS_PatientTakingAspirin == "Yes", 1, 0),
+      ddimer_oor = factor(case_when(
+        is.na(BAS_DDimerOutOfRange) ~ 2,
+        BAS_DDimerOutOfRange == "No" ~ 0,
+        BAS_DDimerOutOfRange == "Yes" ~ 1
+      ), levels = c(0, 1, 2), labels = c("No", "Yes", "Unknown")),
       weight = BAS_Weight,
       weightgt120 = as.numeric(weight > 120),
       oxygen_sat = if_else(BAS_PeripheralOxygen < 10, NA_real_, BAS_PeripheralOxygen),
       dsfs = as.numeric(RandDate - EL_FirstSymptoms),
       dsfsgt7 = as.numeric(dsfs > 7),
       rec_steroids = if_else(DIS_ImmunoCorticosteroids == "Yes", 1, 0),
+      rec_remdesivir = if_else(DIS_RemdesivirReceived == "Yes", 1, 0),
+      rec_antiviral = case_when(
+        DIS_CamostatReceived == "Yes" ~ 1,
+        DIS_FavipiravirReceived == "Yes" ~ 1,
+        DIS_DoxycyclineReceived == "Yes" ~ 1,
+        DIS_IvermectinReceived == "Yes" ~ 1,
+        DIS_ReceivedOther == "Yes" ~ 1,
+        TRUE ~ 0
+      ),
       age_c = AgeAtEntry - mean(AgeAtEntry),
       agegte60,
       agegte60_c = agegte60 - mean(agegte60),
@@ -324,12 +338,26 @@ transmute_model_cols_grp_aus_nz <- function(dat) {
       out_mmrc_scale,
       AgeAtEntry,
       aspirin = if_else(BAS_PatientTakingAspirin == "Yes", 1, 0),
+      ddimer_oor = factor(case_when(
+        is.na(BAS_DDimerOutOfRange) ~ 2,
+        BAS_DDimerOutOfRange == "No" ~ 0,
+        BAS_DDimerOutOfRange == "Yes" ~ 1
+      ), levels = c(0, 1, 2), labels = c("No", "Yes", "Unknown")),
       weight = BAS_Weight,
       weightgt120 = as.numeric(weight > 120),
       oxygen_sat = if_else(BAS_PeripheralOxygen < 10, NA_real_, BAS_PeripheralOxygen),
       dsfs = as.numeric(RandDate - EL_FirstSymptoms),
       dsfsgt7 = as.numeric(dsfs > 7),
       rec_steroids = if_else(DIS_ImmunoCorticosteroids == "Yes", 1, 0),
+      rec_remdesivir = if_else(DIS_RemdesivirReceived == "Yes", 1, 0),
+      rec_antiviral = case_when(
+        DIS_CamostatReceived == "Yes" ~ 1,
+        DIS_FavipiravirReceived == "Yes" ~ 1,
+        DIS_DoxycyclineReceived == "Yes" ~ 1,
+        DIS_IvermectinReceived == "Yes" ~ 1,
+        DIS_ReceivedOther == "Yes" ~ 1,
+        TRUE ~ 0
+      ),
       age_c = AgeAtEntry - mean(AgeAtEntry),
       agegte60,
       agegte60_c = agegte60 - mean(agegte60),
