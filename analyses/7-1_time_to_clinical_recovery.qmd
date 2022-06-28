@@ -44,18 +44,15 @@ options(digits = 4)
 ```{r}
 #| label: models
 #| code-summary: Load Models
-mlogit_mod <- cmdstan_model("stan/time_to_event_competing_reduced_alt.stan")
-mlogit_linear <- cmdstan_model("stan/time_to_event_competing_reduced_linear.stan")
-mlogit_rw <- cmdstan_model("stan/time_to_event_competing_reduced_rw.stan")
-mlogit_no_epoch <- cmdstan_model("stan/time_to_event_competing_no_epoch.stan") 
-mlogit_no_site <- cmdstan_model("stan/time_to_event_competing_no_site.stan") 
+mlogit_mod <- cmdstan_model("stan/tte/tte_competing_alt.stan")
+mlogit_rw <- cmdstan_model("stan/tte/tte_competing_rw.stan")
+mlogit_epoch <- cmdstan_model("stan/tte/tte_competing_epoch.stan") 
 ```
 
 ```{r}
 #| label: helpers
 #| code-smmary: Helper functions
 mlogit <- function(x) exp(x) / (1 + rvar_sum(exp(x)))
-
 
 make_ttr_summary <- function(dat, format = "html") {
   tdat <- dat %>%
@@ -81,9 +78,12 @@ make_ttr_summary <- function(dat, format = "html") {
   kable(
     tdat,
     format = format,
-    align = "lrrrrr",
+    align = "lrrrrrr",
     booktabs = TRUE) %>%
-    kable_styling(font_size = 9)
+    kable_styling(
+      font_size = 9,
+      latex_options = "HOLD_position"
+    )
 }
 
 make_odds_ratio_table <- function(drws, format = "html") {
@@ -105,17 +105,23 @@ make_odds_ratio_table <- function(drws, format = "html") {
     escape = F
   ) %>%
     kable_styling(
+      font_size = 9,
       latex_options = "HOLD_position"
     ) %>%
     group_rows("Recovery", 1, nrow(drws$OR)) %>%
     group_rows("Death", nrow(drws$OR) + 1, 2*nrow(drws$OR))
 }
 
-get_arm_specific_probs <- function(drws) {
+get_arm_specific_probs <- function(drws, shift = FALSE) {
   haztbl <- vector("list", nrow(drws$Ccon))
   names(haztbl) <- rownames(drws$Ccon)
+  if(shift) {
+    alph <- drws$alpha_shift
+  } else {
+    alph <- drws$alpha
+  }
   for (k in 1:nrow(drws$Ccon)) {
-    haz <- t(do.call(cbind, apply(sweep(drws$alpha, 2, drws$Ccon[k, ], "+"), 1, mlogit)))
+    haz <- t(do.call(cbind, apply(sweep(alph, 2, drws$Ccon[k, ], "+"), 1, mlogit)))
     haz <- cbind(1 - (haz[, 1] + haz[, 2]), haz)
     colnames(haz) <- c("haz0", "haz1", "haz2")
     haztbl[[k]] <- bind_cols(time = 1:28, as_tibble(haz)) %>%
@@ -133,13 +139,15 @@ get_arm_specific_probs <- function(drws) {
 
 plot_baseline_hazard <- function(drws) {
   as_tibble(drws$alpha, rownames = "day") %>% 
+    mutate(day = as.numeric(day)) %>%
     rename(Recovery = V1, Death = V2) %>%
     pivot_longer(Recovery:Death) %>%
     ggplot(., 
-           aes(xdist=value, y = fct_inorder(day))) + 
+           aes(xdist=value, y = day)) + 
     facet_wrap( ~ name, scales = "free_x") +
     stat_pointinterval() +
-    labs(x = "Baseline cause-specific hazard (logit)", y = "Study day")
+    labs(x = "Baseline cause-specific hazard (logit)", y = "Study day") +
+    scale_y_continuous(breaks = c(1, 7, 14, 21, 28))
 }
 ```
 
@@ -215,6 +223,19 @@ acs_itt_concurc3_nona_dat <- acs_itt_concurc3_dat %>%
     y1 = if_else(out_ttr == time & out_rec == 1, 1, 0), # Recovered
     y2 = if_else(out_ttr == time & out_rec == 2, 1, 0)  # Died
   )
+
+acs_itt_concurc4_dat <- acs_itt_dat %>%
+  filter_concurrent_therapeutic()
+acs_itt_concurc4_nona_dat <- acs_itt_concurc4_dat %>% 
+  filter(!is.na(out_ttr)) %>%
+  left_join(ttr_seq, by = "StudyPatientID") %>%
+  filter(time <= out_ttr) %>%
+  mutate(
+    y = if_else(out_ttr == time, out_rec, 0),
+    y0 = if_else(out_ttr > time | out_ttr == time & out_rec == 0, 1, 0), # Not recovered or died
+    y1 = if_else(out_ttr == time & out_rec == 1, 1, 0), # Recovered
+    y2 = if_else(out_ttr == time & out_rec == 2, 1, 0)  # Died
+  )
 ```
 
 
@@ -230,9 +251,12 @@ Time to clinical recovery is taken as the first day from the index admission at 
 
 ```{r}
 #| tbl-cap: Summary of time to recovery to day 28 by anticoagulation intervention.
+save_tex_table(
+  make_ttr_summary(acs_itt_dat, "latex"),
+  file.path("outcomes", "secondary", "7-1-acs-itt-summary")
+)
 make_ttr_summary(acs_itt_dat)
 ```
-
 
 ```{r}
 #| label: fig-ttr-dist
@@ -625,50 +649,60 @@ colnames(drws$OR) <- c("Recovery", "Death")
 ```
 
 
-## Reduced (no epoch)
+## Reduced (no site)
 
 ```{r}
+#| code-summary: Prepare data
 X <- make_X_design(acs_itt_outdat, c("inelgc3", "agegte60", "ctry"))
 Xm <- X[, -1]
 epoch <- acs_itt_outdat$epoch
 M_epoch <- max(acs_itt_outdat$epoch)
-region <- acs_itt_outdat$ctry_num
-M_region <- max(region)
-site <- acs_itt_outdat$site_num
-M_site <- max(site)
-region_by_site <- acs_itt_outdat %>% 
-  dplyr::count(ctry_num, site_num) %>% 
-  pull(ctry_num)
-
 sdat <- list(
   N = nrow(acs_itt_outdat),
   R = 2,
   K = ncol(Xm),
-  M_site = M_site,
-  M_region = M_region,
+  M_epoch = M_epoch,
   T = 28,
   time = acs_itt_outdat$time,
-  site = site,
-  region_by_site = region_by_site,
+  epoch = epoch,
   X = Xm,
   y = as.matrix(acs_itt_outdat[, c("y0", "y1", "y2")]),
   beta_sd = c(1, 1, 1, 1, 1, 10, 2.5, 1, 1)
 )
+```
 
-fit <- mlogit_no_epoch$sample(
+```{r}
+#| eval: false
+#| code-summary: Fit model
+fit <- mlogit_epoch$sample(
   data = sdat, 
   chains = 1,
   parallel_chains = 1,
   iter_sampling = 200, 
   iter_warmup = 200)
+fit$save_output_files(
+  dir = file.path("outputs", "models", "secondary", "7-1-ttr"),
+  basename = "epoch_only",
+  timestamp = FALSE, 
+  random = FALSE)
+fit$save_object(file.path("outputs", "models", "secondary", "7-1-ttr", "epoch_only.rds"))
+```
+
+```{r}
+#| code-summary: Load model and prepare draws
+fit <- as_cmdstan_fit(
+  grep("epoch_only-[0-9].csv", 
+       list.files(
+         file.path("outputs", "models", "secondary", "7-1-ttr"), 
+         full.names = T), 
+       value = T)
+)
 
 drws <- as_draws_rvars(fit$draws())
 rownames(drws$beta) <- colnames(sdat$X)
 drws$Ccon <- attr(X, "contrasts")$randC %**% drws$beta[1:3, ]
 rownames(drws$Ccon) <- c("C1", "C2", "C3", "C4")
 drws$Ctrt <- drws$Ccon[-1, ] - drws$Ccon[1, ]
-
-
 
 as_tibble(drws$gamma_site, rownames = "day") %>% 
   pivot_longer(V1:V2) %>%
@@ -686,119 +720,18 @@ as_tibble(drws$gamma_site, rownames = "day") %>%
 
 ```{r}
 #| tbl-cap: Summary of time to recovery to day 28 by anticoagulation intervention.
+save_tex_table(
+  make_ttr_summary(acs_itt_concurc2_dat, "latex"),
+  file.path("outcomes", "secondary", "7-1-acs-itt-intermediate-summary")
+)
 make_ttr_summary(acs_itt_concurc2_dat)
 ```
 
 ```{r}
-#| eval: false
-#| code-summary: Fit and save the model
-X <- make_X_design(
-  acs_itt_concurc2_nona_dat, 
-  c("agegte60", "ctry"), 
-  includeA = F)
-Xm <- X[, -1]
-sdat <- list(
-  N = nrow(acs_itt_concurc2_nona_dat),
-  R = 2,
-  K = ncol(Xm),
-  T = 28,
-  time = acs_itt_concurc2_nona_dat$time,
-  X = Xm,
-  y = as.matrix(acs_itt_concurc2_nona_dat[, c("y0", "y1", "y2")]),
-  beta_sd = c(1, 2.5, 1, 1)
-)
-
-fit <- mlogit_rw$sample(
-  data = sdat, 
-  seed = 71252,
-  chains = 8,
-  parallel_chains = 8,
-  iter_sampling = 2500, 
-  iter_warmup = 250,
-  adapt_delta = 0.95)
-fit$save_output_files(
-  dir = file.path("outputs", "models", "secondary", "7-1-ttr"),
-  basename = "concurc2",
-  timestamp = FALSE, 
-  random = FALSE)
-fit$save_object(file.path("outputs", "models", "secondary", "7-1-ttr", "concurc2.rds"))
-```
-
-```{r}
-#| code-summary: Load the model and summarise draws
-fit <- as_cmdstan_fit(
-  grep("concurc2-[0-9].csv", 
-       list.files(
-         file.path("outputs", "models", "secondary", "7-1-ttr"), 
-         full.names = T), 
-       value = T)
-)
-
-drws <- as_draws_rvars(fit$draws())
-rownames(drws$beta) <- colnames(sdat$X)
-drws$Ccon <- contr.orthonorm(2) %**% drws$beta[1, ]
-rownames(drws$Ccon) <- c("Standard", "Intermediate")
-drws$Ctrt <- drws$Ccon[-1, ] - drws$Ccon[1, ]
-
-drws$OR <- exp(rbind(
-  drws$Ctrt,
-  drws$beta[-1, ]
-))
-rownames(drws$OR) <- c("Intermediate", "Age 60+", "Australia/New Zealand", "Nepal")
-colnames(drws$OR) <- c("Recovery", "Death")
-```
-
-```{r}
-save_tex_table(
-  make_odds_ratio_table(drws, format = "latex"),
-  "outcomes/secondary/7-1-primary-model-acs-itt-intermediate-summary-table"
-)
-make_odds_ratio_table(drws)
-```
-
-
-```{r}
-p <- plot_baseline_hazard(drws)
-```
-
-```{r}
-#| fig-cap: |
-#|   Intervention specific recovery progression (India, age < 60).
-haz <- get_arm_specific_probs(drws)
-pdat <- haz %>% 
-  select(intervention, time, unrecovered = surv, recovered = cprob1, died = cprob2) %>%
-  pivot_longer(unrecovered:died, names_to = "event", values_to = "posterior")
-ggplot(pdat, aes(time, fill = event, colour = event)) +
-  facet_wrap( ~ intervention) +
-  geom_rect(aes(xmin = time, 
-                xmax = time + 1,
-                ymin = quantile(posterior, 0.025), 
-                ymax = quantile(posterior, 0.975)),
-              alpha = 0.25, colour = NA) +
-  geom_step(aes(y = median(posterior))) +
-  scale_fill_viridis_d(option = "B", begin = 0.2, end = 0.8) +
-  scale_colour_viridis_d(option = "B", begin = 0.2, end = 0.8) +
-  scale_x_continuous(breaks = c(1, 7, 14, 21, 28), limits = c(1, 28))
-```
-
-### Standard dose plus aspirin
-
-```{r}
-acs_itt_concurc3_dat %>%
-  group_by(CAssignment, out_rec) %>%
-  summarise(
-    n = n(),
-    median = median(out_ttr),
-    mean = mean(out_ttr)
-  )
-```
-
-
-```{r}
-#| label: fig-7-1-anticoagulation
+#| label: fig-7-1-anticoagulation-acs-itt-intermediate
 #| fig-cap: |
 #|   Progression to recovery by anticoagulation intervention.
-p <- acs_itt_concurc3_nona_dat %>%
+p <- acs_itt_concurc2_nona_dat %>%
   complete(CAssignment, time, fill = list(y = 0)) %>%
   group_by(CAssignment, time) %>%
   summarise(n = n(), y1 = sum(y == 1), y2 = sum(y == 2), .groups = "drop") %>%
@@ -835,8 +768,195 @@ p
 ```
 
 ```{r}
+# Sanity check frequentist fit with smoothed time
+freqfit <-vgam(
+  cbind(y0, y1, y2) ~ s(time) + CAssignment + agegte60 + ctry, 
+  multinomial(refLevel = 1), 
+  data = acs_itt_concurc2_nona_dat)
+
+X <- make_X_design(
+  acs_itt_concurc2_nona_dat, 
+  c("agegte60", "ctry"), 
+  includeA = F)
+Xm <- X[, -1]
+sdat <- list(
+  N = nrow(acs_itt_concurc2_nona_dat),
+  R = 2,
+  K = ncol(Xm),
+  T = 28,
+  time = acs_itt_concurc2_nona_dat$time,
+  X = Xm,
+  y = as.matrix(acs_itt_concurc2_nona_dat[, c("y0", "y1", "y2")]),
+  beta_sd = c(1, 2.5, 1, 1)
+)
+```
+
+```{r}
 #| eval: false
 #| code-summary: Fit and save the model
+fit <- mlogit_rw$sample(
+  data = sdat, 
+  seed = 71252,
+  chains = 4,
+  parallel_chains = parallel::detectCores(),
+  iter_sampling = 250, 
+  iter_warmup = 250,
+  adapt_delta = 0.95)
+fit$save_output_files(
+  dir = file.path("outputs", "models", "secondary", "7-1-ttr"),
+  basename = "concurc2",
+  timestamp = FALSE, 
+  random = FALSE)
+fit$save_object(file.path("outputs", "models", "secondary", "7-1-ttr", "concurc2.rds"))
+```
+
+```{r}
+#| code-summary: Load the model and summarise draws
+fit <- as_cmdstan_fit(
+  grep("concurc2-[0-9].csv", 
+       list.files(
+         file.path("outputs", "models", "secondary", "7-1-ttr"), 
+         full.names = T), 
+       value = T)
+)
+
+drws <- as_draws_rvars(fit$draws())
+rownames(drws$beta) <- colnames(sdat$X)
+drws$Ccon <- contr.orthonorm(2) %**% drws$beta[1, ]
+rownames(drws$Ccon) <- c("Standard", "Intermediate")
+drws$Ctrt <- drws$Ccon[-1, ] - drws$Ccon[1, ]
+
+drws$shift <- rvar_apply(sweep(drws$beta[2:4, ], 1, colMeans(sdat$X)[2:4], "*"), 2, rvar_sum)
+drws$alpha_shift <- sweep(drws$alpha, 2, drws$shift, "+")
+
+drws$OR <- exp(rbind(
+  drws$Ctrt,
+  drws$beta[-1, ]
+))
+rownames(drws$OR) <- c("Intermediate", "Age 60+", "Australia/New Zealand", "Nepal")
+colnames(drws$OR) <- c("Recovery", "Death")
+```
+
+```{r}
+save_tex_table(
+  make_odds_ratio_table(drws, format = "latex"),
+  "outcomes/secondary/7-1-primary-model-acs-itt-intermediate-summary-table"
+)
+make_odds_ratio_table(drws)
+```
+
+```{r}
+#| fig-cap: Baseline hazard (logit) for death and recovery.
+p <- plot_baseline_hazard(drws) +
+  coord_flip()
+ggsave(
+  file.path("outputs", "figures", "outcomes", "secondary", "7-1-concurrent-intermediate-baseline-haz.pdf"),
+  p, height = 3, width = 6
+)
+p
+```
+
+```{r}
+#| fig-cap: |
+#|   Intervention specific recovery progression (India, age < 60).
+haz <- get_arm_specific_probs(drws, TRUE) %>%
+  mutate(intervention = fct_inorder(intervention))
+pdat <- haz %>% 
+  select(intervention, time, unrecovered = surv, recovered = cprob1, died = cprob2) %>%
+  pivot_longer(unrecovered:died, names_to = "event", values_to = "posterior")
+obsdat <- acs_itt_concurc2_nona_dat %>%
+  # filter(ctry == "IN", agegte60 == 0) %>%
+  complete(CAssignment, time, fill = list(y = 0)) %>%
+  group_by(intervention = factor(CAssignment, labels = c("Standard", "Intermediate")), time) %>%
+  summarise(n = n(), y1 = sum(y == 1), y2 = sum(y == 2), .groups = "drop") %>%
+  group_by(intervention) %>%
+  mutate(cy1 = cumsum(y1), 
+         recovered = cy1 / n[1],
+         cy2 = cumsum(y2),
+         died = cy2 / n[1],
+         unrecovered = (n[1] - cy1 - cy2) / n[1]) %>%
+  ungroup() %>%
+  pivot_longer(c(unrecovered, recovered, died), names_to = "event", values_to = "proportion")
+p <- ggplot(pdat, aes(time, fill = event, colour = event)) +
+  facet_wrap( ~ intervention) +
+  geom_rect(aes(xmin = time, 
+                xmax = time + 1,
+                ymin = quantile(posterior, 0.025), 
+                ymax = quantile(posterior, 0.975)),
+              alpha = 0.25, colour = NA) +
+  geom_step(aes(y = median(posterior))) +
+  geom_point(data = obsdat, aes(y = proportion, x = time + 0.5)) +
+  scale_fill_viridis_d("Event", option = "B", begin = 0.2, end = 0.8) +
+  scale_colour_viridis_d("Event", option = "B", begin = 0.2, end = 0.8) +
+  scale_x_continuous("Day", breaks = c(1, 7, 14, 21, 28), limits = c(1, 28)) +
+  labs(y = "Proportion")
+ggsave(
+  file.path(
+    "outputs", "figures", "outcomes", "secondary", 
+    "7-1-concurrent-intermediate-marginal-ttr.pdf"),
+  p, height = 2.5, width = 6
+)
+p
+```
+
+### Standard dose plus aspirin
+
+```{r}
+#| tbl-cap: Summary of time to recovery to day 28 by anticoagulation intervention.
+save_tex_table(
+  make_ttr_summary(acs_itt_concurc3_dat, "latex"),
+  file.path("outcomes", "secondary", "7-1-acs-itt-stdaspirin-summary")
+)
+make_ttr_summary(acs_itt_concurc3_dat)
+```
+
+```{r}
+#| label: fig-7-1-anticoagulation-acs-itt-stdaspirin
+#| fig-cap: |
+#|   Progression to recovery by anticoagulation intervention.
+p <- acs_itt_concurc3_nona_dat %>%
+  complete(CAssignment, time, fill = list(y = 0)) %>%
+  group_by(CAssignment, time) %>%
+  summarise(n = n(), y1 = sum(y == 1), y2 = sum(y == 2), .groups = "drop") %>%
+  group_by(CAssignment) %>%
+  mutate(cy1 = cumsum(y1), 
+         cp1 = cy1 / n[1],
+         cy2 = cumsum(y2),
+         cp2 = cy2 / n[1],
+         cpn = (n[1] - cy1 - cy2) / n[1]) %>%
+  ungroup() %>%
+  mutate(CAssignment = factor(
+    CAssignment, 
+    levels = c("C1", "C2", "C3", "C4"), 
+    labels = str_replace(intervention_labels()$CAssignment[-1], "<br>", " "))) %>%
+  select(-y1, -y2, -cy1, -cy2) %>% 
+  pivot_longer(cp1:cpn) %>% 
+  mutate(name = factor(
+    name, 
+    levels = c("cp1", "cp2", "cpn"), 
+    labels = c("Recovered", "Died", "Not recovered"))) %>%
+  ggplot(., aes(time, value, fill = name, colour = name)) + 
+  facet_wrap(~CAssignment) + 
+  geom_col(width = 1) +
+  scale_fill_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_colour_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_x_continuous(breaks = c(1, 7, 14, 21, 28)) +
+  labs(x = "Study day", y = "Cumulative proportion", fill = "Status", colour = "Status") +
+  theme(panel.grid.minor = element_blank())
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(
+  file.path(path, "outcome-7-1-descriptive-acs-itt-stdaspirin.pdf"), 
+  p, height = 2.5, width = 6)
+p
+```
+
+```{r}
+# Sanity check frequentist fit with smoothed time
+freqfit <-vgam(
+  cbind(y0, y1, y2) ~ s(time) + CAssignment + agegte60 + ctry, 
+  multinomial(refLevel = 1), 
+  data = acs_itt_concurc3_nona_dat)
+
 X <- make_X_design(
   acs_itt_concurc3_nona_dat, 
   c("agegte60", "ctry"), 
@@ -852,13 +972,17 @@ sdat <- list(
   y = as.matrix(acs_itt_concurc3_nona_dat[, c("y0", "y1", "y2")]),
   beta_sd = c(1, 1, 2.5, 1)
 )
+```
 
+```{r}
+#| code-summary: Fit and save the model
+#| eval: false
 fit <- mlogit_rw$sample(
   data = sdat, 
   seed = 12085,
-  chains = 8,
-  parallel_chains = 8,
-  iter_sampling = 2500, 
+  chains = 4,
+  parallel_chains = min(8, parallel::detectCores()),
+  iter_sampling = 250, 
   iter_warmup = 250,
   adapt_delta = 0.95
 )
@@ -887,6 +1011,9 @@ drws$Ccon <- attr(X, "contrasts")$randC %**% drws$beta[1:2, ]
 rownames(drws$Ccon) <- c("Standard", "Intermediate", "Standard plus aspirin")
 drws$Ctrt <- drws$Ccon[-1, ] - drws$Ccon[1, ]
 
+drws$shift <- rvar_apply(sweep(drws$beta[3:4, ], 1, colMeans(sdat$X)[3:4], "*"), 2, rvar_sum)
+drws$alpha_shift <- sweep(drws$alpha, 2, drws$shift, "+")
+
 drws$OR <- exp(rbind(
   drws$Ctrt,
   drws$beta[-(1:2), ]
@@ -904,18 +1031,42 @@ make_odds_ratio_table(drws)
 ```
 
 ```{r}
-p <- plot_baseline_hazard(drws)
+p <- plot_baseline_hazard(drws) +
+  coord_flip()
+ggsave(
+  file.path(
+    "outputs", "figures", "outcomes", "secondary", 
+    "7-1-concurrent-stdaspirin-baseline-haz.pdf"),
+  p, height = 3, width = 6
+)
 p
 ```
 
 ```{r}
 #| fig-cap: |
 #|   Intervention specific recovery progression (India, age < 60).
-haz <- get_arm_specific_probs(drws)
+haz <- get_arm_specific_probs(drws, TRUE) %>%
+  mutate(intervention = fct_inorder(intervention))
 pdat <- haz %>% 
   select(intervention, time, unrecovered = surv, recovered = cprob1, died = cprob2) %>%
   pivot_longer(unrecovered:died, names_to = "event", values_to = "posterior")
-ggplot(pdat, aes(time, fill = event, colour = event)) +
+obsdat <- acs_itt_concurc3_nona_dat %>%
+  # filter(ctry == "IN", agegte60 == 0) %>%
+  complete(CAssignment, time, fill = list(y = 0)) %>%
+  group_by(intervention = 
+             factor(CAssignment, 
+                    labels = c("Standard", "Intermediate", "Standard plus aspirin")), 
+           time) %>%
+  summarise(n = n(), y1 = sum(y == 1), y2 = sum(y == 2), .groups = "drop") %>%
+  group_by(intervention) %>%
+  mutate(cy1 = cumsum(y1), 
+         recovered = cy1 / n[1],
+         cy2 = cumsum(y2),
+         died = cy2 / n[1],
+         unrecovered = (n[1] - cy1 - cy2) / n[1]) %>%
+  ungroup() %>%
+  pivot_longer(c(unrecovered, recovered, died), names_to = "event", values_to = "proportion")
+p <- ggplot(pdat, aes(time, fill = event, colour = event)) +
   facet_wrap( ~ intervention) +
   geom_rect(aes(xmin = time, 
                 xmax = time + 1,
@@ -923,12 +1074,209 @@ ggplot(pdat, aes(time, fill = event, colour = event)) +
                 ymax = quantile(posterior, 0.975)),
               alpha = 0.25, colour = NA) +
   geom_step(aes(y = median(posterior))) +
-  scale_fill_viridis_d(option = "B", begin = 0.2, end = 0.8) +
-  scale_colour_viridis_d(option = "B", begin = 0.2, end = 0.8) +
-  scale_x_continuous(breaks = c(1, 7, 14, 21, 28), limits = c(1, 28))
+  geom_point(data = obsdat, aes(y = proportion, x = time + 0.5)) +
+  scale_fill_viridis_d("Event", option = "B", begin = 0.2, end = 0.8) +
+  scale_colour_viridis_d("Event", option = "B", begin = 0.2, end = 0.8) +
+  scale_x_continuous("Day", breaks = c(1, 7, 14, 21, 28), limits = c(1, 28)) +
+  labs(y = "Proportion")
+ggsave(
+  file.path(
+    "outputs", "figures", "outcomes", "secondary", 
+    "7-1-concurrent-stdaspirin-marginal-ttr.pdf"),
+  p, height = 2.5, width = 6
+)
+p
 ```
 
 ### Therapeutic dose
+
+```{r}
+#| tbl-cap: Summary of time to recovery to day 28 by anticoagulation intervention.
+save_tex_table(
+  make_ttr_summary(acs_itt_concurc4_dat, "latex"),
+  file.path("outcomes", "secondary", "7-1-acs-itt-therapeutic-summary")
+)
+make_ttr_summary(acs_itt_concurc4_dat)
+```
+
+```{r}
+#| label: fig-7-1-anticoagulation-acs-itt-therapeutic
+#| fig-cap: |
+#|   Progression to recovery by anticoagulation intervention, ACS-ITT-therapeutic.
+p <- acs_itt_concurc4_nona_dat %>%
+  complete(CAssignment, time, fill = list(y = 0)) %>%
+  group_by(CAssignment, time) %>%
+  summarise(n = n(), y1 = sum(y == 1), y2 = sum(y == 2), .groups = "drop") %>%
+  group_by(CAssignment) %>%
+  mutate(cy1 = cumsum(y1), 
+         cp1 = cy1 / n[1],
+         cy2 = cumsum(y2),
+         cp2 = cy2 / n[1],
+         cpn = (n[1] - cy1 - cy2) / n[1]) %>%
+  ungroup() %>%
+  mutate(CAssignment = factor(
+    CAssignment, 
+    levels = c("C1", "C2", "C3", "C4"), 
+    labels = str_replace(intervention_labels()$CAssignment[-1], "<br>", " "))) %>%
+  select(-y1, -y2, -cy1, -cy2) %>% 
+  pivot_longer(cp1:cpn) %>% 
+  mutate(name = factor(
+    name, 
+    levels = c("cp1", "cp2", "cpn"), 
+    labels = c("Recovered", "Died", "Not recovered"))) %>%
+  ggplot(., aes(time, value, fill = name, colour = name)) + 
+  facet_wrap(~CAssignment) + 
+  geom_col(width = 1) +
+  scale_fill_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_colour_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_x_continuous(breaks = c(1, 7, 14, 21, 28)) +
+  labs(x = "Study day", y = "Cumulative proportion", fill = "Status", colour = "Status") +
+  theme(panel.grid.minor = element_blank())
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(
+  file.path(path, "outcome-7-1-descriptive-acs-itt-therapeutic.pdf"), 
+  p, height = 2.5, width = 6)
+p
+```
+
+```{r}
+# Sanity check frequentist fit with smoothed time
+freqfit <-vgam(
+  cbind(y0, y1, y2) ~ s(time) + CAssignment + agegte60 + ctry, 
+  multinomial(refLevel = 1), 
+  data = acs_itt_concurc4_nona_dat)
+
+X <- make_X_design(
+  acs_itt_concurc4_nona_dat, 
+  c("agegte60", "ctry"), 
+  includeA = F)
+Xm <- X[, -1]
+sdat <- list(
+  N = nrow(acs_itt_concurc4_nona_dat),
+  R = 2,
+  K = ncol(Xm),
+  T = 28,
+  time = acs_itt_concurc4_nona_dat$time,
+  X = Xm,
+  y = as.matrix(acs_itt_concurc4_nona_dat[, c("y0", "y1", "y2")]),
+  beta_sd = c(1, 1, 2.5, 1, 1)
+)
+```
+
+```{r}
+#| eval: false
+#| code-summary: Fit and save the model
+fit <- mlogit_rw$sample(
+  data = sdat, 
+  seed = 81743,
+  chains = 4,
+  parallel_chains = min(8, parallel::detectCores()),
+  iter_sampling = 250, 
+  iter_warmup = 250,
+  adapt_delta = 0.95
+)
+# Save model to outputs
+fit$save_output_files(
+  dir = file.path("outputs", "models", "secondary", "7-1-ttr"),
+  basename = "concurc4",
+  timestamp = FALSE, 
+  random = FALSE)
+fit$save_object(file.path("outputs", "models", "secondary", "7-1-ttr", "concurc4.rds"))
+```
+
+```{r}
+#| code-summary: Load the model and summarise draws
+fit <- as_cmdstan_fit(
+  grep("concurc4-[0-9].csv", 
+       list.files(
+         file.path("outputs", "models", "secondary", "7-1-ttr"), 
+         full.names = T), 
+       value = T)
+)
+
+drws <- as_draws_rvars(fit$draws())
+rownames(drws$beta) <- colnames(sdat$X)
+drws$Ccon <- attr(X, "contrasts")$randC %**% drws$beta[1:2, ]
+rownames(drws$Ccon) <- c("Standard", "Intermediate", "Therapeutic")
+drws$Ctrt <- drws$Ccon[-1, ] - drws$Ccon[1, ]
+
+drws$shift <- rvar_apply(sweep(drws$beta[3:5, ], 1, colMeans(sdat$X)[3:5], "*"), 2, rvar_sum)
+drws$alpha_shift <- sweep(drws$alpha, 2, drws$shift, "+")
+
+drws$OR <- exp(rbind(
+  drws$Ctrt,
+  drws$beta[-(1:2), ]
+))
+rownames(drws$OR) <- c("Intermediate", "Therapeutic", "Age 60+", "India", "Australia/New Zealand")
+colnames(drws$OR) <- c("Recovery", "Death")
+```
+
+```{r}
+save_tex_table(
+  make_odds_ratio_table(drws, format = "latex"),
+  "outcomes/secondary/7-1-primary-model-acs-itt-therapeutic-summary-table"
+)
+make_odds_ratio_table(drws)
+```
+
+```{r}
+p <- plot_baseline_hazard(drws) +
+  coord_flip()
+ggsave(
+  file.path(
+    "outputs", "figures", "outcomes", "secondary", 
+    "7-1-concurrent-therapeutic-baseline-haz.pdf"),
+  p, height = 3, width = 6
+)
+p
+```
+
+```{r}
+#| fig-cap: |
+#|   Intervention specific recovery progression (Nepal, age < 60).
+haz <- get_arm_specific_probs(drws, TRUE) %>%
+  mutate(intervention = fct_inorder(intervention))
+pdat <- haz %>% 
+  select(intervention, time, unrecovered = surv, recovered = cprob1, died = cprob2) %>%
+  pivot_longer(unrecovered:died, names_to = "event", values_to = "posterior")
+obsdat <- acs_itt_concurc4_nona_dat %>%
+  # filter(ctry == "NP", agegte60 == 0) %>%
+  complete(nesting(StudyPatientID, CAssignment), time = 1:28, fill = list(y = 0)) %>%
+  group_by(intervention = 
+             factor(CAssignment, 
+                    labels = c("Standard", "Intermediate", "Therapeutic")), 
+           time) %>%
+  summarise(n = n(), y1 = sum(y == 1), y2 = sum(y == 2), .groups = "drop") %>%
+  group_by(intervention) %>%
+  mutate(cy1 = cumsum(y1), 
+         recovered = cy1 / n[1],
+         cy2 = cumsum(y2),
+         died = cy2 / n[1],
+         unrecovered = (n[1] - cy1 - cy2) / n[1]) %>%
+  ungroup() %>%
+  pivot_longer(c(unrecovered, recovered, died), names_to = "event", values_to = "proportion")
+p <- ggplot(pdat, aes(time, fill = event, colour = event)) +
+  facet_wrap( ~ intervention) +
+  geom_rect(aes(xmin = time, 
+                xmax = time + 1,
+                ymin = quantile(posterior, 0.025), 
+                ymax = quantile(posterior, 0.975)),
+              alpha = 0.25, colour = NA) +
+  geom_step(aes(y = median(posterior))) +
+  geom_point(data = obsdat, aes(y = proportion, x = time + 0.5)) +
+  scale_fill_viridis_d("Event", option = "B", begin = 0.2, end = 0.8) +
+  scale_colour_viridis_d("Event", option = "B", begin = 0.2, end = 0.8) +
+  scale_x_continuous("Day", breaks = c(1, 7, 14, 21, 28), limits = c(1, 28)) +
+  labs(y = "Proportion")
+ggsave(
+  file.path(
+    "outputs", "figures", "outcomes", "secondary", 
+    "7-1-concurrent-therapeutic-marginal-ttr.pdf"),
+  p, height = 2.5, width = 6
+)
+p
+```
+
 
 ## Sensitivity: Prior - Treatment Coding
 

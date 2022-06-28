@@ -42,6 +42,12 @@ quarto::quarto_preview()
 
 from RStudio.
 
+#### 7-1 Time-to-recovery
+
+The models for outcome 7-1 are much more computationally intensive, therefore,
+this script is not rendered by default. Instead work through the script
+interactively, or render it individually and be prepared to spend all day waiting.
+
 ### Directories
 
 Planned structure

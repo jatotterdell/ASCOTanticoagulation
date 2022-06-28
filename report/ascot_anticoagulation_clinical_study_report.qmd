@@ -247,22 +247,22 @@ writeLines(tab[-which(grepl("caption", tab))])
 
 ## Analyses - General
 
-Bayesian models were computed using Stan via `cmdstanr` (0.5.2 and cmdstan version 2.29.2) in R (4.2.0). For each model, 8 chains were used with a warm-up of 1000 iterations and sampling for 2500 iterations per chain resulting in 20,000 posterior draws per model. Standard diagnostics were assessed for each model (divergent transitions, trace plots, R-hat). If an issue was identified (e.g. divergent transitions) then the default sampling parameters may have been adjusted (e.g. increasing target acceptance rate or increasing maximum tree depth). If any convergence issues resulted for the pre-specified models, then they are reported along with the model results. If the model was amended in any way to satisfy convergence criteria (e.g. aggregation of groups, removal of model terms) then this is reported in the relevant section. Sampling was run using a different (randomly selected) random seed for each model, and these were recorded for replication.
+Bayesian models were computed using Stan via `cmdstanr` (0.5.2 and cmdstan version 2.29.2) in R (4.2.1). For each model, 8 chains were used with a warm-up of 1000 iterations and sampling for 2500 iterations per chain resulting in 20,000 posterior draws per model. Standard diagnostics were assessed for each model (divergent transitions, trace plots, R-hat). If an issue was identified (e.g. divergent transitions) then the default sampling parameters may have been adjusted (e.g. increasing target acceptance rate or increasing maximum tree depth). If any convergence issues resulted for the pre-specified models, then they are reported along with the model results. If the model was amended in any way to satisfy convergence criteria (e.g. aggregation of groups, removal of model terms) then this is reported in the relevant section. Sampling was run using a different (randomly selected) random seed for each model, and these were recorded for replication.
 
-Due to the small number of enrolments at New Zealand sites, in models where country of enrolment were included as a term, Australia and New Zealand were combined into one region. The hierarchical site effects for centres in Australia and New Zealand were nested within this joint region rather than each country individually.
-
-For models where site was included as a random effect, sites with less than 5 participants were aggregated within region into an "other sites" grouping. Similarly, for models where epoch was included, epochs with less than 10 participants were aggregated with the adjacent epoch.
+Due to the small number of enrolments at New Zealand sites, in models where country of enrolment were included as a term, Australia and New Zealand were combined into one region. The hierarchical site effects for centres in Australia and New Zealand were nested within this joint region rather than each country individually. For models where site was included as a random effect, sites with less than 5 participants were aggregated within region into an "other sites" grouping. Similarly, for models where epoch was included, epochs with less than 10 participants were aggregated with the adjacent epoch.
 
 Missing outcome data were not imputed for any of the models (with the exception of the deterministic imputation used in the best-case/worst-case sensitivity analyses).
+
+All binary outcomes were analysed assuming a logistic regression model, ordinal outcomes by assuming a cumulative logistic model with proportional odds, and the time to recovery outcome by a discrete-time competing-risk (death) time-to-event model (multinomial logistic regression). Weakly informative priors were specified for all models.
 
 ## Trial Decision Criteria
 
 As per the statistical appendix to the core protocol, the following decision quantities were of interest in the anticoagulation domain for the primary outcome model:
 
--   **Superiority**: superiority is assessed using the posterior probability that the intervention has the lowest odds of the outcome amongst all interventions in the domain. If a single intervention had probability exceeding 0.99 superiority would be triggered for that intervention.
--   **Effectiveness**: effectiveness is assessed relative to the standard dose arm as the posterior probability that the intervention reduces the odds of the outcome. If any intervention had probability exceeding 0.99 than effectiveness would be triggered for that intervention.
--   **Futility**: futility is assessed relative to the standard dose arm as the posterior probability that the intervention reduces the odds of the outcome by no more than a factor of 1/1.1. If any intervention had probability exceeding 0.95 than futility would be triggered for that intervention.
--   **Equivalence**: equivalence is assessed relative to the standard dose arm as the posterior probability that the intervention alters the odds of the outcome by a factor bounded by (1/1.1, 1.1).
+- **Superiority**: superiority is assessed using the posterior probability that the intervention has the lowest odds of the outcome amongst all interventions in the domain. If a single intervention had probability exceeding 0.99 superiority would be triggered for that intervention.
+- **Effectiveness**: effectiveness is assessed relative to the standard dose arm as the posterior probability that the intervention reduces the odds of the outcome. If any intervention had probability exceeding 0.99 than effectiveness would be triggered for that intervention.
+- **Futility**: futility is assessed relative to the standard dose arm as the posterior probability that the intervention reduces the odds of the outcome by no more than a factor of 1/1.1. If any intervention had probability exceeding 0.95 than futility would be triggered for that intervention.
+- **Equivalence**: equivalence is assessed relative to the standard dose arm as the posterior probability that the intervention alters the odds of the outcome by a factor bounded by (1/1.1, 1.1).
 
 \clearpage
 
@@ -323,9 +323,11 @@ writeLines(tab)
 
 ### Primary Analysis (ACS-ITT set)
 
-The primary model was a logistic regression model adjusting for anticoagulation treatment, antiviral treatment, age ($\geq 60$), and region (India (ref), Australia/New Zealand, and Nepal), with random effects for site (nested within country) and epoch (calendar time 4 week intervals, most recent epoch as reference). The three most recent epochs were combined due to small numbers, and the two earliest epochs were combined for the same reason. Sites with fewer than 5 enrolments were combined within region into an "other sites" category.
+The primary model was a logistic regression model adjusting for anticoagulation treatment, antiviral treatment, age ($\geq 60$), and region (India (ref), Australia/New Zealand, and Nepal), with random effects for site (nested within country) and epoch (calendar time 4 week intervals, most recent epoch as reference). The three most recent epochs were combined due to small numbers, and the two earliest epochs were combined for the same reason. Sites with fewer than 5 enrolments were combined within region into an "other sites" category. The primary analysis was based on the ACS-ITT set using the full model as specified in the statistical appendix to the core protocol. In summary:
 
-The primary analysis was based on the ACS-ITT set using the full model as specified in the statistical appendix to the core protocol.
+- **Model**: logistic regression
+- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, region, site nested within region, and epoch
+- **Set**: ACS-ITT
 
 The trial decision quantities are reported in @tbl-primary-model-acs-itt-decision and the model parameter posteriors are summarised in @tbl-primary-model-acs-itt-summary and @fig-primary-model-acs-itt-site-epoch-parameters.
 
@@ -380,9 +382,11 @@ Domain-specific subgroups were additionally specified as:
 -   patient on aspirin at baseline (yes or no)
 -   D-dimer above upper limit of normal at baseline (yes or no)
 
-For each sub-group analysis, the primary model was extended to include an interaction term between the covariate of interest and the anticoagulation interventions. In some cases, there may be no information on the subgroup-specific effect (for example, there were no participants in Nepal who were randomised to receive standard dose plus aspirin), but the results are reported in any case noting that the posterior is essentially driven by the prior.
+For each sub-group analysis, the primary model was extended to include an interaction term between the covariate of interest and the anticoagulation interventions. In some cases, there may be no information on the subgroup-specific effect (for example, there were no participants in Nepal who were randomised to receive standard dose plus aspirin), but the results are reported in such cases noting that the posterior is driven by the prior.
 
-In these subgroup analyses, the reference group is generally taken to be the largest group and the intervention effect in this reference group has a normal prior with mean 0 and standard deviation 2.5. For each additional subgroup, the interaction between each intervention and subgroup level has a normal prior with mean 0 and standard deviation 1.
+In these subgroup analyses, the reference group was generally taken to be the largest group and the intervention effect in this reference group has a normal prior with mean 0 and standard deviation 2.5. For each additional subgroup, the interaction between each intervention and subgroup level has a normal prior with mean 0 and standard deviation 1.
+
+\clearpage
 
 #### Region
 
@@ -433,9 +437,11 @@ knitr::include_graphics(
 )
 ```
 
-The primary model was extended to include an interaction between country and anticoagulation intervention.
+\clearpage
 
 #### Age group
+
+A subgroup analysis of age group (< 60 or $\geq$ 60 years of age) was undertaken using the ACS-ITT set. A summary of the primary outcome by age group and intervention is reported in @tbl-descriptive-acs-itt-subgroup-age.
 
 ```{r}
 #| label: tbl-descriptive-acs-itt-subgroup-age
@@ -459,7 +465,11 @@ knitr::include_graphics(
 )
 ```
 
+\clearpage
+
 #### Days since symptom onset
+
+A subgroup analysis of days since first symptoms (DSFS) group ($\leq$ 7 or > 7 days) was undertaken using the ACS-ITT set. A summary of the primary outcome by DSFS group and intervention is reported in @tbl-descriptive-acs-itt-subgroup-dsfs.
 
 ```{r}
 #| label: tbl-descriptive-acs-itt-subgroup-dsfs
@@ -484,7 +494,13 @@ knitr::include_graphics(
 )
 ```
 
+\clearpage
+
 #### Receipt of Corticosteroids
+
+A subgroup analysis by whether patient received corticosteroids (did not receive or did receive) was undertaken using the ACS-ITT set. A summary of the primary outcome by receipt of corticosteroids and intervention is reported in @tbl-descriptive-acs-itt-subgroup-steroids.
+
+It's noted that this subgroup analysis was pre-specified, however receipt of corticosteroids is reported on the discharge summary and is a post-randomisation event (any receipt during their index hospital admission). Therefore, interpretation of this subgroup is challenging (more severe patients may have been more likely to receive corticosteroids, availability may be site specific, etc.).
 
 ```{r}
 #| label: tbl-descriptive-acs-itt-subgroup-steroids
@@ -509,7 +525,13 @@ knitr::include_graphics(
 )
 ```
 
+\clearpage
+
 #### Receipt of Remdesivir
+
+A subgroup analysis by whether patient received remdesivir (did not receive or did receive) was undertaken using the ACS-ITT set. A summary of the primary outcome by receipt of remdesivir and intervention is reported in @tbl-descriptive-acs-itt-subgroup-remdesivir.
+
+Similar for corticosteroids, this subgroup analysis was pre-specified, however receipt of remdesivir is reported on the discharge summary and is a post-randomisation event.
 
 ```{r}
 #| label: tbl-descriptive-acs-itt-subgroup-remdesivir
@@ -534,7 +556,13 @@ knitr::include_graphics(
 )
 ```
 
+\clearpage
+
 #### Receipt of other antiviral agent
+
+A subgroup analysis by whether patient received any other antiviral (other than remdesivir) (did not receive or did receive) was undertaken using the ACS-ITT set. A summary of the primary outcome by receipt of other antiviral and intervention is reported in @tbl-descriptive-acs-itt-subgroup-antiviral.
+
+This subgroup analysis was pre-specified, however receipt of an antiviral is reported on the discharge summary and is a post-randomisation event.
 
 ```{r}
 #| label: tbl-descriptive-acs-itt-subgroup-antiviral
@@ -559,9 +587,11 @@ knitr::include_graphics(
 )
 ```
 
+\clearpage
+
 #### D-dimer
 
-Patients with unknown D-dimer at baseline were included as their own subgroup.
+A subgroup analysis by whether D-dimer was out of range (D-dimer not out of range, D-dimer out of range, D-dimer unknown) was undertaken using the ACS-ITT set. A summary of the primary outcome by subgroup and intervention is reported in @tbl-descriptive-acs-itt-subgroup-ddimer. Patients with unknown D-dimer at baseline were included as their own subgroup due to the large number with missing values.
 
 ```{r}
 #| label: tbl-descriptive-acs-itt-subgroup-ddimer
@@ -585,6 +615,8 @@ knitr::include_graphics(
 )
 ```
 
+\clearpage
+
 #### Weight
 
 Due to smaller numbers (18 participants with weight \> 120 kg and zero events), this pre-specified subgroup analysis was not undertaken.
@@ -599,6 +631,8 @@ tab <- readLines(file.path(
   "descriptive-acs-itt-subgroup-weight-descriptive.tex"))
 writeLines(tab)
 ```
+
+\clearpage
 
 #### Aspirin
 
@@ -902,6 +936,24 @@ For all secondary outcomes, the primary model (adjusting for interventions, age 
 
 ### Time to clinical recovery to day 28
 
+The analysis of the time to clinical recovery to day 28 outcome used a discrete-time competing risk time-to-event model (multinomial logistic regression). The events of interest were death or recovery. Baseline cause-specific hazards were modelled separately for death and recovery with some smoothing enforced across adjacent time points via a 1st order random walk prior on the intercept terms.
+
+- **Model**: multinomial logistic regression
+- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, region, epoch
+- **Set**: ACS-ITT
+
+```{r}
+#| label: tbl-7-1-acs-itt-summary-ttr
+#| tbl-cap: |
+#|   Summary for recovery or death to day 28,
+#|   ACS-ITT
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary",
+  "7-1-acs-itt-summary.tex"))
+writeLines(tab)
+```
+
 ```{r}
 #| label: fig-7-1-descriptive
 #| fig-cap: |
@@ -922,35 +974,163 @@ knitr::include_graphics(
 -   **Set**: ACS-ITT-intermediate
 
 ```{r}
-#| label: tbl-7-1-concurrent-intermediate-summary
+#| label: tbl-7-1-concurrent-intermediate-summary-ttr
 #| tbl-cap: |
-#|   Posterior summary of cause-specific odds ratios for time to recovery or death to day28,
+#|   Summary for recovery or death to day 28,
 #|   ACS-ITT-intermediate
 #| results: asis
-#| eval: false
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary",
+  "7-1-acs-itt-intermediate-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-7-1-concurrent-intermediate-summary
+#| tbl-cap: |
+#|   Posterior summary of cause-specific odds ratios for recovery or death to day 28,
+#|   ACS-ITT-intermediate
+#| results: asis
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "secondary",
   "7-1-primary-model-acs-itt-intermediate-summary-table.tex"))
 writeLines(tab)
 ```
 
-#### Standard plus aspirin
+```{r}
+#| label: fig-7-1-concurrent-intermediate-baseline-haz
+#| fig-cap: |
+#|   Cause-specific baseline hazard parameter posterior summaries, ACS-ITT-intermediate.
+knitr::include_graphics(
+  file.path(
+    "..", "outputs", "figures", "outcomes", "secondary", 
+    "7-1-concurrent-intermediate-baseline-haz.pdf"
+))
+```
+
+```{r}
+#| label: fig-7-1-concurrent-intermediate-marginal-ttr
+#| fig-cap: |
+#|   Sample-weighted posterior progression of recovery (median and 95% CrI), 
+#|   ACS-ITT-intermediate.
+#|   Points are the observed cumulative proportions.
+knitr::include_graphics(
+  file.path(
+    "..", "outputs", "figures", "outcomes", "secondary", 
+    "7-1-concurrent-intermediate-marginal-ttr.pdf"
+))
+```
+
+\clearpage
+
+##### Standard plus aspirin
 
 -   **Model**: multinomial logistic regression
 -   **Terms**: anticoagulation intervention, age group, region
 -   **Set**: ACS-ITT-aspirin
 
 ```{r}
+#| label: tbl-7-1-concurrent-stdaspirin-summary-ttr
+#| tbl-cap: |
+#|   Summary for recovery or death to day 28,
+#|   ACS-ITT-aspirin
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary",
+  "7-1-acs-itt-stdaspirin-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
 #| label: tbl-7-1-concurrent-stdaspirin-summary
 #| tbl-cap: |
-#|   Posterior summary of cause-specific odds ratios for time to recovery or death to day28,
+#|   Posterior summary of cause-specific odds ratios for recovery or death to day 28,
 #|   ACS-ITT-aspirin.
 #| results: asis
-#| eval: false
 tab <- readLines(file.path(
   "..", "outputs", "tables", "outcomes", "secondary",
   "7-1-primary-model-acs-itt-stdaspirin-summary-table.tex"))
 writeLines(tab)
+```
+
+```{r}
+#| label: fig-7-1-concurrent-stdaspirin-baseline-haz
+#| fig-cap: |
+#|   Cause-specific baseline hazard parameter posterior summaries, ACS-ITT-aspirin.
+knitr::include_graphics(
+  file.path(
+    "..", "outputs", "figures", "outcomes", "secondary", 
+    "7-1-concurrent-stdaspirin-baseline-haz.pdf"
+))
+```
+
+```{r}
+#| label: fig-7-1-concurrent-stdaspirin-marginal-ttr
+#| fig-cap: |
+#|   Sample-weighted posterior progression of recovery (median and 95% CrI), 
+#|   ACS-ITT-aspirin.
+#|   Points are the observed cumulative proportions.
+knitr::include_graphics(
+  file.path(
+    "..", "outputs", "figures", "outcomes", "secondary", 
+    "7-1-concurrent-stdaspirin-marginal-ttr.pdf"
+))
+```
+
+\clearpage
+
+##### Therapeutic
+
+-   **Model**: multinomial logistic regression
+-   **Terms**: anticoagulation intervention, age group, region
+-   **Set**: ACS-ITT-therapeutic
+
+```{r}
+#| label: tbl-7-1-concurrent-therapeutic-summary-ttr
+#| tbl-cap: |
+#|   Summary for recovery or death to day 28,
+#|   ACS-ITT-therapeutic.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary",
+  "7-1-acs-itt-therapeutic-summary.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-7-1-concurrent-therapeutic-summary
+#| tbl-cap: |
+#|   Posterior summary of cause-specific odds ratios for recovery or death to day28,
+#|   ACS-ITT-therapeutic
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary",
+  "7-1-primary-model-acs-itt-therapeutic-summary-table.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-7-1-concurrent-therapeutic-baseline-haz
+#| fig-cap: |
+#|   Cause-specific baseline hazard parameter posterior summaries, ACS-ITT-therapeutic
+knitr::include_graphics(
+  file.path(
+    "..", "outputs", "figures", "outcomes", "secondary", 
+    "7-1-concurrent-therapeutic-baseline-haz.pdf"
+))
+```
+
+```{r}
+#| label: fig-7-1-concurrent-therapeutic-marginal-ttr
+#| fig-cap: |
+#|   Sample-weighted posterior progression of recovery (median and 95% CrI), 
+#|   ACS-ITT-therapeutic.
+#|   Points are the observed cumulative proportions.
+knitr::include_graphics(
+  file.path(
+    "..", "outputs", "figures", "outcomes", "secondary", 
+    "7-1-concurrent-therapeutic-marginal-ttr.pdf"
+))
 ```
 
 \clearpage
@@ -959,9 +1139,9 @@ writeLines(tab)
 
 This section reports on the analysis of the secondary outcome: WHO outcome scale at day 28. The model is coded so that an odds ratio less than 1 implies a benefit (reduction in odds of having a higher WHO score at day 28).
 
--   **Model**: cumulative logistic (ordinal) regression assuming proportional odds
--   **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, region, site nested within region, and epoch.
--   **Set**: ACS-ITT
+- **Model**: cumulative logistic (ordinal) regression assuming proportional odds
+- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, region, site nested within region, and epoch.
+- **Set**: ACS-ITT
 
 @tbl-7-2-summary presents the number of participants where the outcome was observed by the allocated anticoagulation arm. The model parameters (odds ratios) are summarised in @tbl-7-2-primary-model-acs-itt-summary for the fixed-effect terms and in @fig-7-2-primary-model-acs-itt-site-epoch-parameters for the site and epoch specific terms.
 
@@ -1135,9 +1315,9 @@ writeLines(tab)
 
 This section reports on the analysis of the secondary outcome: all-cause mortality to day 28. For this outcome, participants who died within 28 days were coded to have a value of 1, and those who did not, to have a value of 0. The model is coded so that an odds ratio less than 1 implies a benefit (reduction in odds of death by day 28).
 
--   **Model**: logistic regression
--   **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, region, site nested within region, and epoch.
--   **Set**: ACS-ITT
+- **Model**: logistic regression
+- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, region, site nested within region, and epoch.
+- **Set**: ACS-ITT
 
 @tbl-7-3-summary presents the number of participants where the outcome was observed by the allocated anticoagulation arm. The model parameters (odds ratios) are summarised in @tbl-7-3-primary-model-acs-itt-summary for the fixed-effect terms and in @fig-7-3-primary-model-acs-itt-site-epoch-parameters for the site and epoch specific terms.
 
@@ -1270,9 +1450,9 @@ writeLines(tab)
 
 This section reports on the analysis of the secondary outcome: days alive and free of hospital (DAFH) to day 28. For this outcome, participants who died within 28 days were coded have have 0 DAFH. The model is coded so that an odds ratio greater than 1 implies a beneift (more days alive and free of hospital).
 
--   **Model**: cumulative logistic (ordinal) regression assuming proportional odds
--   **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, region, site nested within region, and epoch.
--   **Set**: ACS-ITT
+- **Model**: cumulative logistic (ordinal) regression assuming proportional odds
+- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, region, site nested within region, and epoch.
+- **Set**: ACS-ITT
 
 @tbl-7-4-summary presents the number of participants where the outcome was observed by the allocated anticoagulation arm. The observed distribution of DAFH by arm is shown in @fig-7-4-dist-overall, @fig-7-4-descriptive, and @fig-7-4-descriptive2. The model parameters (odds ratios) are summarised in @tbl-7-4-primary-model-acs-itt-summary for the fixed-effect terms and in @fig-7-4-primary-model-acs-itt-site-epoch-parameters for the site and epoch specific terms.
 
@@ -1455,9 +1635,9 @@ writeLines(tab)
 
 This section reports on the analysis of the secondary outcome: days alive and free invasive or non-invasive ventilation (DAFV) to day 28. For this outcome, participants who died within 28 days were coded have have 0 DAFV.
 
--   **Model**: cumulative logistic (ordinal) regression assuming proportional odds
--   **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, region, site nested within region, and epoch.
--   **Set**: ACS-ITT
+- **Model**: cumulative logistic (ordinal) regression assuming proportional odds
+- **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, region, site nested within region, and epoch.
+- **Set**: ACS-ITT
 
 @tbl-7-5-summary presents the number of participants where the outcome was observed by the allocated anticoagulation arm. The observed distribution of DAFV by arm is shown in @fig-7-5-descriptive.
 
