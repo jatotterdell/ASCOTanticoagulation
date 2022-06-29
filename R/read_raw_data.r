@@ -4,7 +4,6 @@
 # PACKAGES ----
 
 library(tidyverse)
-library(labelled)
 
 # FUNCTIONS ----
 

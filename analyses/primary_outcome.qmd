@@ -202,7 +202,45 @@ make_primary_model_data <- function(
   return(out)
 }
 
-summarise_posterior <- function(dat) {
+make_po_table <- function(dat, format = "html") {
+  tab <- dat %>%
+    mutate(CAssignment = factor(CAssignment, levels = c("C1", "C2", "C3", "C4"), labels = intervention_labels()$CAssignment[-1])) %>%
+    group_by(CAssignment) %>%
+    summarise(
+      Randomised = n(),
+      `Outcome missing` = sprintf("%i (%.1f)", sum(is.na(PO)), 100 * mean(is.na(PO))),
+      `Outcome observed` = sprintf("%i (%.1f)", sum(!is.na(PO)), 100 * mean(!is.na(PO))),
+      `Met primary outcome` = sprintf("%i (%.1f)", sum(PO, na.rm = TRUE), 100 * mean(PO, na.rm = TRUE)),
+    ) %>%
+    bind_rows(
+      dat  %>%
+        group_by(CAssignment = "Overall") %>%
+        summarise(
+          Randomised = n(),
+          `Outcome missing` = sprintf("%i (%.1f)", sum(is.na(PO)), 100 * mean(is.na(PO))),
+          `Outcome observed` = sprintf("%i (%.1f)", sum(!is.na(PO)), 100 * mean(!is.na(PO))),
+          `Met primary outcome` = sprintf("%i (%.1f)", sum(PO, na.rm = TRUE), 100 * mean(PO, na.rm = TRUE)),
+      )
+    ) %>%
+    mutate(CAssignment = fct_inorder(CAssignment)) %>%
+    gather(key, value, -CAssignment, factor_key = T) %>%
+    spread(CAssignment, value)
+  colnames(tab)[1] <- "n (\\%)"
+  if(format == "latex") {
+    colnames(tab) <- linebreak(colnames(tab), align = "c", linebreaker = "<br>")
+  }
+    kable(tab,
+      format = format,
+      align = "lrrrrr",
+      escape = FALSE,
+      booktabs = TRUE
+    ) %>%
+    kable_styling(
+      font_size = 9, 
+      latex_options = "HOLD_position")  
+}
+
+summarise_posterior <- function(dat, futval = 1.1) {
   dat %>%
     mutate(
       Median = 
@@ -214,7 +252,7 @@ summarise_posterior <- function(dat) {
       `Pr(OR < 1)` = 
         sprintf("%.2f", Pr(Posterior < 1)),
       `Pr(OR > 1/1.1)` = 
-        sprintf("%.2f", Pr(Posterior > 1/1.1))
+        sprintf("%.2f", Pr(Posterior > 1/futval))
     )
 }
 
@@ -1092,41 +1130,6 @@ fas_itt_dat %>%
 #| label: tbl-domainC-po
 #| code-summary: Relationship anti-coagulation to outcome
 #| tbl-cap: Primary outcome by anti-coagulation intervention.
-make_po_table <- function(dat, format = "html") {
-  tab <- dat %>%
-    mutate(CAssignment = factor(CAssignment, levels = c("C1", "C2", "C3", "C4"), labels = intervention_labels()$CAssignment[-1])) %>%
-    group_by(CAssignment) %>%
-    summarise(
-      Randomised = n(),
-      `Outcome missing` = sprintf("%i (%.1f)", sum(is.na(PO)), 100 * mean(is.na(PO))),
-      `Outcome observed` = sprintf("%i (%.1f)", sum(!is.na(PO)), 100 * mean(!is.na(PO))),
-      `Met primary outcome` = sprintf("%i (%.1f)", sum(PO, na.rm = TRUE), 100 * mean(PO, na.rm = TRUE)),
-    ) %>%
-    bind_rows(
-      dat  %>%
-        group_by(CAssignment = "Overall") %>%
-        summarise(
-          Randomised = n(),
-          `Outcome missing` = sprintf("%i (%.1f)", sum(is.na(PO)), 100 * mean(is.na(PO))),
-          `Outcome observed` = sprintf("%i (%.1f)", sum(!is.na(PO)), 100 * mean(!is.na(PO))),
-          `Met primary outcome` = sprintf("%i (%.1f)", sum(PO, na.rm = TRUE), 100 * mean(PO, na.rm = TRUE)),
-      )
-    ) %>%
-    mutate(CAssignment = fct_inorder(CAssignment)) %>%
-    gather(key, value, -CAssignment, factor_key = T) %>%
-    spread(CAssignment, value)
-  colnames(tab)[1] <- "n (\\%)"
-  if(format == "latex") {
-    colnames(tab) <- linebreak(colnames(tab), align = "c", linebreaker = "<br>")
-  }
-    kable(tab,
-      format = format,
-      align = "lrrrrr",
-      escape = FALSE,
-      booktabs = TRUE
-    ) %>%
-    kable_styling(font_size = 10, latex_options = "HOLD_position")  
-}
 make_po_table(
     all_dat %>%
       filter_acs_itt()
@@ -1668,7 +1671,7 @@ snk <- capture.output(
     iter_warmup = 1000,
     iter_sampling = 2500,
     chains = 8,
-    parallel_chains = 8,
+    parallel_chains = min(8, parallel::detectCores()),
     adapt_delta = 0.98
 ))
 mdrws <- as_draws_rvars(mfit$draws(c(
@@ -1698,7 +1701,7 @@ mdrws$OR <- exp(rbind(mdrws$CtrtIN, mdrws$CtrtAUNZ, mdrws$CtrtNP))
 rownames(mdrws$OR) <- c("India", "Australia/New Zealand", "Nepal")
 colnames(mdrws$OR) <- c("Intermediate", "Standard plus aspirin", "Therapeutic")
 # Compare treatment effects across regions
-mdrws$compare <- sweep(mdrws$OR[-1, ], 2, mdrws$OR[1, ], FUN = "/")
+mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/")
 
 # Summarise subgroup effects
 ordat <- expand_grid(
@@ -1710,7 +1713,7 @@ ordat <- expand_grid(
 # Summarise comparison of effects (reference is India)
 compdat <- expand_grid(
   Contrast = labs,
-  Region = c("Australia/New Zealand", "Nepal")
+  Region = c("India (ref)", "Australia/New Zealand", "Nepal")
 ) %>%
   mutate(Posterior = c(mdrws$compare)) %>%
   summarise_posterior() %>%
@@ -1718,7 +1721,10 @@ compdat <- expand_grid(
 ```
 
 ```{r}
-p <- plot_subgroup_or(ordat, sym("Region"))
+p <- plot_subgroup_or(
+  ordat %>% 
+    mutate(Region = if_else(Region == "Australia/New Zealand", "Australia\nNew Zealand", Region)), 
+  sym("Region"))
 ggsave(
   file.path("outputs", "figures", "outcomes", "primary", "acs-itt-subgroup-country-hte.pdf"),
   p, height = 3, width = 6)
@@ -1794,7 +1800,7 @@ snk <- capture.output(
     iter_warmup = 1000,
     iter_sampling = 2500,
     chains = 8,
-    parallel_chains = 8,
+    parallel_chains = min(8, parallel::detectCores()),
     adapt_delta = 0.98
 ))
 mdrws <- as_draws_rvars(mfit$draws(c(
@@ -1811,12 +1817,25 @@ names(mdrws$gamma_site) <- site_map$site
 labs <- c("Intermediate", "Standard plus aspirin", "Therapeutic")
 mdrws$CtrtAgelt60 <- setNames(as.vector(mdrws$beta[2:4]), labs)
 mdrws$CtrtAgegt60 <- setNames(as.vector(mdrws$beta[2:4] + mdrws$beta[11:13]), labs)
-mdrws$OR <- exp(c(mdrws$CtrtAgelt60, mdrws$CtrtAgegt60))
+mdrws$OR <- exp(rbind(mdrws$CtrtAgelt60, mdrws$CtrtAgegt60))
+rownames(mdrws$OR) <- c("Age < 60", "Age 60+")
+colnames(mdrws$OR) <- c("Intermediate", "Standard plus aspirin", "Therapeutic")
+# Compare treatment effects across regions
+mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/")
+
 ordat <- expand_grid(
+  Contrast = labs,
   Age = c("Age < 60", "Age 60+"),
-  Contrast = labs
 ) %>%
-  mutate(Posterior = mdrws$OR)
+  mutate(Posterior = c(mdrws$OR)) %>%
+  summarise_posterior()
+compdat <- expand_grid(
+  Contrast = labs,
+  Age = c("Age < 60 (ref)", "Age 60+")
+) %>%
+  mutate(Posterior = c(mdrws$compare)) %>%
+  summarise_posterior() %>%
+  select(-`Pr(OR > 1/1.1)`)
 ```
 
 ```{r}
@@ -1825,6 +1844,18 @@ ggsave(
   file.path("outputs", "figures", "outcomes", "primary", "acs-itt-subgroup-age-hte.pdf"),
   p, height = 3, width = 6)
 p
+```
+
+```{r}
+tab <- make_subgroup_summary_table(ordat, "latex")
+save_tex_table(tab, "outcomes/primary/subgroup/age-odds-ratios")
+make_subgroup_summary_table(ordat)
+```
+
+```{r}
+tab <- make_subgroup_summary_table(compdat, "latex")
+save_tex_table(tab, "outcomes/primary/subgroup/age-odds-ratios-compare")
+make_subgroup_summary_table(compdat)
 ```
 
 #### Days since symptom onset only
@@ -1882,7 +1913,7 @@ snk <- capture.output(
     iter_warmup = 1000,
     iter_sampling = 2500,
     chains = 8,
-    parallel_chains = 8,
+    parallel_chains = min(8, parallel::detectCores()),
     adapt_delta = 0.98
 ))
 mdrws <- as_draws_rvars(mfit$draws(c(
@@ -1899,12 +1930,26 @@ names(mdrws$gamma_site) <- site_map$site
 labs <- c("Intermediate", "Standard plus aspirin", "Therapeutic")
 mdrws$CtrtDSFSlt7 <- setNames(as.vector(mdrws$beta[2:4]), labs)
 mdrws$CtrtDSFSgt7 <- setNames(as.vector(mdrws$beta[2:4] + mdrws$beta[12:14]), labs)
-mdrws$OR <- exp(c(mdrws$CtrtDSFSlt7, mdrws$CtrtDSFSgt7))
+mdrws$OR <- exp(rbind(mdrws$CtrtDSFSlt7, mdrws$CtrtDSFSgt7))
+rownames(mdrws$OR) <- c("DSFS <= 7", "DSFS > 7")
+colnames(mdrws$OR) <- c("Intermediate", "Standard plus aspirin", "Therapeutic")
+# Compare treatment effects across regions
+mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/")
+
+
 ordat <- expand_grid(
-  `Days since first symptoms` = c("DSFS <= 7", "DSFS > 7"),
-  Contrast = labs
+  Contrast = labs,
+  `Days since first symptoms` = c("DSFS <= 7", "DSFS > 7")
 ) %>%
-  mutate(Posterior = mdrws$OR)
+  mutate(Posterior = c(mdrws$OR)) %>%
+  summarise_posterior()
+compdat <- expand_grid(
+  Contrast = labs,
+  `Days since first symptoms` = c("DSFS <= 7", "DSFS > 7")
+) %>%
+  mutate(Posterior = c(mdrws$compare)) %>%
+  summarise_posterior() %>%
+  select(-`Pr(OR > 1/1.1)`)
 ```
 
 ```{r}
@@ -1913,6 +1958,18 @@ ggsave(file.path("outputs", "figures", "outcomes", "primary", "acs-itt-subgroup-
        p,
        height = 3, width = 6)
 p
+```
+
+```{r}
+tab <- make_subgroup_summary_table(ordat, "latex")
+save_tex_table(tab, "outcomes/primary/subgroup/dsfs-odds-ratios")
+make_subgroup_summary_table(ordat)
+```
+
+```{r}
+tab <- make_subgroup_summary_table(compdat, "latex")
+save_tex_table(tab, "outcomes/primary/subgroup/dsfs-odds-ratios-compare")
+make_subgroup_summary_table(compdat)
 ```
 
 #### Received corticosteroids
@@ -1972,7 +2029,7 @@ snk <- capture.output(
     iter_warmup = 1000,
     iter_sampling = 2500,
     chains = 8,
-    parallel_chains = 8,
+    parallel_chains = min(8, parallel::detectCores()),
     adapt_delta = 0.98
 ))
 mdrws <- as_draws_rvars(mfit$draws(c(
@@ -1989,12 +2046,25 @@ names(mdrws$gamma_site) <- site_map$site
 labs <- c("Intermediate", "Standard plus aspirin", "Therapeutic")
 mdrws$noSteroids <- setNames(as.vector(mdrws$beta[2:4]), labs)
 mdrws$recSteroids <- setNames(as.vector(mdrws$beta[2:4] + mdrws$beta[12:14]), labs)
-mdrws$OR <- exp(c(mdrws$noSteroids, mdrws$recSteroids))
+mdrws$OR <- exp(rbind(mdrws$noSteroids, mdrws$recSteroids))
+rownames(mdrws$OR) <- c("No", "Yes")
+colnames(mdrws$OR) <- c("Intermediate", "Standard plus aspirin", "Therapeutic")
+# Compare treatment effects across regions
+mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/")
+
 ordat <- expand_grid(
+  Contrast = labs,
   `Received corticosteroids` = c("No", "Yes"),
-  Contrast = labs
 ) %>%
-  mutate(Posterior = mdrws$OR)
+  mutate(Posterior = c(mdrws$OR)) %>%
+  summarise_posterior()
+compdat <- expand_grid(
+  Contrast = labs,
+  `Received corticosteroids` = c("No (ref)", "Yes"),
+) %>%
+  mutate(Posterior = c(mdrws$compare)) %>%
+  summarise_posterior() %>%
+  select(-`Pr(OR > 1/1.1)`)
 ```
 
 ```{r}
@@ -2003,6 +2073,18 @@ ggsave(file.path("outputs", "figures", "outcomes", "primary", "acs-itt-subgroup-
        p,
        height = 3, width = 6)
 p
+```
+
+```{r}
+tab <- make_subgroup_summary_table(ordat, "latex")
+save_tex_table(tab, "outcomes/primary/subgroup/steroids-odds-ratios")
+make_subgroup_summary_table(ordat)
+```
+
+```{r}
+tab <- make_subgroup_summary_table(compdat, "latex")
+save_tex_table(tab, "outcomes/primary/subgroup/steroids-odds-ratios-compare")
+make_subgroup_summary_table(compdat)
 ```
 
 #### Received remdesivir
@@ -2062,7 +2144,7 @@ snk <- capture.output(
     iter_warmup = 1000,
     iter_sampling = 2500,
     chains = 8,
-    parallel_chains = 8,
+    parallel_chains = min(8, parallel::detectCores()),
     adapt_delta = 0.98
 ))
 mdrws <- as_draws_rvars(mfit$draws(c(
@@ -2079,12 +2161,25 @@ names(mdrws$gamma_site) <- site_map$site
 labs <- c("Intermediate", "Standard plus aspirin", "Therapeutic")
 mdrws$noRem <- setNames(as.vector(mdrws$beta[2:4]), labs)
 mdrws$recRem <- setNames(as.vector(mdrws$beta[2:4] + mdrws$beta[12:14]), labs)
-mdrws$OR <- exp(c(mdrws$noRem, mdrws$recRem))
+mdrws$OR <- exp(rbind(mdrws$noRem, mdrws$recRem))
+rownames(mdrws$OR) <- c("No", "Yes")
+colnames(mdrws$OR) <- c("Intermediate", "Standard plus aspirin", "Therapeutic")
+# Compare treatment effects across regions
+mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/")
+
 ordat <- expand_grid(
+  Contrast = labs,
   `Received remdesivir` = c("No", "Yes"),
-  Contrast = labs
 ) %>%
-  mutate(Posterior = mdrws$OR)
+  mutate(Posterior = c(mdrws$OR)) %>%
+  summarise_posterior()
+compdat <- expand_grid(
+  Contrast = labs,
+  `Received remdesivir` = c("No (ref)", "Yes"),
+) %>%
+  mutate(Posterior = c(mdrws$compare)) %>%
+  summarise_posterior() %>%
+  select(-`Pr(OR > 1/1.1)`)
 ```
 
 ```{r}
@@ -2093,6 +2188,18 @@ ggsave(
   file.path("outputs", "figures", "outcomes", "primary", "acs-itt-subgroup-remdesivir-hte.pdf"),
   p, height = 3, width = 6)
 p
+```
+
+```{r}
+tab <- make_subgroup_summary_table(ordat, "latex")
+save_tex_table(tab, "outcomes/primary/subgroup/remdesivir-odds-ratios")
+make_subgroup_summary_table(ordat)
+```
+
+```{r}
+tab <- make_subgroup_summary_table(compdat, "latex")
+save_tex_table(tab, "outcomes/primary/subgroup/remdesivir-odds-ratios-compare")
+make_subgroup_summary_table(compdat)
 ```
 
 #### Receipt of other agent intended to be an antiviral agent against SARS-CoV-2
@@ -2150,7 +2257,7 @@ snk <- capture.output(
     iter_warmup = 1000,
     iter_sampling = 2500,
     chains = 8,
-    parallel_chains = 8,
+    parallel_chains = min(8, parallel::detectCores()),
     adapt_delta = 0.98
 ))
 mdrws <- as_draws_rvars(mfit$draws(c(
@@ -2167,29 +2274,30 @@ names(mdrws$gamma_site) <- site_map$site
 labs <- c("Intermediate", "Standard plus aspirin", "Therapeutic")
 mdrws$noantiviral <- setNames(as.vector(mdrws$beta[2:4]), labs)
 mdrws$antiviral <- setNames(as.vector(mdrws$beta[2:4] + mdrws$beta[12:14]), labs)
+mdrws$OR <- exp(rbind(mdrws$noantiviral, mdrws$antiviral))
+rownames(mdrws$OR) <- c("No", "Yes")
+colnames(mdrws$OR) <- c("Intermediate", "Standard plus aspirin", "Therapeutic")
+# Compare treatment effects across regions
+mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/")
 
-mdrws$compare <- mdrws$antiviral - mdrws$noantiviral
-
-mdrws$OR <- exp(c(mdrws$noantiviral, mdrws$antiviral))
 ordat <- expand_grid(
   Contrast = labs,
   `Received other antiviral` = c("No", "Yes"),
 ) %>%
-  mutate(
-    Posterior = mdrws$OR,
-    Median = sprintf("%.2f", median(Posterior)),
-    `95\\% CrI` = sprintf("(%.2f, %.2f)", quantile(Posterior, 0.025), quantile(Posterior, 0.975)),
-    `Mean (SD)` = sprintf("%.2f (%.2f)", mean(Posterior), sd(Posterior)),
-    `Pr(OR < 1)` = sprintf("%.2f", Pr(Posterior < 1)),
-    `Pr(OR > 1/1.1)` = sprintf("%.2f", Pr(Posterior > 1/1.1))
-  )
+  mutate(Posterior = c(mdrws$OR)) %>%
+  summarise_posterior()
+compdat <- expand_grid(
+  Contrast = labs,
+  `Received other antiviral` = c("No (ref)", "Yes"),
+) %>%
+  mutate(Posterior = c(mdrws$compare)) %>%
+  summarise_posterior() %>%
+  select(-`Pr(OR > 1/1.1)`)
 ```
 
 ```{r}
-
 make_subgroup_summary_table(ordat, "html")
 ```
-
 
 ```{r}
 p <- plot_subgroup_or(ordat, sym("Received other antiviral"))
@@ -2197,6 +2305,18 @@ ggsave(
   file.path("outputs", "figures", "outcomes", "primary", "acs-itt-subgroup-antiviral-hte.pdf"),
   p, height = 3, width = 6)
 p
+```
+
+```{r}
+tab <- make_subgroup_summary_table(ordat, "latex")
+save_tex_table(tab, "outcomes/primary/subgroup/antiviral-odds-ratios")
+make_subgroup_summary_table(ordat)
+```
+
+```{r}
+tab <- make_subgroup_summary_table(compdat, "latex")
+save_tex_table(tab, "outcomes/primary/subgroup/antiviral-odds-ratios-compare")
+make_subgroup_summary_table(compdat)
 ```
 
 #### D-dimer
@@ -2255,7 +2375,7 @@ snk <- capture.output(
     iter_warmup = 1000,
     iter_sampling = 2500,
     chains = 8,
-    parallel_chains = 8,
+    parallel_chains = min(8, parallel::detectCores()),
     adapt_delta = 0.98
 ))
 mdrws <- as_draws_rvars(mfit$draws(c(
@@ -2273,12 +2393,25 @@ labs <- c("Intermediate", "Standard plus aspirin", "Therapeutic")
 mdrws$inrange <- setNames(as.vector(mdrws$beta[2:4]), labs)
 mdrws$outrange <- setNames(as.vector(mdrws$beta[2:4] + mdrws$beta[13:15]), labs)
 mdrws$unknown <- setNames(as.vector(mdrws$beta[2:4] + mdrws$beta[16:18]), labs)
-mdrws$OR <- exp(c(mdrws$inrange, mdrws$outrange, mdrws$unknown))
+mdrws$OR <- exp(rbind(mdrws$inrange, mdrws$outrange, mdrws$unknown))
+rownames(mdrws$OR) <- c("No", "Yes", "Unknown")
+colnames(mdrws$OR) <- c("Intermediate", "Standard plus aspirin", "Therapeutic")
+# Compare treatment effects across regions
+mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/")
+
 ordat <- expand_grid(
-  `D-dimer out of range` = fct_inorder(c("No", "Yes", "Unknown")),
-  Contrast = labs
+  Contrast = labs,
+  `D-dimer out of range` = c("No", "Yes", "Unknown"),
 ) %>%
-  mutate(Posterior = mdrws$OR)
+  mutate(Posterior = c(mdrws$OR)) %>%
+  summarise_posterior()
+compdat <- expand_grid(
+  Contrast = labs,
+  `D-dimer out of range` = c("No (ref)", "Yes", "Unknown"),
+) %>%
+  mutate(Posterior = c(mdrws$compare)) %>%
+  summarise_posterior() %>%
+  select(-`Pr(OR > 1/1.1)`)
 ```
 
 ```{r}
@@ -2287,6 +2420,18 @@ ggsave(
   file.path("outputs", "figures", "outcomes", "primary", "acs-itt-subgroup-ddimer-hte.pdf"),
   p, height = 3, width = 6)
 p
+```
+
+```{r}
+tab <- make_subgroup_summary_table(ordat, "latex")
+save_tex_table(tab, "outcomes/primary/subgroup/ddimer-odds-ratios")
+make_subgroup_summary_table(ordat)
+```
+
+```{r}
+tab <- make_subgroup_summary_table(compdat, "latex")
+save_tex_table(tab, "outcomes/primary/subgroup/ddimer-odds-ratios-compare")
+make_subgroup_summary_table(compdat)
 ```
 
 #### Weight
@@ -2386,7 +2531,7 @@ snk <- capture.output(
     iter_warmup = 1000,
     iter_sampling = 2500,
     chains = 8,
-    parallel_chains = 8,
+    parallel_chains = min(8, parallel::detectCores()),
     adapt_delta = 0.98
 ))
 mdrws <- as_draws_rvars(mfit$draws(c(
@@ -2403,14 +2548,25 @@ names(mdrws$gamma_site) <- site_map$site
 labs <- c("Intermediate", "Standard plus aspirin", "Therapeutic")
 mdrws$noAspirin <- setNames(as.vector(mdrws$beta[2:4]), labs)
 mdrws$Aspirin <- setNames(as.vector(mdrws$beta[2:4] + mdrws$beta[12:14]), labs)
-mdrws$OR <- exp(
-  c(mdrws$noAspirin, mdrws$Aspirin)
-)
+mdrws$OR <- exp(rbind(mdrws$noAspirin, mdrws$Aspirin))
+rownames(mdrws$OR) <- c("No", "Yes")
+colnames(mdrws$OR) <- c("Intermediate", "Standard plus aspirin", "Therapeutic")
+# Compare treatment effects across regions
+mdrws$compare <- sweep(mdrws$OR, 2, mdrws$OR[1, ], FUN = "/")
+
 ordat <- expand_grid(
-  `Patient taking aspirin` = c("No", "Yes"),
-  Contrast = labs
-)
-ordat$Posterior <- mdrws$OR
+  Contrast = labs,
+   `Patient taking aspirin` = c("No", "Yes"),
+) %>%
+  mutate(Posterior = c(mdrws$OR)) %>%
+  summarise_posterior()
+compdat <- expand_grid(
+  Contrast = labs,
+   `Patient taking aspirin` = c("No (ref)", "Yes"),
+) %>%
+  mutate(Posterior = c(mdrws$compare)) %>%
+  summarise_posterior() %>%
+  select(-`Pr(OR > 1/1.1)`)
 ```
 
 ```{r}
@@ -2418,6 +2574,18 @@ p <- plot_subgroup_or(ordat, sym("Patient taking aspirin"))
 ggsave(file.path("outputs", "figures", "outcomes", "primary", "acs-itt-subgroup-aspirin-hte.pdf"),
        p, height = 3, width = 6)
 p
+```
+
+```{r}
+tab <- make_subgroup_summary_table(ordat, "latex")
+save_tex_table(tab, "outcomes/primary/subgroup/aspirin-odds-ratios")
+make_subgroup_summary_table(ordat)
+```
+
+```{r}
+tab <- make_subgroup_summary_table(compdat, "latex")
+save_tex_table(tab, "outcomes/primary/subgroup/aspirin-odds-ratios-compare")
+make_subgroup_summary_table(compdat)
 ```
 
 ## Sensitivity Analyses
