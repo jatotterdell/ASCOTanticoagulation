@@ -48,6 +48,7 @@ options(digits = 4)
 mlogit_mod <- cmdstan_model("stan/tte/tte_competing_alt.stan")
 mlogit_rw <- cmdstan_model("stan/tte/tte_competing_rw.stan")
 mlogit_epoch <- cmdstan_model("stan/tte/tte_competing_epoch.stan") 
+mlogit_site_epoch <- cmdstan_model("stan/tte/tte_competing_site_epoch.stan") 
 ```
 
 ```{r}
@@ -553,7 +554,6 @@ drws_rw$Ccon <- attr(X, "contrasts")$randC %**% drws_rw$beta
 rownames(drws_rw$Ccon) <- c("C1", "C2", "C3", "C4")
 drws_rw$Ctrt <- drws_rw$Ccon[-1, ] - drws_rw$Ccon[1, ]
 
-
 haz <- get_arm_specific_probs(drws_rw)
 pdat <- haz %>% 
   select(intervention, time, unrecovered = surv, recovered = cprob1, died = cprob2) %>%
@@ -714,6 +714,184 @@ as_tibble(drws$gamma_site, rownames = "day") %>%
 ```
 
 ## Primary Model
+
+```{r}
+#| code-summary: Prepare data
+X <- make_X_design(acs_itt_outdat, c("inelgc3", "agegte60", "ctry"))
+Xm <- X[, -1]
+epoch <- acs_itt_outdat$epoch
+M_epoch <- max(acs_itt_outdat$epoch)
+region <- acs_itt_outdat$ctry_num
+M_region <- max(region)
+site <- acs_itt_outdat$site_num
+M_site <- max(site)
+region_by_site <- acs_itt_outdat %>% 
+  dplyr::count(ctry_num, site_num) %>% 
+  pull(ctry_num)
+
+sdat <- list(
+  N = nrow(acs_itt_outdat),
+  R = 2,
+  K = ncol(Xm),
+  M_region = M_region,
+  M_site = M_site,
+  M_epoch = M_epoch,
+  T = 28,
+  time = acs_itt_outdat$time,
+  site = site,
+  region_by_site = region_by_site,
+  epoch = epoch,
+  X = Xm,
+  y = as.matrix(acs_itt_outdat[, c("y0", "y1", "y2")]),
+  beta_sd = c(1, 1, 1, 1, 1, 10, 2.5, 1, 1)
+)
+```
+
+```{r}
+#| eval: false
+#| code-summary: Fit model
+fit <- mlogit_site_epoch$sample(
+  data = sdat, 
+  chains = 4,
+  parallel_chains = 4,
+  iter_sampling = 2500, 
+  iter_warmup = 500,
+  adapt_delta = 0.99)
+fit$save_output_files(
+  dir = file.path("outputs", "models", "secondary", "7-1-ttr"),
+  basename = "primary",
+  timestamp = FALSE, 
+  random = FALSE)
+fit$save_object(file.path("outputs", "models", "secondary", "7-1-ttr", "primary.rds"))
+```
+
+```{r}
+fit <- as_cmdstan_fit(
+  grep("primary-[0-9].csv", 
+       list.files(
+         file.path("outputs", "models", "secondary", "7-1-ttr"), 
+         full.names = T), 
+       value = T)
+)
+
+drws <- as_draws_rvars(fit$draws())
+rownames(drws$beta) <- colnames(sdat$X)
+epoch_map <- acs_itt_outdat %>% dplyr::count(epoch, epoch_lab)
+site_map <- acs_itt_outdat %>% dplyr::count(site_num, site)
+rownames(drws$gamma_site) <- site_map$site
+rownames(drws$gamma_epoch) <- epoch_map$epoch_lab
+
+drws$Ccon <- contr.orthonorm(4) %**% drws$beta[1:3, ]
+rownames(drws$Ccon) <- c("Standard", "Intermediate", "Standard plus aspirin", "Therapeutic")
+drws$Ctrt <- drws$Ccon[-1, ] - drws$Ccon[1, ]
+
+drws$shift <- rvar_apply(sweep(drws$beta[6:9, ], 1, colMeans(sdat$X)[6:9], "*"), 2, rvar_sum)
+drws$alpha_shift <- sweep(drws$alpha, 2, drws$shift, "+")
+
+drws$OR <- exp(rbind(drws$Ctrt, drws$beta[-(1:5), ]))
+rownames(drws$OR)[-(1:3)] <- c("Ineligible aspirin", "Age 60+", "Australia/New Zealand", "Nepal")
+colnames(drws$OR) <- c("Recovery", "Death")
+
+as_tibble(drws$gamma_site, rownames = "day") %>% 
+  pivot_longer(V1:V2) %>%
+  ggplot(., 
+         aes(xdist=value, y = fct_inorder(day))) + 
+  facet_wrap( ~ name, scales = "free_x") +
+  stat_slabinterval()
+
+as_tibble(drws$gamma_epoch, rownames = "day") %>% 
+  pivot_longer(V1:V2) %>%
+  ggplot(., 
+         aes(xdist=value, y = fct_inorder(day))) + 
+  facet_wrap( ~ name, scales = "free_x") +
+  stat_slabinterval()
+```
+
+```{r}
+save_tex_table(
+  make_odds_ratio_table(drws, format = "latex"),
+  "outcomes/secondary/7-1-primary-model-acs-itt-summary-table"
+)
+make_odds_ratio_table(drws)
+```
+
+```{r}
+p1 <- plot_epoch_site_terms(
+  exp(drws$gamma_epoch)[, 1], 
+  exp(drws$gamma_site)[, 1],
+  factor(
+    sdat$region_by_site, 
+    labels = c("India", "Australia\nNew Zealand", "Nepal"))) +
+  plot_annotation(title = "Recovery")
+p2 <- plot_epoch_site_terms(
+  exp(drws$gamma_epoch)[, 2], 
+  exp(drws$gamma_site)[, 2],
+  factor(
+    sdat$region_by_site, 
+    labels = c("India", "Australia\nNew Zealand", "Nepal"))) +
+  plot_annotation(title = "Death")
+pth <- file.path("outputs", "figures", "outcomes", "primary", "7-1-primary-model-acs-itt-epoch-site-recovery.pdf")
+ggsave(pth, p1, width = 6, height = 4.5)
+pth <- file.path("outputs", "figures", "outcomes", "primary", "7-1-primary-model-acs-itt-epoch-site-death.pdf")
+ggsave(pth, p2, width = 6, height = 4.5)
+p1
+p2
+```
+
+```{r}
+#| fig-cap: Baseline hazard (logit) for death and recovery.
+p <- plot_baseline_hazard(drws) +
+  coord_flip()
+ggsave(
+  file.path("outputs", "figures", "outcomes", "secondary", "7-1-acs-itt-baseline-haz.pdf"),
+  p, height = 3, width = 6
+)
+p
+```
+
+```{r}
+#| fig-cap: |
+#|   Intervention specific recovery progression (India, age < 60).
+haz <- get_arm_specific_probs(drws, TRUE) %>%
+  mutate(intervention = fct_inorder(intervention))
+pdat <- haz %>% 
+  select(intervention, time, unrecovered = surv, recovered = cprob1, died = cprob2) %>%
+  pivot_longer(unrecovered:died, names_to = "event", values_to = "posterior")
+obsdat <- acs_itt_outdat %>%
+  # filter(ctry == "IN", agegte60 == 0) %>%
+  complete(CAssignment, time, fill = list(y = 0)) %>%
+  group_by(intervention = factor(CAssignment, labels = c("Standard", "Intermediate", "Standard plus aspirin", "Therapeutic")), time) %>%
+  summarise(n = n(), y1 = sum(y == 1), y2 = sum(y == 2), .groups = "drop") %>%
+  group_by(intervention) %>%
+  mutate(cy1 = cumsum(y1), 
+         recovered = cy1 / n[1],
+         cy2 = cumsum(y2),
+         died = cy2 / n[1],
+         unrecovered = (n[1] - cy1 - cy2) / n[1]) %>%
+  ungroup() %>%
+  pivot_longer(c(unrecovered, recovered, died), names_to = "event", values_to = "proportion")
+p <- ggplot(pdat, aes(time, fill = event, colour = event)) +
+  facet_wrap( ~ intervention) +
+  geom_rect(aes(xmin = time, 
+                xmax = time + 1,
+                ymin = quantile(posterior, 0.025), 
+                ymax = quantile(posterior, 0.975)),
+              alpha = 0.25, colour = NA) +
+  geom_step(aes(y = median(posterior))) +
+  geom_point(data = obsdat, aes(y = proportion, x = time + 0.5)) +
+  scale_fill_viridis_d("Event", option = "B", begin = 0.2, end = 0.8) +
+  scale_colour_viridis_d("Event", option = "B", begin = 0.2, end = 0.8) +
+  scale_x_continuous("Day", breaks = c(1, 7, 14, 21, 28), limits = c(1, 28)) +
+  labs(y = "Proportion")
+ggsave(
+  file.path(
+    "outputs", "figures", "outcomes", "secondary", 
+    "7-1-acs-itt-marginal-ttr.pdf"),
+  p, height = 2.5, width = 6
+)
+p
+```
+
 
 ## Sensitivity: Concurrent Enrolements
 
