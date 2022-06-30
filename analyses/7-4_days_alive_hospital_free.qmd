@@ -504,7 +504,7 @@ p
 #| fig-height: 4
 p <- ggplot(pdat, aes(dafh, cp)) +
   geom_step(aes(colour = CAssignment, group = CAssignment)) +
-  labs(x = "Days alive and free of ventilation", y = "Cumulative proportion") +
+  labs(x = "Days alive and free of hospital", y = "Cumulative proportion") +
   scale_colour_viridis_d(
     "Days alive and\nfree of hospital", option = "A", begin = 0, end = 0.8) +
   guides(fill = guide_legend(reverse = TRUE))
