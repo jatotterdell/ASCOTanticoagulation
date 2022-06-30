@@ -99,7 +99,7 @@ p1 <- all_data %>%
   dplyr::count(Country = PT_CountryName, RandDate) %>%
   complete(
     Country, 
-    RandDate = seq.Date(min(RandDate, na.rm = T), Sys.Date(), by = "1 day"),
+    RandDate = seq.Date(min(RandDate, na.rm = T), as.Date("2022-04-09"), by = "1 day"),
     fill = list(n = 0)) %>%
   group_by(Country) %>%
   mutate(`Cumulative enrolments` = cumsum(n)) %>%
