@@ -1,5 +1,5 @@
 ---
-title: "ASCOT Anticoagulation Clinical Study Report"
+title: "ASCOT Anticoagulation Statistical Analysis Report"
 date: '2022-06-30'
 author:
   - name: James Totterdell
@@ -26,8 +26,6 @@ execute:
   echo: false
 ---
 
-# Synopsis
-
 # Introduction
 
 ## Purpose
@@ -47,7 +45,11 @@ There were four mutually exclusive interventions in the anticoagulation domain. 
 
 For full details of the interventions, refer to the domain specific appendix to the protocol.
 
+## Outcomes
+
 ## Modelling
+
+### General Considerations
 
 All binary outcomes were analysed assuming a logistic regression model, ordinal outcomes by assuming a cumulative logistic model with proportional odds, and the time to recovery outcome by a discrete-time competing-risk (death) time-to-event model (multinomial logistic regression). Weakly informative priors were specified for all models.
 
@@ -79,6 +81,10 @@ Bayesian models were computed using Stan via `cmdstanr` (0.5.2 and cmdstan versi
 Due to the small number of enrolments at New Zealand sites, in models where country of enrolment were included as a term, Australia and New Zealand were combined into one region. The hierarchical site effects for centres in Australia and New Zealand were nested within this joint region rather than each country individually. For models where site was included as a random effect, sites with less than 5 participants were aggregated within region into an "other sites" grouping. Similarly, for models where epoch was included, epochs with less than 10 participants were aggregated with the adjacent epoch.
 
 Missing outcome data were not imputed for any of the models (with the exception of the deterministic imputation used in the best-case/worst-case sensitivity analyses).
+
+### Further Details
+
+
 
 ## Trial Decision Criteria
 
@@ -139,7 +145,7 @@ The ACS-ITT population included 1,574 participants randomised to the anticoagula
 
 In this set (excluding those who withdrew consent for follow-up):
 
-- xxx were not randomised to the anticoagulation domain
+- 25 were not randomised to the anticoagulation domain
 - 610 were assigned to **standard dose** and 596 primary outcomes were observed
 - 613 were assigned to **intermediate dose** and 601 primary outcomes were observed
 - 283 were assigned to **standard dose plus aspirin group** and 279 primary outcomes were observed
@@ -437,6 +443,15 @@ writeLines(tab)
 ```
 
 ```{r}
+#| label: fig-primary-model-acs-itt-site-odds-ratio-densities
+#| fig-cap: |
+#|   Posterior densities for the treatment effect odds ratios.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/primary-model-acs-itt-odds-ratio-densities.pdf"
+)
+```
+
+```{r}
 #| label: fig-primary-model-acs-itt-site-epoch-parameters
 #| fig-cap: |
 #|   Posterior Summaries (point - median, block - 75% CrI, line 0.95% CrI) 
@@ -454,7 +469,7 @@ knitr::include_graphics(
 The pre-specified subgroups where treatment effect heterogeneity was to be investigated were:
 
 -   region (India, Australia/New Zealand, Nepal)
--   days since symptom onset ($\leq 7$ or $>7$ days)
+-   days since symptom onset ($< 8$ or $\geq 8$ days)
 -   age at enrolment ($<60$ or $\geq 60$ years of age)
 -   supplemental oxygen or oxygen saturation less than 94% at randomisation (yes or no)
 -   receipt of corticosteroid during hospital stay (yes or no)
@@ -469,7 +484,7 @@ Domain-specific subgroups were additionally specified as:
 
 For each sub-group analysis, the primary model was extended to include an interaction term between the covariate of interest and the anticoagulation interventions. In some cases, there may be no information on the subgroup-specific effect (for example, there were no participants in Nepal who were randomised to receive standard dose plus aspirin), but the results are reported in such cases noting that the posterior is driven by the prior.
 
-In these subgroup analyses, the reference group was generally taken to be the largest group and the intervention effect in this reference group has a normal prior with mean 0 and standard deviation 2.5. For each additional subgroup, the interaction between each intervention and subgroup level has a normal prior with mean 0 and standard deviation 1.
+In these subgroup analyses, the reference group was generally taken to be the largest subgroup and the intervention effect in this reference group has a normal prior with mean 0 and standard deviation 2.5. For each additional subgroup, the interaction between each intervention and subgroup level has a normal prior with mean 0 and standard deviation 1.
 
 \clearpage
 
@@ -919,6 +934,10 @@ knitr::include_graphics(
 
 \clearpage
 
+#### Joint Model
+
+\clearpage
+
 ### Per-Protocol Analysis
 
 The primary model was re-analysed using the ACS-PP set.
@@ -1153,12 +1172,6 @@ knitr::include_graphics(
 
 The following sections report on other post-hoc analyses which were undertaken, but not explicitly specified in the SAP. These include simplifications of the model by dropping the site and epoch terms, and alteration of the model priors.
 
-#### Remove site terms
-
-#### Remove epoch terms
-
-#### Remove site and epoch terms
-
 #### Prior Sensitivity - Treatment Contrasts
 
 The primary analysis model encodes the prior in terms of orthonormal contrasts. As a check of prior sensitivity, the primary model was re-fit with priors specified in terms of the more usual treatment contrasts.
@@ -1184,10 +1197,6 @@ knitr::include_graphics(
 )
 ```
 
-#### Prior Sensitivity - Weaker priors
-
-The pre-specified prior on the intercept was normal with mean 0 and standard deviation 2.5, and the prior on the treatment parameters were normal with mean 0 and standard deviation 1. The primary model is re-fit with weaker priors, assuming normal with mean 0 and standard deviation 10 on all fixed-effect parameters.
-
 \clearpage
 
 ## Secondary Outcomes
@@ -1196,7 +1205,7 @@ For all secondary outcomes, the primary model (adjusting for interventions, age 
 
 ### Time to clinical recovery to day 28
 
-This section reports on the analysis for time to clinical recovery. Time to clinical recovery was taken as the first day from the index admission at which the patient had a WHO outcome score of 3 or less. For participants whose WHO outcome score was greater than 3 on the day of discharge, their day of recovery was counted as the first day after discharge, e.g. if discharged on day 7 with a daily WHO score of 4, then time to recovery was quantified as 8. Death was treated as a competing-risk to recovery. If recovery and death reportedly occurred on the same day (e.g. daily status WHO scale < 4 but discharge outcome of death on same day), then the patient was considered to have died on that day without recovery. No adjustment was made for participants who recovered but then subsequently died (i.e. only the first event was considered; any such patients were just counted as recovered on the relevant day).
+This section reports on the analysis for time to clinical recovery. Time to clinical recovery was taken as the first day from the index admission at which the patient had a WHO outcome score of 3 or less. For participants whose WHO outcome score was greater than 3 on the day of discharge, their day of recovery was counted as the first day after discharge, e.g. if discharged on day 7 with a daily WHO score of 4, then time to recovery was quantified as 8. Death was treated as a competing-risk to recovery. If recovery and death reportedly occurred on the same day (e.g. daily status WHO scale < 4 but discharge outcome of death on same day), then the patient was considered to have died on that day without recovery. No adjustment was made for participants who recovered but then subsequently died (i.e. only the first event was considered; any such patients were just counted as recovered on the relevant day). No allowance was made for participants who discharged against medical advice (treated as recovered following discharge).
 
 The analysis of the time to clinical recovery to day 28 outcome used a discrete-time competing risk time-to-event model (multinomial logistic regression). The events of interest were death or recovery. Baseline cause-specific hazards were modelled separately for death and recovery with some smoothing enforced across adjacent time points via a first order random walk prior on the logit intercept terms.
 
@@ -1223,6 +1232,29 @@ writeLines(tab)
 knitr::include_graphics(
   "../outputs/figures/outcomes/secondary/outcome-7-1-descriptive.pdf"
 )
+```
+
+```{r}
+#| label: tbl-7-1-acs-itt-summary
+#| tbl-cap: |
+#|   Posterior summary of cause-specific odds ratios for recovery or death to day 28,
+#|   ACS-ITT.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "secondary",
+  "7-1-primary-model-acs-itt-summary-table.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-7-1-acs-itt-baseline-haz
+#| fig-cap: |
+#|   Cause-specific baseline hazard posterior summaries, ACS-ITT.
+knitr::include_graphics(
+  file.path(
+    "..", "outputs", "figures", "outcomes", "secondary",
+    "7-1-acs-itt-baseline-haz.pdf"
+))
 ```
 
 \clearpage
@@ -1265,23 +1297,23 @@ writeLines(tab)
 #|   Cause-specific baseline hazard posterior summaries, ACS-ITT-intermediate.
 knitr::include_graphics(
   file.path(
-    "..", "outputs", "figures", "outcomes", "secondary", 
+    "..", "outputs", "figures", "outcomes", "secondary",
     "7-1-concurrent-intermediate-baseline-haz.pdf"
 ))
 ```
 
-```{r}
-#| label: fig-7-1-concurrent-intermediate-marginal-ttr
-#| fig-cap: |
-#|   Sample-weighted posterior progression of recovery (median and 95% CrI), 
-#|   ACS-ITT-intermediate.
-#|   Points are the observed cumulative proportions.
-knitr::include_graphics(
-  file.path(
-    "..", "outputs", "figures", "outcomes", "secondary", 
-    "7-1-concurrent-intermediate-marginal-ttr.pdf"
-))
-```
+<!-- ```{r} -->
+<!-- #| label: fig-7-1-concurrent-intermediate-marginal-ttr -->
+<!-- #| fig-cap: | -->
+<!-- #|   Sample-weighted posterior progression of recovery (median and 95% CrI),  -->
+<!-- #|   ACS-ITT-intermediate. -->
+<!-- #|   Points are the observed cumulative proportions. -->
+<!-- knitr::include_graphics( -->
+<!--   file.path( -->
+<!--     "..", "outputs", "figures", "outcomes", "secondary",  -->
+<!--     "7-1-concurrent-intermediate-marginal-ttr.pdf" -->
+<!-- )) -->
+<!-- ``` -->
 
 \clearpage
 
@@ -1321,23 +1353,23 @@ writeLines(tab)
 #|   Cause-specific baseline hazard posterior summaries, ACS-ITT-aspirin.
 knitr::include_graphics(
   file.path(
-    "..", "outputs", "figures", "outcomes", "secondary", 
+    "..", "outputs", "figures", "outcomes", "secondary",
     "7-1-concurrent-stdaspirin-baseline-haz.pdf"
 ))
 ```
 
-```{r}
-#| label: fig-7-1-concurrent-stdaspirin-marginal-ttr
-#| fig-cap: |
-#|   Sample-weighted posterior progression of recovery (median and 95% CrI), 
-#|   ACS-ITT-aspirin.
-#|   Points are the observed cumulative proportions.
-knitr::include_graphics(
-  file.path(
-    "..", "outputs", "figures", "outcomes", "secondary", 
-    "7-1-concurrent-stdaspirin-marginal-ttr.pdf"
-))
-```
+<!-- ```{r} -->
+<!-- #| label: fig-7-1-concurrent-stdaspirin-marginal-ttr -->
+<!-- #| fig-cap: | -->
+<!-- #|   Sample-weighted posterior progression of recovery (median and 95% CrI),  -->
+<!-- #|   ACS-ITT-aspirin. -->
+<!-- #|   Points are the observed cumulative proportions. -->
+<!-- knitr::include_graphics( -->
+<!--   file.path( -->
+<!--     "..", "outputs", "figures", "outcomes", "secondary",  -->
+<!--     "7-1-concurrent-stdaspirin-marginal-ttr.pdf" -->
+<!-- )) -->
+<!-- ``` -->
 
 \clearpage
 
@@ -1377,23 +1409,23 @@ writeLines(tab)
 #|   Cause-specific baseline hazard posterior summaries, ACS-ITT-therapeutic
 knitr::include_graphics(
   file.path(
-    "..", "outputs", "figures", "outcomes", "secondary", 
+    "..", "outputs", "figures", "outcomes", "secondary",
     "7-1-concurrent-therapeutic-baseline-haz.pdf"
 ))
 ```
 
-```{r}
-#| label: fig-7-1-concurrent-therapeutic-marginal-ttr
-#| fig-cap: |
-#|   Sample-weighted posterior progression of recovery (median and 95% CrI), 
-#|   ACS-ITT-therapeutic.
-#|   Points are the observed cumulative proportions.
-knitr::include_graphics(
-  file.path(
-    "..", "outputs", "figures", "outcomes", "secondary", 
-    "7-1-concurrent-therapeutic-marginal-ttr.pdf"
-))
-```
+<!-- ```{r} -->
+<!-- #| label: fig-7-1-concurrent-therapeutic-marginal-ttr -->
+<!-- #| fig-cap: | -->
+<!-- #|   Sample-weighted posterior progression of recovery (median and 95% CrI),  -->
+<!-- #|   ACS-ITT-therapeutic. -->
+<!-- #|   Points are the observed cumulative proportions. -->
+<!-- knitr::include_graphics( -->
+<!--   file.path( -->
+<!--     "..", "outputs", "figures", "outcomes", "secondary",  -->
+<!--     "7-1-concurrent-therapeutic-marginal-ttr.pdf" -->
+<!-- )) -->
+<!-- ``` -->
 
 \clearpage
 
@@ -1718,7 +1750,6 @@ This section reports on the analysis of the secondary outcome: days alive and fr
 
 @tbl-7-4-summary presents the number of participants where the outcome was observed by the allocated anticoagulation arm. The observed distribution of DAFH by arm is shown in @fig-7-4-dist-overall, @fig-7-4-descriptive, and @fig-7-4-descriptive2. The model parameters (odds ratios) are summarised in @tbl-7-4-primary-model-acs-itt-summary for the fixed-effect terms and in @fig-7-4-primary-model-acs-itt-site-epoch-parameters for the site and epoch specific terms.
 
-The median (IQR) DAFH was 23 (21 - 24) days amongst all randomised participants. Compared with standard dose, the median adjusted odds ratios (95% CrI) from the primary model were 1.18 (0.98, 1.42) for intermediate dose, 1.10 (0.86, 1.41) for standard dose plus aspirin, and 0.75 (0.48, 1.16) for therapeutic dose. The corresponding posterior probabilities for effectiveness were 0.96, 0.79 and 0.10 respectively.
 
 ```{r}
 #| label: tbl-7-4-summary
@@ -2589,7 +2620,7 @@ knitr::include_graphics(
 #| fig-cap: |
 #|   Posterior predictive distribution for primary outcome 
 #|   by model covariates for primary model using ACS-ITT.
-#|   Vertical red line indicates observed proportions.
+#|   Red diamond indicates observed proportions.
 pth <- file.path("..", "outputs", "figures", "outcomes", "primary",
                  "primary-model-acs-itt-ppc.pdf")
 knitr::include_graphics(pth)
