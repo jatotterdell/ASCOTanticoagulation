@@ -100,17 +100,16 @@ counts <- do.call(rbind, counts) %>% as.tibble()
 
 make_table <- function(format = "html", fn = NULL)
 {
-<<<<<<< HEAD
 out <- counts %>% kable(format = format, digits = 2, booktabs = TRUE, linesep = "", align = "lrrrrr", longtable = TRUE,
                         col.names = c("Health state", "n", "%", "n", "%"),
                         caption = "Prevelance of 10 most frequent, and worst, reported EQ-5D-5L profiles by treatment (day 28).") %>%
   kable_styling(latex_options = "HOLD_position", font_size = 12) %>%
-  group_rows(paste0("C1, missing = ",   missing[["missing_state"]][missing[["CAssignment"]] == "C1"]), 1, 12) %>%
-  group_rows(paste0("C2, missing = ",   missing[["missing_state"]][missing[["CAssignment"]] == "C2"]), 13, 24) %>%
-  group_rows(paste0("C3, missing = ",   missing[["missing_state"]][missing[["CAssignment"]] == "C3"]), 25, 36) %>%
-  group_rows(paste0("C4, missing = ",   missing[["missing_state"]][missing[["CAssignment"]] == "C4"]), 37, 48) %>%
+  group_rows(paste0("Standard, missing = ",   missing[["missing_state"]][missing[["CAssignment"]] == "C1"]), 1, 12) %>%
+  group_rows(paste0("Intermediate, missing = ",   missing[["missing_state"]][missing[["CAssignment"]] == "C2"]), 13, 24) %>%
+  group_rows(paste0("Standard plus aspirin, missing = ",   missing[["missing_state"]][missing[["CAssignment"]] == "C3"]), 25, 36) %>%
+  group_rows(paste0("Therapeutic, missing = ",   missing[["missing_state"]][missing[["CAssignment"]] == "C4"]), 37, 48) %>%
   add_header_above(c(" " = 1, "Frequency" = 2, "Cumulative frequency" = 2))
-=======
+
 out <- counts %>% 
   kable(
     format = format, 
@@ -127,7 +126,6 @@ out <- counts %>%
   group_rows("Standard plus aspirin", 25, 36) %>%
   group_rows("Therapeutic", 37, 48) %>%
   add_header_above(c(" " = 1, "Frequency" = 2, "Cumulative" = 2))
->>>>>>> 46ab926eda5be737fc3eb328c1c1ffcd0dc21e40
   if (!is.null(fn) & format == "latex") {
       out
       save_tex_table(out, fn)
@@ -269,7 +267,7 @@ value <- eq5d %>%
             Min     = min(eq5d_value, na.rm = T),
             Max     = max(eq5d_value, na.rm = T),
             `Missing, n (%)` = paste0(sum(is.na(eq5d_value)), " (", round(sum(is.na(eq5d_value))/n(),4)*100,")")) %>% t %>% as.data.frame()
-names(value) <- value[1,]
+names(value) <- c("Standard", "Intermediate", "Standard plus aspirin", "Therapeutic")
 value <- value[-1,]
 
 make_table <- function(format = "html", fn = NULL)
@@ -290,7 +288,7 @@ make_table <- function(format = "html", fn = NULL)
 }
 
 make_table()  %>% kable_styling()
-make_table(format = "latex", fn = "7-8_eq5d_utility.tex")
+make_table(format = "latex", fn = "outcomes/secondary/7-8_eq5d_utility")
 
 ```
 
