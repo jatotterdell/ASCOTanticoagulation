@@ -46,54 +46,44 @@ acs_itt_dat <- all_dat %>%
   filter_acs_itt() %>%
   transmute_model_cols_grp_aus_nz() %>%
   left_join(
-    all_dat %>% select(StudyPatientID, starts_with("D28_EQ")),
+    all_dat %>% select(StudyPatientID, starts_with("D28_EQ"), D28_death),
     by = "StudyPatientID")
 
 ```
 
-
 ## Descriptive
 
 ```{r}
-acs_itt_dat %>% 
-  dplyr::count(CAssignment, 
-        D28_EQAnxietyDepression, 
-        D28_EQMobility,
-        D28_EQPersonalCare,
-        D28_EQUsualActivities,
-        D28_EQPainDiscomfort) %>%
-  gather(key, value, -n, -CAssignment) %>%
-  group_by(CAssignment, key) %>%
-  filter(!is.na(value), value != 0) %>%
-  mutate(p = n / sum(n)) %>%
-  ungroup() %>%
-  mutate(value = factor(value)) %>%
-  ggplot(., aes(CAssignment, p, fill = value)) +
-  facet_wrap( ~ key) +
-  geom_bar(stat = "identity") +
-  scale_fill_viridis_d(option = "A", direction = -1, begin = 0, end = 0.9) +
-  labs(x = "Assigned intervention - domain C", y = "Cumulative proportion", fill = "Score") +
-  theme(legend.position = "right", legend.direction = "vertical",
-        panel.grid.major = element_blank(),
-        axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5)) 
-```
+#| label: states
+#| code-summary: Derive states
 
-```{r}
-eq5d <- acs_itt_dat %>% select(CAssignment, starts_with("D28_EQ")) %>%
-  mutate(eq5d_state = paste0(D28_EQMobility, 
+eq5d <- acs_itt_dat %>% select(CAssignment, starts_with("D28_EQ"), D28_death) %>%
+  mutate(state = paste0(D28_EQMobility, 
                            D28_EQPersonalCare,
                            D28_EQUsualActivities,
                            D28_EQPainDiscomfort,
                            D28_EQAnxietyDepression))
 
-# Looks like '00000' indicates either zero score (inlcuding on VAS), or more likely missing.
-head(t(table(eq5d$D28_EQOverallHealthScore, eq5d$eq5d_state)))
+# Table the states against day 28 death.
+# Looks like 00000 are dead at day 28 (or NA, i.e. lost to followup)
+# Looks like NANANANANA are genuinely missing (all alive), keep but seperate out of tables. 
+with(eq5d, table(D28_death, state, useNA = "always"))
 
-eq5d_nona <- eq5d %>%  
-  filter(eq5d_state != "00000") %>% # Looks like these are missing
-  filter(eq5d_state != "NANANANANA") # Looks like these are missing
+eq5d <- eq5d %>%  
+  filter(state != "00000") %>%
+  mutate(state = ifelse(state == "NANANANANA", NA, state))
 
-counts <- with(eq5d_nona, table(eq5d_state, CAssignment))
+```
+
+```{r}
+#| label: counts
+#| code-summary: Derive counts
+
+missing <- eq5d_state %>% 
+     group_by(CAssignment) %>% 
+     summarise(missing_state = paste0(sum(is.na(state)), " (", round(sum(is.na(state))/n()*100, 2), "%)")) 
+
+counts <- with(eq5d, table(state, CAssignment))
 nms    <- colnames(counts)
 counts <- lapply(colnames(counts), function(x) counts[,x])
 names(counts) <- nms 
@@ -114,10 +104,10 @@ out <- counts %>% kable(format = format, digits = 2, booktabs = TRUE, linesep = 
                         col.names = c("Health state", "n", "%", "n", "%"),
                         caption = "Prevelance of 10 most frequent, and worst, reported EQ-5D-5L profiles by treatment (day 28).") %>%
   kable_styling(latex_options = "HOLD_position", font_size = 12) %>%
-  group_rows("C1", 1, 12) %>%
-  group_rows("C2", 13, 24) %>%
-  group_rows("C3", 25, 36) %>%
-  group_rows("C4", 37, 48) %>%
+  group_rows(paste0("C1, missing = ",   missing[["missing_state"]][missing[["CAssignment"]] == "C1"]), 1, 12) %>%
+  group_rows(paste0("C2, missing = ",   missing[["missing_state"]][missing[["CAssignment"]] == "C2"]), 13, 24) %>%
+  group_rows(paste0("C3, missing = ",   missing[["missing_state"]][missing[["CAssignment"]] == "C3"]), 25, 36) %>%
+  group_rows(paste0("C4, missing = ",   missing[["missing_state"]][missing[["CAssignment"]] == "C4"]), 37, 48) %>%
   add_header_above(c(" " = 1, "Frequency" = 2, "Cumulative frequency" = 2))
   if (!is.null(fn) & format == "latex") {
       out
@@ -132,6 +122,8 @@ make_table(format = "latex", fn = "7-8_eq5d5l_counts.tex")
 
 # Get breakdown table.
 ```{r}
+#| label: scores
+#| code-summary: Derive scores
 
 get_profiles <- function(x)
 {
@@ -187,12 +179,16 @@ make_table(format = "latex", fn = "7-8_eq5d5l_distribution.tex")
 
 
 ```{r}
+#| label: vas
+#| code-summary: Derive visual analog score
+
 getmode <- function(v) {
    uniqv <- unique(v)
    uniqv[which.max(tabulate(match(v, uniqv)))]
 }
 
-vas <- eq5d %>%
+vas <- acs_itt_dat %>% 
+  select(CAssignment, starts_with("D28_EQ"), D28_death) %>%
   select(CAssignment, D28_EQOverallHealthScore) %>%
   mutate(D28_EQOverallHealthScore = ifelse(D28_EQOverallHealthScore == 0, NA, D28_EQOverallHealthScore)) %>%
   group_by(CAssignment) %>%
@@ -226,3 +222,53 @@ make_table()  %>% kable_styling()
 make_table(format = "latex", fn = "7-8_eq5d_vas.tex")
 
 ```
+
+# Apply value set to derive utilities
+
+Here we use the R package `eq5d' to derive utilities from the EQ-5D-5L data, by treatment, using the included UK crosswalk valueset. 
+
+```{r}
+#| label: utility
+#| code-summary: Derive utility
+
+value <- eq5d %>%
+  mutate(eq5d_value = eq5d(state, type = "CW", version = "5L", country = "UK", five.digit = "state", ignore.invalid = T)) %>%
+  select(CAssignment, state, eq5d_value) %>%
+  group_by(CAssignment) %>%
+  summarise(n       = n(),
+            Mean    = round(mean(eq5d_value, na.rm = T), 4),
+            SD      = round(sd(eq5d_value, na.rm = T), 4),
+            Median  = median(eq5d_value, na.rm = T),
+            Mode    = getmode(eq5d_value),
+            Min     = min(eq5d_value, na.rm = T),
+            Max     = max(eq5d_value, na.rm = T),
+            `Missing, n (%)` = paste0(sum(is.na(eq5d_value)), " (", round(sum(is.na(eq5d_value))/n(),4)*100,")")) %>% t %>% as.data.frame()
+names(value) <- value[1,]
+value <- value[-1,]
+
+make_table <- function(format = "html", fn = NULL)
+{  
+ out <- value %>% kable(
+    caption = "Descriptive summary of EQ-5D-5L utilities (day 28).",
+    align = "rrrr", format = format, digits = 2, booktabs = TRUE, linesep = "", longtable = TRUE) %>%  
+    kable_styling(latex_options = "HOLD_position", font_size = 11) %>%
+    collapse_rows(1, valign = "top", latex_hline = 'custom', custom_latex_hline = 1) %>%
+       add_footnote("Note: UK crosswalk value set used.", notation = "none", escape = TRUE)
+
+    if (!is.null(fn) & format == "latex") {
+      out
+      save_tex_table(out, fn)
+    } else {
+      return(out)
+    }
+}
+
+make_table()  %>% kable_styling()
+make_table(format = "latex", fn = "7-8_eq5d_utility.tex")
+
+```
+
+
+
+
+# End of script.
