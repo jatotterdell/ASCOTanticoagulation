@@ -110,15 +110,22 @@ counts <- do.call(rbind, counts) %>% as.tibble()
 
 make_table <- function(format = "html", fn = NULL)
 {
-out <- counts %>% kable(format = format, digits = 2, booktabs = TRUE, linesep = "", align = "lrrrrr", longtable = TRUE,
-                        col.names = c("Health state", "n", "%", "n", "%"),
-                        caption = "Prevelance of 10 most frequent, and worst, reported EQ-5D-5L profiles by treatment (day 28).") %>%
-  kable_styling(latex_options = "HOLD_position", font_size = 12) %>%
-  group_rows("C1", 1, 12) %>%
-  group_rows("C2", 13, 24) %>%
-  group_rows("C3", 25, 36) %>%
-  group_rows("C4", 37, 48) %>%
-  add_header_above(c(" " = 1, "Frequency" = 2, "Cumulative frequency" = 2))
+out <- counts %>% 
+  kable(
+    format = format, 
+    digits = 2, 
+    booktabs = TRUE, 
+    linesep = "", 
+    align = "lrrrrr", 
+    longtable = TRUE,
+    col.names = c("Health state", "n", "%", "n", "%"),
+    caption = "Prevelance of 10 most frequent, and worst, reported EQ-5D-5L profiles by treatment (day 28).") %>%
+  kable_styling(latex_options = "HOLD_position", font_size = 9) %>%
+  group_rows("Standard", 1, 12) %>%
+  group_rows("Intermediate", 13, 24) %>%
+  group_rows("Standard plus aspirin", 25, 36) %>%
+  group_rows("Therapeutic", 37, 48) %>%
+  add_header_above(c(" " = 1, "Frequency" = 2, "Cumulative" = 2))
   if (!is.null(fn) & format == "latex") {
       out
       save_tex_table(out, fn)
@@ -126,8 +133,9 @@ out <- counts %>% kable(format = format, digits = 2, booktabs = TRUE, linesep = 
       return(out)
   }
 }
-make_table()  %>% kable_styling()
-make_table(format = "latex", fn = "7-8_eq5d5l_counts.tex")
+make_table()  %>% 
+  kable_styling()
+make_table(format = "latex", fn = "outcomes/secondary/7-8_eq5d5l_counts")
 ```
 
 # Get breakdown table.
@@ -141,7 +149,13 @@ get_profiles <- function(x)
     spread(CAssignment, n, fill = 0) %>%
     mutate(Overall = C1 + C2 + C3 + C4) %>% 
     rbind(colSums(.[-c(1),])) %>% select(-!!sym(x)) %>%
-    mutate(across(C1:Overall, ~ sprintf("%i (%.0f)", .x, 100 * .x / sum(.x))))
+    mutate(across(C1:Overall, ~ sprintf("%i (%.0f)", .x, 100 * .x / sum(.x)))) %>%
+    rename(
+      Standard = C1,
+      Intermediate = C2,
+      `Standard plus aspirin` = C3,
+      Therapeutic = C4
+    )
 }
 
 tab1 <-  get_profiles("D28_EQMobility") 
@@ -162,9 +176,9 @@ make_table <- function(format = "html", fn = NULL)
   out <- kable(out,
     col.names = c("EQ-5D-5L", names(out)[-1]),
     caption = "Distribution of responses on the EQ-5D-5L (day 28).",
-    align = "lrrrr", format = format, digits = 2, booktabs = TRUE, linesep = "", longtable = TRUE) %>%  
-    kable_styling(latex_options = "HOLD_position", font_size = 11) %>%
-    collapse_rows(1, valign = "top", latex_hline = 'custom', custom_latex_hline = 1) %>%
+    align = "lrrrrr", format = format, digits = 2, booktabs = TRUE, linesep = "", longtable = TRUE) %>%  
+    kable_styling(latex_options = "HOLD_position", font_size = 9) %>%
+    # collapse_rows(1, valign = "top", latex_hline = 'custom', custom_latex_hline = 1) %>%
     group_rows("Mobility",           1,   6) %>%
     group_rows("Self care",          7,  12) %>%
     group_rows("Usual activities",   13, 18) %>%
@@ -178,7 +192,7 @@ make_table <- function(format = "html", fn = NULL)
     }
 }
 make_table()  %>% kable_styling()
-make_table(format = "latex", fn = "7-8_eq5d5l_distribution.tex")
+make_table(format = "latex", fn = "outcomes/secondary/7-8_eq5d5l_distribution")
 
 
 ```
@@ -206,14 +220,14 @@ vas <- eq5d %>%
             `Missing, n (%)` = paste0(sum(is.na(D28_EQOverallHealthScore)), " (", round(sum(is.na(D28_EQOverallHealthScore))/n(),4)*100,")")) %>% t %>% as.data.frame()
 names(vas) <- vas[1,]
 vas <- vas[-1,]
+colnames(vas) <- c("Standard", "Intermediate", "Standard plus aspirin", "Therapeutic")
 
 make_table <- function(format = "html", fn = NULL)
 {  
  out <- vas %>% kable(
     caption = "Descriptive summary of EQ-5D VAS (day 28).",
     align = "rrrr", format = format, digits = 2, booktabs = TRUE, linesep = "", longtable = TRUE) %>%  
-    kable_styling(latex_options = "HOLD_position", font_size = 11) %>%
-    collapse_rows(1, valign = "top", latex_hline = 'custom', custom_latex_hline = 1)
+    kable_styling(latex_options = "HOLD_position", font_size = 9)
     if (!is.null(fn) & format == "latex") {
       out
       save_tex_table(out, fn)
@@ -223,6 +237,6 @@ make_table <- function(format = "html", fn = NULL)
 }
 
 make_table()  %>% kable_styling()
-make_table(format = "latex", fn = "7-8_eq5d_vas.tex")
+make_table(format = "latex", fn = "outcomes/secondary/7-8_eq5d_vas")
 
 ```
