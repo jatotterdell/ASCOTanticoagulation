@@ -1,0 +1,122 @@
+---
+title: "Data crosschecks"
+description: |
+  Cross check of D28 data.
+author: 
+  - name: James Totterdell
+    affiliation: University of Sydney
+  - name: Rob Mahar
+    affiliation: University of Melbourne
+date: last-modified
+---
+
+# Preamble {#preamble}
+
+```{r}
+#| label: pkgs
+#| code-summary: Load packages
+library(tidyverse)
+library(labelled)
+library(kableExtra)
+library(cmdstanr)
+library(posterior)
+library(bayestestR)
+library(bayesplot)
+library(matrixStats)
+library(ggdist)
+```
+
+```{r}
+#| label: kable-hack
+#| code-summary: Hack to make kable print in dark theme
+# https://stackoverflow.com/questions/53247896/the-contents-of-kableextra-table-invisible-if-rstudio-editor-theme-is-dark
+print.kableExtra <- function (x, ...) {
+  view_html <- getOption("kableExtra_view_html", TRUE)
+  if (view_html & interactive()) {
+    dep <- list(
+      rmarkdown::html_dependency_jquery(), 
+      rmarkdown::html_dependency_bootstrap(theme = "cosmo"), 
+      kableExtra::html_dependency_kePrint(), 
+      kableExtra::html_dependency_lightable()
+    )
+    
+    x <- sub('style="', 'style="color: black; ', as.character(x), fixed = TRUE)
+        
+    html_kable <- htmltools::browsable(
+      htmltools::HTML(
+        as.character(x), 
+        "<script type=\"text/x-mathjax-config\">MathJax.Hub.Config({tex2jax: {inlineMath: [[\"$\",\"$\"]]}})</script><script async src=\"https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML\"></script>"
+      )
+    )
+    htmltools::htmlDependencies(html_kable) <- dep
+    class(html_kable) <- "shiny.tag.list"
+    print(html_kable)
+  }
+  else {
+    cat(as.character(x))
+  }
+}
+```
+
+```{r}
+
+d28 <- all_dat %>% 
+  filter_acs_itt() %>%
+  transmute_model_cols_grp_aus_nz() %>%
+  left_join(
+    all_dat %>% select(StudyPatientID, starts_with("D28_EQ"), D28_death, contains("D28"), contains("DD"), contains("DIS")),
+    by = "StudyPatientID")
+
+
+```
+
+# WHO 8-point outcome
+
+## Check for discharge prior to 28 (and not dead), but WHO hospitalised on day 28
+
+Looks like only a couple of the included data are likely to be readmissions (most are discharged at hospitalisation). Need too find out if they were truly readmitted.
+
+```{r}
+
+data <- d28 %>% filter(DIS_day < 28 & D28_who >= 3 & D28_death !=1)
+
+ggplot(data, aes(x = D28_OutcomeTotalDaysHospitalised,
+                 y = DIS_day)) +
+  facet_wrap(~ D28_who) + 
+  geom_point() + 
+  geom_abline(intercept =0 , slope = 1) + theme_grey()
+
+```
+
+## Check for discharge on day 28, but WHO not hospitalised on day 28
+
+Looks like only a single patient. Discharge day is the same as the total days hospitalised (both 28 days). Probably the WHO outcome is in error.  
+
+```{r}
+
+data <- d28 %>% filter(DIS_day == 28 & D28_who <= 3 & D28_death !=1)
+
+```
+## Check for 28 total days in hospital, but WHO not hospitalised on day 28
+
+One of these is the same as the previous section (ALF00005). Seem like ventilated for some days, whether that helps.
+
+```{r}
+
+data <- d28 %>% filter(D28_OutcomeTotalDaysHospitalised == 28 & D28_who <= 3 & D28_death !=1)
+
+```
+
+
+## Check for dead but not WHO dead
+
+None which is good. 
+
+```{r}
+
+data <- d28 %>% filter(D28_who !=8 & D28_death == 1)
+
+```
+
+# End of script.
+
