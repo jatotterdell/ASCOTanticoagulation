@@ -185,7 +185,8 @@ fit_primary_model <- function(
     dat, 
     ctr = contr.orthonorm, 
     fit = TRUE,
-    save = FALSE
+    save = FALSE,
+    fn = "primary.rds"
   ) {
   
   mdat <- make_primary_model_data(
@@ -204,10 +205,10 @@ fit_primary_model <- function(
         adapt_delta = 0.98
     ))
     if (save) {
-      mfit$save_object(file.path("outputs", "models", "secondary", "7-4-dafh", "primary.rds"))  
+      mfit$save_object(file.path("outputs", "models", "secondary", "7-4-dafh", fn))  
     }
   } else {
-    mfit <- readRDS(file.path("outputs", "models", "secondary", "7-4-dafh", "primary.rds"))
+    mfit <- readRDS(file.path("outputs", "models", "secondary", "7-4-dafh", fn))
   }
   mdrws <- as_draws_rvars(mfit$draws())
   
@@ -771,7 +772,8 @@ The model is re-fit with priors specified on the treatment contrasts rather than
 
 ```{r}
 #| code-summary: Fit primary model using treatment contrasts
-res <- fit_primary_model(acs_itt_nona_dat, ctr = contr.treatment, fit = TRUE, save = FALSE)
+# res <- fit_primary_model(acs_itt_nona_dat, ctr = contr.treatment, fit = TRUE, save = TRUE, fn = "primary-trt.rds")
+res <- fit_primary_model(acs_itt_nona_dat, fit = F, save = F, fn = "primary-trt.rds")
 ```
 
 ```{r}
@@ -918,7 +920,7 @@ save_tex_table(
 :::{.callout-caution collapse="true"}
 #### Diagnostics
 ```{r}
-mfit$summary()
+mfit$summary(c("beta"))
 mfit$diagnostic_summary()
 ```
 :::
@@ -1033,7 +1035,7 @@ save_tex_table(
 :::{.callout-caution collapse="true"}
 #### Diagnostics
 ```{r}
-mfit$summary()
+mfit$summary(c("beta"))
 mfit$diagnostic_summary()
 ```
 :::
@@ -1048,7 +1050,7 @@ mcmc_trace(mdrws["alpha"])
 
 ### Therapeutic dose
 
--   **Covariates**: anticoagulation intervention, age group, region of enrolment.
+- **Covariates**: anticoagulation intervention, age group, region of enrolment.
 
 ```{r}
 #| code-summary: Descriptive summary table
@@ -1147,7 +1149,7 @@ odds_ratio_summary_table_rev(mdrws$OR)
 :::{.callout-caution collapse="true"}
 #### Diagnostics
 ```{r}
-mfit$summary()
+mfit$summary(c("beta"))
 mfit$diagnostic_summary()
 ```
 :::

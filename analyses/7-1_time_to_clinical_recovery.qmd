@@ -243,9 +243,7 @@ acs_itt_concurc4_nona_dat <- acs_itt_concurc4_dat %>%
 
 # Derivation
 
-Time to clinical recovery is taken as the first day from the index admission at which the patient had a WHO outcome score of 3 or less. If a participant died before recovery, then they are treated as censored at the day of death. No allowance is made for participants who recovered but then subsequently died (i.e. they are just counted as recovered on the relevant day). If recovery and death reportedly occurred on the same day (e.g. daily status WHO scale < 4 but discharge outcome of death on same day), then the patient is considered to have not recovered. For participants whose WHO outcome score was greater than 3 on the day of discharge, their day of recovery was counted as the first day after discharge.
-
-**Question: Should probably set this up with death as competing risk, i.e. cause specific hazard time to first of death or recovery with censoring at 28 days.**
+Time to clinical recovery is taken as the first day from the index admission at which the patient had a WHO outcome score of 3 or less. Death is a competing risk. No allowance is made for participants who recovered but then subsequently died (i.e. they are just counted as recovered on the relevant day). If recovery and death reportedly occurred on the same day (e.g. daily status WHO scale < 4 but discharge outcome of death on same day), then the patient is considered to have not recovered. For participants whose WHO outcome score was greater than 3 on the day of discharge, their day of recovery was counted as the first day after discharge.
 
 # Descriptive
 
@@ -296,6 +294,31 @@ p <- acs_itt_outdat_agg %>%
   theme(panel.grid.minor = element_blank())
 path <- file.path("outputs", "figures", "outcomes", "secondary")
 ggsave(file.path(path, "outcome-7-1-descriptive.pdf"), p, height = 2.5, width = 6)
+p
+```
+
+```{r}
+#| label: fig-7-1-anticoagulation
+#| fig-cap: |
+#|   Progression to recovery by anticoagulation intervention.
+p <- acs_itt_outdat_agg %>% 
+  select(-y1, -y2, -cy1, -cy2) %>% 
+  pivot_longer(cp1:cpn) %>% 
+  mutate(name = factor(
+    name, 
+    levels = c("cp1", "cp2", "cpn"), 
+    labels = c("Recovered", "Died", "Not recovered"))) %>%
+  ggplot(., aes(time, value, colour = CAssignment)) + 
+  facet_wrap(~ name, scales = "free_y") + 
+  geom_step() +
+  scale_colour_viridis_d(option = "B", begin = 0.2, end = 0.8) +
+  scale_x_continuous(breaks = c(1, 7, 14, 21, 28)) +
+  labs(x = "Study day", y = "Cumulative proportion", colour = "Intervention") +
+  theme(panel.grid.minor = element_blank(),
+        legend.position = "bottom") +
+  guides(colour = guide_legend(title.position="top", title.hjust = 0.5))
+path <- file.path("outputs", "figures", "outcomes", "secondary")
+ggsave(file.path(path, "outcome-7-1-descriptive-alt.pdf"), p, height = 2.5, width = 6)
 p
 ```
 
@@ -848,50 +871,6 @@ ggsave(
 )
 p
 ```
-
-```{r}
-#| fig-cap: |
-#|   Intervention specific recovery progression (India, age < 60).
-haz <- get_arm_specific_probs(drws, TRUE) %>%
-  mutate(intervention = fct_inorder(intervention))
-pdat <- haz %>% 
-  select(intervention, time, unrecovered = surv, recovered = cprob1, died = cprob2) %>%
-  pivot_longer(unrecovered:died, names_to = "event", values_to = "posterior")
-obsdat <- acs_itt_outdat %>%
-  # filter(ctry == "IN", agegte60 == 0) %>%
-  complete(CAssignment, time, fill = list(y = 0)) %>%
-  group_by(intervention = factor(CAssignment, labels = c("Standard", "Intermediate", "Standard plus aspirin", "Therapeutic")), time) %>%
-  summarise(n = n(), y1 = sum(y == 1), y2 = sum(y == 2), .groups = "drop") %>%
-  group_by(intervention) %>%
-  mutate(cy1 = cumsum(y1), 
-         recovered = cy1 / n[1],
-         cy2 = cumsum(y2),
-         died = cy2 / n[1],
-         unrecovered = (n[1] - cy1 - cy2) / n[1]) %>%
-  ungroup() %>%
-  pivot_longer(c(unrecovered, recovered, died), names_to = "event", values_to = "proportion")
-p <- ggplot(pdat, aes(time, fill = event, colour = event)) +
-  facet_wrap( ~ intervention) +
-  geom_rect(aes(xmin = time, 
-                xmax = time + 1,
-                ymin = quantile(posterior, 0.025), 
-                ymax = quantile(posterior, 0.975)),
-              alpha = 0.25, colour = NA) +
-  geom_step(aes(y = median(posterior))) +
-  geom_point(data = obsdat, aes(y = proportion, x = time + 0.5)) +
-  scale_fill_viridis_d("Event", option = "B", begin = 0.2, end = 0.8) +
-  scale_colour_viridis_d("Event", option = "B", begin = 0.2, end = 0.8) +
-  scale_x_continuous("Day", breaks = c(1, 7, 14, 21, 28), limits = c(1, 28)) +
-  labs(y = "Proportion")
-ggsave(
-  file.path(
-    "outputs", "figures", "outcomes", "secondary", 
-    "7-1-acs-itt-marginal-ttr.pdf"),
-  p, height = 2.5, width = 6
-)
-p
-```
-
 
 ## Sensitivity: Concurrent Enrolements
 
