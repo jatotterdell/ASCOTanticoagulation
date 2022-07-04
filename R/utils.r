@@ -52,9 +52,9 @@ intervention_labels <- function() {
     ),
     CAssignment = c(
       "C0" = "Not randomised to anticoagulation",
-      "C1" = "Standard<br>dose",
+      "C1" = "Low<br>dose",
       "C2" = "Intermediate<br>dose",
-      "C3" = "Standard dose<br>plus aspirin",
+      "C3" = "Low dose<br>with aspirin",
       "C4" = "Therapeutic<br>dose"
     )
   )
@@ -69,10 +69,46 @@ intervention_labels2 <- function() {
     ),
     CAssignment = c(
       "C0" = "Not randomised to anticoagulation",
-      "C1" = "Standard dose",
-      "C2" = "Intermediate dose",
-      "C3" = "Standard dose plus aspirin",
-      "C4" = "Therapeutic dose"
+      "C1" = "Low-dose",
+      "C2" = "Intermediate-dose",
+      "C3" = "Low-dose with aspirin",
+      "C4" = "Therapeutic-dose"
+    )
+  )
+}
+
+
+intervention_labels_short <- function() {
+  list(
+    AAssignment = c(
+      "A0" = "Not randomised A",
+      "A1" = "None",
+      "A2" = "Nafamostat"
+    ),
+    CAssignment = c(
+      "C0" = "Not randomised C",
+      "C1" = "Low",
+      "C2" = "Intermediate",
+      "C3" = "Low with aspirin",
+      "C4" = "Therapeutic"
+    )
+  )
+}
+
+
+intervention_labels_short_break <- function() {
+  list(
+    AAssignment = c(
+      "A0" = "Not\nrandomised A",
+      "A1" = "None",
+      "A2" = "Nafamostat"
+    ),
+    CAssignment = c(
+      "C0" = "Not\nrandomised C",
+      "C1" = "Low",
+      "C2" = "Intermediate",
+      "C3" = "Low with\naspirin",
+      "C4" = "Therapeutic"
     )
   )
 }

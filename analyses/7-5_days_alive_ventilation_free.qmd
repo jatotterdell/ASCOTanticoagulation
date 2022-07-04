@@ -11,6 +11,7 @@ author:
     affiliation: University of Melbourne
 date: last-modified
 toc-depth: 5
+freeze: true
 ---
 
 # Preamble
@@ -103,10 +104,12 @@ acs_itt_concurc4_nona_dat <- acs_itt_concurc4_dat %>%
 ```{r}
 #| label: models
 #| code-summary: Load models
-ordmod0 <- cmdstan_model("stan/logistic_cumulative_ordinal.stan") # No epoch or site
-ordmod_epoch <- cmdstan_model("stan/logistic_cumulative_epoch.stan") # Epoch only
-# ordmod_site <- cmdstan_model("stan/logistic_cumulative_site.stan") # Site only
-ordmod <- cmdstan_model("stan/logistic_cumulative_epoch_site.stan") # Full model
+ordmod0 <- cmdstan_model(
+  "stan/ordinal/logistic_cumulative.stan") # No epoch or site
+ordmod_epoch <- cmdstan_model(
+  "stan/ordinal/logistic_cumulative_epoch.stan") # Epoch only
+ordmod <- cmdstan_model(
+  "stan/ordinal/logistic_cumulative_epoch_site.stan") # Full model
 ```
 
 ```{r}
@@ -230,6 +233,12 @@ acs_itt_dat %>%
 # Mostly consistent.
 all_dat %>%
   filter(ANY_vent == 0, out_dafv %in% c(10, 21, 27)) %>%
+  select(StudyPatientID, D28_Status, D28_PatientStatusDay28, D28_StatusVentilation, out_dafv, DD_vent, DIS_day, ANY_vent, D28_death)
+all_dat %>%
+  filter(ANY_vent == 1, out_dafv %in% 28) %>%
+  select(StudyPatientID, D28_Status, D28_PatientStatusDay28, D28_StatusVentilation, out_dafv, DD_vent, DIS_day, ANY_vent, D28_death)
+all_dat %>%
+  filter(ANY_vent == 0, out_dafv < 28) %>%
   select(StudyPatientID, D28_Status, D28_PatientStatusDay28, D28_StatusVentilation, out_dafv, DD_vent, DIS_day, ANY_vent, D28_death)
 
 # Some participants with inconsistent outcome data:
@@ -520,12 +529,14 @@ The primary analysis uses the ACS-ITT set, so all participants have been randomi
 ```{r}
 #| label: fit-model-primary
 #| code-summary: Fit primary model
-fit_primary_model <- function(dat, ctr = contr.orthonorm) {
+fit_primary_model <- function(dat, ctr = contr.orthonorm, fit = TRUE, save = FALSE) {
   mdat <- make_primary_model_data(
     dat, c("inelgc3", "agegte60", "ctry"), 
     c(10, 2.5, 1, 1), 
     ctr)
-  snk <- capture.output(
+  
+  if(fit) {
+    snk <- capture.output(
     mfit <- ordmod$sample(
       data = mdat,
       seed = 3510392,
@@ -535,7 +546,16 @@ fit_primary_model <- function(dat, ctr = contr.orthonorm) {
       iter_sampling = 2500,
       refresh = 0,
       adapt_delta = 0.98
-  ))
+    )) 
+    if(save) {
+      mfit$save_object(
+        file.path("outputs", "models", "secondary", "7-5-dafv", "primary.rds"))  
+    }
+  } else {
+    mfit <- readRDS(
+      file.path("outputs", "models", "secondary", "7-5-dafv", "primary.rds"))
+  }
+
   mdrws <- as_draws_rvars(mfit$draws())
   # Add names
   epoch_map <- dat %>% dplyr::count(epoch, epoch_lab)
@@ -557,14 +577,15 @@ fit_primary_model <- function(dat, ctr = contr.orthonorm) {
     "Standard plus aspirin vs therapeutic" = exp(mdrws$trtC[2] - mdrws$trtC[3])
   )
   mdrws$OR <- c(
-    setNames(exp(mdrws$trtC), c("Intermediate", "Standard plus aspirin", "Therapeutic")),
+    setNames(exp(mdrws$trtC), c("Intermediate", "Low with aspirin", "Therapeutic")),
     "Ineligible aspirin" = exp(mdrws$beta[which(grepl("inelg", colnames(mdat$X)))]),
     "Age 60+" = exp(mdrws$beta[which(grepl("age", colnames(mdat$X)))]),
     setNames(exp(mdrws$beta[which(grepl("ctry", colnames(mdat$X)))]), c("AU/NZ", "NP"))
   )
   return(list(dat = mdat, fit = mfit, drws = mdrws))
 }
-res <- fit_primary_model(acs_itt_nona_dat)
+# res <- fit_primary_model(acs_itt_nona_dat, fit = TRUE, save = TRUE)
+res <- fit_primary_model(acs_itt_nona_dat, fit = FALSE)
 ```
 
 ```{r}
@@ -600,7 +621,8 @@ p
 :::{.callout-caution collapse="true"}
 ###### Diagnostics
 ```{r}
-res$fit$summary()
+res$fit$summary(c("alpha", "beta", "gamma_site", "gamma_epoch", "tau_site", "tau_epoch")) %>%
+  print(n = Inf)
 res$fit$diagnostic_summary()
 ```
 :::
@@ -614,6 +636,95 @@ mcmc_trace(res$drws["gamma_site"])
 mcmc_trace(res$drws["gamma_epoch"])
 ```
 :::
+
+#### Posterior Predictive
+
+```{r}
+y_raw <- as.integer(levels(res$dat$y_raw))
+y_ppc <- res$drws$y_ppc
+y_ppc_raw <- rfun(\(x) y_raw[x])(y_ppc)
+ppc_dat <- bind_cols(acs_itt_nona_dat, tibble(y_ppc = y_ppc_raw)) %>%
+  mutate(CAssignment = factor(
+    CAssignment, 
+    levels = names(intervention_labels_short_break()$CAssignment),
+    labels = intervention_labels_short_break()$CAssignment))
+
+grp_ppc <- function(grp, d = 0:28) {
+  ppc_dat %>%
+    group_by(grp = {{grp}}) %>%
+    summarise(
+      y_lteq = map_dbl(d, ~ mean(out_dafv <= .x)),
+      ypp_lteq = map(d, ~ rvar_mean(y_ppc <= .x)),
+      y_eq = map_dbl(d, ~ mean(out_dafv == .x)),
+      ypp_eq = map(d, ~ rvar_mean(y_ppc == .x))
+    ) %>%
+    unnest(c(ypp_lteq, ypp_eq)) %>%
+    mutate(days = d) %>%
+    ungroup() %>%
+    pivot_longer(
+      y_lteq:ypp_eq, 
+      names_to = c("response", "event"),
+      names_sep = "_",
+      values_to = "posterior")
+}
+
+plot_grp_ppc <- function(dat, lab = "", xlab = "Probability") {
+  ggplot(dat %>% 
+           filter(response == "ypp", event == "eq"), 
+         aes(y = days)) +
+    facet_wrap( ~ grp, nrow = 1, scales = "free_x") +
+    stat_slabinterval(aes(xdist = posterior), fatten_point = 1)  +
+    geom_point(data = dat %>% filter(response == "y", event == "eq"), 
+               aes(y = days, x = mean(posterior)),
+               colour = "red",
+               shape = 23) +
+    scale_x_continuous(
+      xlab, breaks = c(0, 0.3, 0.6),
+      sec.axis = sec_axis(
+        ~ . , name = lab, breaks = NULL, labels = NULL)) +
+    scale_y_continuous("Days") +
+    theme(strip.text = element_text(size = rel(0.7)),
+          axis.title.x = element_text(size = rel(0.7)),
+          axis.text.x = element_text(size = rel(0.65)),
+          axis.title.y = element_text(size = rel(0.75)),
+          axis.title.x.bottom = element_blank())
+}
+
+pp_C <- grp_ppc(CAssignment)
+pp_ctry <- grp_ppc(country)
+pp_epoch <- grp_ppc(epoch)
+pp_site <- grp_ppc(site) %>%
+  left_join(ppc_dat %>% dplyr::count(site, country), 
+            by = c("grp" = "site"))
+
+p1 <- plot_grp_ppc(pp_C, "Anticoagulation", "")
+p2 <- plot_grp_ppc(pp_ctry, "Country", "") 
+p3 <- plot_grp_ppc(pp_epoch, "Epoch", "")
+p4 <- plot_grp_ppc(
+  pp_site %>% filter(country == "IN"), "Sites India", "")
+p5 <- plot_grp_ppc(
+  pp_site %>% filter(country == "AU"), "Sites Australia", "")
+p6 <- plot_grp_ppc(
+  pp_site %>% filter(country == "NP"), "Sites Nepal", "")
+p7 <- plot_grp_ppc(
+  pp_site %>% filter(country == "NP"), "Sites New Zealand", "")
+
+g1 <- (p1 | p2) / p3
+g2 <- p4 / p5 / (p6 | p7)
+
+pth1 <- file.path(
+  "outputs", "figures", "outcomes", "secondary",
+  "7-5-primary-model-acs-itt-ppc1.pdf")
+pth2 <- file.path(
+  "outputs", "figures", "outcomes", "secondary",
+  "7-5-primary-model-acs-itt-ppc2.pdf")
+
+ggsave(pth1, g1, width = 6, height = 5, device = cairo_pdf)
+ggsave(pth2, g2, width = 6, height = 6, device = cairo_pdf)
+
+g1
+g2
+```
 
 ### Sensitivity: Concurrent controls
 
@@ -730,7 +841,7 @@ mcmc_trace(mdrws["alpha"])
 ```
 :::
 
-#### Standard dose plus aspirin
+#### Low-dose with aspirin
 
 ```{r}
 #| code-summary: Descriptive summary table
@@ -771,11 +882,11 @@ mdrws <- as_draws_rvars(mfit$draws())
 names(mdrws$beta) <- colnames(X)
 mdrws$Ccon <- as.vector(ctr(3) %**% mdrws$beta[1:2])
 mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
-mdrws$compare <- c("Intermediate vs standard" = exp(mdrws$Ctrt[1]),
-                   "Standard plus aspirin vs standard" = exp(mdrws$Ctrt[2]),
-                   "Intermediate vs standard plus aspirin" = exp(mdrws$Ctrt[1] - mdrws$Ctrt[2]))
+mdrws$compare <- c("Intermediate vs low" = exp(mdrws$Ctrt[1]),
+                   "Low with aspirin vs low" = exp(mdrws$Ctrt[2]),
+                   "Intermediate vs low with aspirin" = exp(mdrws$Ctrt[1] - mdrws$Ctrt[2]))
 mdrws$OR <- c("Intermediate" = exp(mdrws$Ctrt[1]),
-              "Standard plus aspirin" = exp(mdrws$Ctrt[2]),
+              "Low with aspirin" = exp(mdrws$Ctrt[2]),
               setNames(exp(mdrws$beta[3:4]), c("Age 60+", "Australia/New Zealand")))
 ```
 
@@ -789,7 +900,7 @@ pdat <- acs_itt_concurc3_nona_dat %>%
     CAssignment = factor(
       CAssignment, 
       levels = c("C1", "C2", "C3"),
-      labels = c("Standard", "Intermediate", "Standard\nplus aspirin")),
+      labels = c("Low", "Intermediate", "Low\nwith aspirin")),
     dafv = ordered(out_dafv, levels = 0:28), 
     .drop = F) %>%
   group_by(CAssignment) %>%
@@ -880,8 +991,8 @@ mdrws <- as_draws_rvars(mfit$draws())
 names(mdrws$beta) <- colnames(X)
 mdrws$Ccon <- as.vector(ctr(3) %**% mdrws$beta[1:2])
 mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
-mdrws$compare <- c("Intermediate vs standard" = exp(mdrws$Ctrt[1]),
-                   "Therapeutic vs standard" = exp(mdrws$Ctrt[2]),
+mdrws$compare <- c("Intermediate vs low" = exp(mdrws$Ctrt[1]),
+                   "Therapeutic vs low" = exp(mdrws$Ctrt[2]),
                    "Intermediate vs therapeutic" = exp(mdrws$Ctrt[1] - mdrws$Ctrt[2]))
 mdrws$OR <- c("Intermediate" = exp(mdrws$Ctrt[1]),
               "Therapeutic" = exp(mdrws$Ctrt[2]),
@@ -898,7 +1009,7 @@ pdat <- acs_itt_concurc4_nona_dat %>%
     CAssignment = factor(
       CAssignment, 
       levels = c("C1", "C2", "C4"),
-      labels = c("Standard", "Intermediate", "Therapeutic")),
+      labels = c("Low", "Intermediate", "Therapeutic")),
     dafv = ordered(out_dafv, levels = 0:28), 
     .drop = F) %>%
   group_by(CAssignment) %>%
