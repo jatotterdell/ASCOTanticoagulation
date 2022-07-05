@@ -57,3 +57,37 @@ all_data %>%
   kable("html") %>%
   kable_styling("striped", font_size = 14)
 ```
+
+## Checks
+
+```{r}
+all_data %>% dplyr::count(D28_PatientStatusDay28, D28_Status)
+
+all_data %>% 
+  count(
+    D28_OutcomeTotalDaysHospitalised == (DIS_DateOfDischarge - RandDate + 1),
+    D28_PatientStatusDay28) %>%
+  print(n = Inf)
+
+all_data %>% 
+  filter(D28_OutcomeTotalDaysHospitalised != (DIS_DateOfDischarge - RandDate + 1)) %>%
+  dplyr::count(
+    D28_OutcomeTotalDaysHospitalised,
+    DIS_DateOfDischarge - RandDate + 1,
+    D28_Status
+  ) %>%
+  print(n = Inf)
+
+all_data %>% 
+  filter(
+    D28_OutcomeTotalDaysHospitalised == (DIS_DateOfDischarge - RandDate + 1),
+    D28_who > 2
+  ) %>% 
+  select(
+    StudyPatientID, 
+    D28_OutcomeTotalDaysHospitalised, 
+    D28_Status
+  ) %>%
+  print(n = Inf)
+```
+

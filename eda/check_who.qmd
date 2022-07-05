@@ -24,6 +24,9 @@ library(bayestestR)
 library(bayesplot)
 library(matrixStats)
 library(ggdist)
+
+devtools::load_all()
+all_dat <- read_all_no_daily()
 ```
 
 ```{r}
@@ -77,15 +80,15 @@ d28 <- all_dat %>%
 Looks like only a couple of the included data are likely to be readmissions (most are discharged at hospitalisation). Need too find out if they were truly readmitted.
 
 ```{r}
-
-data <- d28 %>% filter(DIS_day < 28 & D28_who >= 3 & D28_death !=1)
-
+data <- d28 %>% filter(DIS_day < 28 & D28_who >= 3 & D28_death != 1)
 ggplot(data, aes(x = D28_OutcomeTotalDaysHospitalised,
                  y = DIS_day)) +
   facet_wrap(~ D28_who) + 
   geom_point() + 
-  geom_abline(intercept =0 , slope = 1) + theme_grey()
-
+  geom_abline(intercept = 0 , slope = 1) + theme_grey() +
+  coord_equal()
+data %>%
+  filter(D28_OutcomeTotalDaysHospitalised  == DIS_day)
 ```
 
 ## Check for discharge on day 28, but WHO not hospitalised on day 28
@@ -93,19 +96,22 @@ ggplot(data, aes(x = D28_OutcomeTotalDaysHospitalised,
 Looks like only a single patient. Discharge day is the same as the total days hospitalised (both 28 days). Probably the WHO outcome is in error.  
 
 ```{r}
-
-data <- d28 %>% filter(DIS_day == 28 & D28_who <= 3 & D28_death !=1)
-
+data <- d28 %>% filter(DIS_day == 28 & D28_who <= 3 & D28_death != 1)
+data %>% select(StudyPatientID, DIS_day, D28_who, D28_OutcomeTotalDaysHospitalised)
 ```
+
 ## Check for 28 total days in hospital, but WHO not hospitalised on day 28
 
 One of these is the same as the previous section (ALF00005). Seem like ventilated for some days, whether that helps.
 
 ```{r}
-
-data <- d28 %>% filter(D28_OutcomeTotalDaysHospitalised == 28 & D28_who <= 3 & D28_death !=1)
-
+data <- d28 %>% filter(D28_OutcomeTotalDaysHospitalised == 28 & D28_who <= 3 & D28_death != 1)
+data %>% select(StudyPatientID, D28_OutcomeTotalDaysHospitalised, D28_who, D28_death, DIS_day)
 ```
+
+Per Grace: 
+
+> We queried this at the time. The patient (JIV00155) was re-admitted to hospital and put on NIV support for 18 days.
 
 
 ## Check for dead but not WHO dead
@@ -113,10 +119,5 @@ data <- d28 %>% filter(D28_OutcomeTotalDaysHospitalised == 28 & D28_who <= 3 & D
 None which is good. 
 
 ```{r}
-
 data <- d28 %>% filter(D28_who !=8 & D28_death == 1)
-
 ```
-
-# End of script.
-

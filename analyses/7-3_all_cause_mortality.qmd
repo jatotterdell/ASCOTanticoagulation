@@ -8,6 +8,7 @@ author:
   - name: James Totterdell
     affiliation: University of Sydney
 date: last-modified
+freeze: true
 ---
 
 # Preamble {#preamble}
@@ -386,15 +387,15 @@ mdrws$Ccon <- attr(mdat$X, "contrasts")$randC %**% mdrws$beta[grepl("randC[0-9]"
 mdrws$Atrt <- mdrws$Acon[-1] - mdrws$Acon[1]
 mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
 mdrws$compare <- c(
-  "Intermediate vs standard" = exp(mdrws$Ctrt[1]),
-  "Standard plus aspirin vs standard" = exp(mdrws$Ctrt[2]),
-  "Therapeutic vs standard" = exp(mdrws$Ctrt[3]),
-  "Intermediate vs standard plus aspirin" = exp(mdrws$Ctrt[1] - mdrws$Ctrt[2]),
+  "Intermediate vs low" = exp(mdrws$Ctrt[1]),
+  "Low with aspirin vs low" = exp(mdrws$Ctrt[2]),
+  "Therapeutic vs low" = exp(mdrws$Ctrt[3]),
+  "Intermediate vs low with aspirin" = exp(mdrws$Ctrt[1] - mdrws$Ctrt[2]),
   "Intermediate vs therapeutic" = exp(mdrws$Ctrt[1] - mdrws$Ctrt[3]),
-  "Standard plus aspirin vs therapeutic" = exp(mdrws$Ctrt[2] - mdrws$Ctrt[3])
+  "Low with aspirin vs therapeutic" = exp(mdrws$Ctrt[2] - mdrws$Ctrt[3])
 )
 mdrws$OR <- c(
-  setNames(exp(mdrws$Ctrt), c("Intermediate", "Standard plus aspirin", "Therapeutic")),
+  setNames(exp(mdrws$Ctrt), c("Intermediate", "Low with aspirin", "Therapeutic")),
   setNames(exp(mdrws$beta[7:8]), c("Ineligible aspirin", "Age 60+")),
   setNames(exp(mdrws$beta[9:10]), c("Australia/New Zealand", "Nepal"))
 )
@@ -531,7 +532,7 @@ names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
 mdrws$Ccon <- attr(mdat$X, "contrasts")$randC %**% mdrws$beta[2:4]
 mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
 mdrws$OR <- c(
-  setNames(exp(mdrws$Ctrt), c("Intermediate", "Standard plus aspirin", "Therapeutic")),
+  setNames(exp(mdrws$Ctrt), c("Intermediate", "Low with aspirin", "Therapeutic")),
   setNames(exp(mdrws$beta[-(1:6)]), c("Ineligible aspirin", "Age 60+", "Australia/New Zealand", "Nepal"))
 )
 ```
@@ -595,7 +596,7 @@ names(mdrws$gamma_site) <- site_map$site
 mdrws$Ccon <- attr(mdat$X, "contrasts")$randC %**% mdrws$beta[2:4]
 mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
 mdrws$OR <- c(
-  setNames(exp(mdrws$Ctrt), c("Intermediate", "Standard plus aspirin", "Therapeutic")),
+  setNames(exp(mdrws$Ctrt), c("Intermediate", "Low with aspirin", "Therapeutic")),
   setNames(exp(mdrws$beta[-(1:6)]), c("Ineligible aspirin", "Age 60+", "Australia/New Zealand", "Nepal"))
 )
 ```
@@ -655,7 +656,7 @@ names(mdrws$beta) <- colnames(mdat$X)
 mdrws$Ccon <- attr(mdat$X, "contrasts")$randC %**% mdrws$beta[2:4]
 mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
 mdrws$OR <- c(
-  setNames(exp(mdrws$Ctrt), c("Intermediate", "Standard plus aspirin", "Therapeutic")),
+  setNames(exp(mdrws$Ctrt), c("Intermediate", "Low with aspirin", "Therapeutic")),
   setNames(exp(mdrws$beta[-(1:6)]), c("Ineligible aspirin", "Age 60+", "Australia/New Zealand", "Nepal"))
 )
 ```
@@ -718,7 +719,7 @@ mdrws <- as_draws_rvars(mfit$draws(c("beta")))
 names(mdrws$beta) <- colnames(mdat$X)
 mdrws$Ccon <- attr(mdat$X, "contrasts")$randC %**% mdrws$beta[2]
 mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
-mdrws$compare <- c("Intermediate vs standard" = exp(mdrws$Ctrt[1]))
+mdrws$compare <- c("Intermediate vs low" = exp(mdrws$Ctrt[1]))
 mdrws$OR <- c(
   setNames(exp(mdrws$Ctrt), c("Intermediate")),
   setNames(exp(mdrws$beta[-(1:2)]), c("Age 60+", "Australia/New Zealand", "Nepal"))
@@ -784,7 +785,7 @@ site_facet <- factor(mdat$region_by_site, labels = c("India", "Australia\nNew Ze
 
 mdrws$Ccon <- attr(mdat$X, "contrasts")$randC %**% mdrws$beta[2]
 mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
-mdrws$compare <- c("Intermediate vs standard" = exp(mdrws$Ctrt[1]))
+mdrws$compare <- c("Intermediate vs low" = exp(mdrws$Ctrt[1]))
 mdrws$OR <- c(
   setNames(exp(mdrws$Ctrt), c("Intermediate")),
   setNames(exp(mdrws$beta[-(1:4)]), c("Age 60+", "Australia/New Zealand", "Nepal"))
@@ -799,11 +800,11 @@ odds_ratio_summary_table(mdrws$OR)
 plot_site_terms(exp(mdrws$gamma_site), site_facet)
 ```
 
-### Standard plus aspirin
+### Low-dose with aspirin
 
 ```{r}
 #| code-summary: Overview of outcome
-#| tbl-cap: Summary of outcome for standard dose plus aspirin concurrent enrolments.
+#| tbl-cap: Summary of outcome for low-dose with aspirin concurrent enrolments.
 save_tex_table(
   make_mortality_table(acs_itt_concurc3_dat, "latex"),
   "outcomes/secondary/7-3-anticoagulation-concurrent-stdaspirin-summary")
@@ -832,11 +833,11 @@ mdrws <- as_draws_rvars(mfit$draws(c("beta")))
 names(mdrws$beta) <- colnames(mdat$X)
 mdrws$Ccon <- attr(mdat$X, "contrasts")$randC %**% mdrws$beta[2:3]
 mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
-mdrws$compare <- c("Intermediate vs standard" = exp(mdrws$Ctrt[1]),
-                   "Standard plus aspirin vs standard" = exp(mdrws$Ctrt[2]),
-                   "Intermediate vs standard plus aspirin" = exp(mdrws$Ctrt[1] - mdrws$Ctrt[2]))
+mdrws$compare <- c("Intermediate vs low" = exp(mdrws$Ctrt[1]),
+                   "Low with aspirin vs low" = exp(mdrws$Ctrt[2]),
+                   "Intermediate vs low with aspirin" = exp(mdrws$Ctrt[1] - mdrws$Ctrt[2]))
 mdrws$OR <- c(
-  setNames(exp(mdrws$Ctrt), c("Intermediate", "Standard plus aspirin")),
+  setNames(exp(mdrws$Ctrt), c("Intermediate", "Low with aspirin")),
   setNames(exp(mdrws$beta[-(1:3)]), c("Age 60+", "Australia/New Zealand"))
 )
 ```
@@ -905,8 +906,8 @@ mdrws <- as_draws_rvars(mfit$draws(c("beta")))
 names(mdrws$beta) <- colnames(mdat$X)
 mdrws$Ccon <- attr(mdat$X, "contrasts")$randC %**% mdrws$beta[2:3]
 mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
-mdrws$compare <- c("Intermediate vs standard" = exp(mdrws$Ctrt[1]),
-                   "Therapeutic vs standard" = exp(mdrws$Ctrt[2]),
+mdrws$compare <- c("Intermediate vs low" = exp(mdrws$Ctrt[1]),
+                   "Therapeutic vs low" = exp(mdrws$Ctrt[2]),
                    "Intermediate vs therapeutic" = exp(mdrws$Ctrt[1] - mdrws$Ctrt[2]))
 mdrws$OR <- c(
   setNames(exp(mdrws$Ctrt), c("Intermediate", "Therapeutic")),

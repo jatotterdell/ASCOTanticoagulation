@@ -196,6 +196,27 @@ plot_epoch_site_terms <- function(rvs_epoch, rvs_site, region) {
   p
 }
 
+
+ordinal_grp_ppc <- function(out, grp, d = 0:27) {
+  ppc_dat %>%
+    group_by(grp = {{grp}}) %>%
+    summarise(
+      y_lteq = map_dbl(d, ~ mean({{out}} <= .x)),
+      ypp_lteq = map(d, ~ rvar_mean(y_ppc <= .x)),
+      y_eq = map_dbl(d, ~ mean({{out}} == .x)),
+      ypp_eq = map(d, ~ rvar_mean(y_ppc == .x))
+    ) %>%
+    unnest(c(ypp_lteq, ypp_eq)) %>%
+    mutate(out = d) %>%
+    ungroup() %>%
+    pivot_longer(
+      y_lteq:ypp_eq,
+      names_to = c("response", "event"),
+      names_sep = "_",
+      values_to = "posterior")
+}
+
+
 # Baseline summary - demographics  ----
 
 #' Generate baseline demographics summary by a grouping variable

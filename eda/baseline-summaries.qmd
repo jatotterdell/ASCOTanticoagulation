@@ -481,6 +481,23 @@ p <- all_data %>%
 p
 ```
 
+## Oxygen
+
+```{r}
+all_data %>% 
+  dplyr::count(
+    BAS_OnRoomAir24hrs,
+    BAS_OnRoomAir24hrsUnknown,
+    is.na(BAS_PeripheralOxygen)
+  )
+
+all_data %>%
+  dplyr::count(
+    BAS_OnRoomAir24hrs == "Yes",
+    BAS_PeripheralOxygen < 94
+  )
+```
+
 ## Date since first symptoms
 
 ```{r}
