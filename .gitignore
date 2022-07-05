@@ -26,6 +26,7 @@ renv/*
 
 # Ignore PDFs and DOCX
 *.pdf
+!report/ascot_anticoagulation_clinical_study_report.pdf
 *.docx
 
 # RDS files
