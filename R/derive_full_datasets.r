@@ -132,6 +132,11 @@ add_database_corrections <- function(dat) {
 }
 
 
+add_d28_corrections <- function(dat) {
+  dat
+}
+
+
 add_v5_activation_date <- function(dat) {
   act <- read_site_activation_file() %>%
     select(country, site, active_domains, active_v3, active_v5)
@@ -322,7 +327,7 @@ add_breathlessness_scale <- function(dat) {
         D28_BreathSinceGettingCovid == "Unknown" ~ NA_real_,
         D28_BreathSinceGettingCovid == "No" ~ -1,
         TRUE ~ D28_BreathScale
-      )
+      ) + 1
     )
   return(out)
 }
@@ -504,6 +509,7 @@ format_discharge_data <- function(dis) {
 
 format_d28_data <- function(dat) {
   dat %>%
+    add_d28_corrections() %>%
     mutate(
       D28_who = as.integer(substr(D28_Status, 1, 1)),
       D28_who2 = as.integer(substr(D28_StatusVentilation, 1, 1)),
@@ -530,7 +536,8 @@ format_daily_data <- function(dd) {
   dd %>%
     mutate(
       DD_who = as.integer(substr(DD_ParticipantDailyStatus, 1, 1)),
-      DD_who2 = as.integer(substr(DD_O2, 1, 1))
+      DD_who2 = as.integer(substr(DD_O2, 1, 1)),
+      DD_DoseLMWH = as.numeric(DD_DoseLMWH)
     ) %>%
     arrange(StudyPatientID, DD_StudyDay)
 }
