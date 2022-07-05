@@ -1235,6 +1235,15 @@ knitr::include_graphics(
 ```
 
 ```{r}
+#| label: fig-7-1-descriptive-alt
+#| fig-cap: |
+#|   Observed progression of patients with respect to death and recovery, ACS-ITT.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/outcome-7-1-descriptive-alt.pdf"
+)
+```
+
+```{r}
 #| label: tbl-7-1-acs-itt-summary
 #| tbl-cap: |
 #|   Posterior summary of cause-specific odds ratios for recovery or death to day 28,
@@ -2231,7 +2240,38 @@ writeLines(tab)
 
 ### Modified Medical Research Council (mMRC) breathlessness scale at day 28
 
-The mMRC scale was only asked of participants who responded "yes" to the question of worsening breathlessness. Therefore, the distribution of this outcome scale is conditional on the patient responding that their breathlessness had worsened since having COVID.
+The mMRC scale was only asked of participants who responded "yes" to the question of new or worsening breathlessness since COVID. Therefore, the distribution of this outcome scale is conditional on the patient responding that they were experiencing new or worse breathlessness since having COVID. In the following tables "Not asked" refers to participants who responded "no" the question of breathlessness.
+
+```{r}
+#| label: tbl-7-7-mmrc-acs-itt
+#| tbl-cap: |
+#|   mMRC breathlessness scale by anticoagulation intervention (day 28).
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-7_mmrc_scale_descriptive.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-7-7-primary-model-acs-itt-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios) 
+#|   for the mMRC scale at day 28 primary model fit to the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", 
+                           "7-7-primary-model-acs-itt-summary-table.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-7-7-primary-model-acs-itt-site-epoch-parameters
+#| fig-cap: |
+#|   Posterior Summaries (point - median, block - 75% CrI, line - 95% CrI) 
+#|   of odds ratio for epoch and site effects on the mMRC scale at day 28 for 
+#|   the primary model fit to the ACS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/secondary/7-7-primary-model-epoch-site-terms.pdf"
+)
+```
 
 \clearpage
 
@@ -2242,6 +2282,33 @@ The mMRC scale was only asked of participants who responded "yes" to the questio
 ### Quality of life as measured by EQ-5D-5L questionnaire at day 28
 
 The EQ-5D-5L responses are described.
+
+```{r}
+#| label: tbl-7-8-counts
+#| tbl-cap: |
+#|   Prevelance of 10 most frequent, and worst, reported EQ-5D-5L profiles by treatment (day 28).
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-8_eq5d5l_counts.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-7-8-distributions
+#| tbl-cap: |
+#|   Distribution of responses on the EQ-5D-5L (day 28).
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-8_eq5d5l_distribution.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-7-8-vas-descriptive
+#| tbl-cap: |
+#|   Descriptive summary of EQ-5D VAS (day 28).
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "7-8_eq5d_vas.tex"))
+writeLines(tab)
+```
 
 \clearpage
 
@@ -2567,7 +2634,7 @@ knitr::include_graphics(
 
 \clearpage
 
-## Presence of patient reported shortness of breath to day 28 by model covariates (ACS-ITT) {#sec-app-7-6-model-cov}
+## Presence of patient reported shortness of breath at day 28 by model covariates (ACS-ITT) {#sec-app-7-6-model-cov}
 
 ```{r}
 #| label: fig-7-6-age
@@ -2658,7 +2725,69 @@ knitr::include_graphics(pth)
 
 \clearpage
 
-### Shortness of Breath at day 28
+### Days alive and free of hospital to day 28
+
+```{r}
+#| label: fig-7-4-primary-model-acs-itt-ppc1
+#| fig-cap: |
+#|   Posterior predictive distribution for days alive 
+#|   and free of hospital to day 28 by model covariates
+#|   (intervention, country, and epoch) 
+#|   for primary model using ACS-ITT.
+#|   Red diamond indicates observed proportions.
+pth <- file.path(
+  "..", "outputs", "figures", "outcomes", "secondary",
+  "7-4-primary-model-acs-itt-ppc1.pdf")
+knitr::include_graphics(pth)
+```
+
+```{r}
+#| label: fig-7-4-primary-model-acs-itt-ppc2
+#| fig-cap: |
+#|   Posterior predictive distribution for days alive 
+#|   and free of hospital to day 28 by model covariates (site) 
+#|   for primary model using ACS-ITT.
+#|   Red diamond indicates observed proportions.
+pth <- file.path(
+  "..", "outputs", "figures", "outcomes", "secondary",
+  "7-4-primary-model-acs-itt-ppc2.pdf")
+knitr::include_graphics(pth)
+```
+
+\clearpage
+
+### Days alive and free of ventilation to day 28
+
+```{r}
+#| label: fig-7-5-primary-model-acs-itt-ppc1
+#| fig-cap: |
+#|   Posterior predictive distribution for days alive 
+#|   and free of ventilation to day 28 by model covariates
+#|   (intervention, country, and epoch) 
+#|   for primary model using ACS-ITT.
+#|   Red diamond indicates observed proportions.
+pth <- file.path(
+  "..", "outputs", "figures", "outcomes", "secondary",
+  "7-5-primary-model-acs-itt-ppc1.pdf")
+knitr::include_graphics(pth)
+```
+
+```{r}
+#| label: fig-7-5-primary-model-acs-itt-ppc2
+#| fig-cap: |
+#|   Posterior predictive distribution for days alive 
+#|   and free of ventilation to day 28 by model covariates (site) 
+#|   for primary model using ACS-ITT.
+#|   Red diamond indicates observed proportions.
+pth <- file.path(
+  "..", "outputs", "figures", "outcomes", "secondary",
+  "7-5-primary-model-acs-itt-ppc2.pdf")
+knitr::include_graphics(pth)
+```
+
+\clearpage
+
+### Presence of patient reported shortness of breath at day 28
 
 ```{r}
 #| label: fig-7-6-primary-model-acs-itt-ppc
@@ -2668,5 +2797,20 @@ knitr::include_graphics(pth)
 #|   Red diamond indicates observed proportions.
 pth <- file.path("..", "outputs", "figures", "outcomes", "secondary",
                  "7-6-primary-model-acs-itt-ppc.pdf")
+knitr::include_graphics(pth)
+```
+
+\clearpage
+
+### mMRC Breathlessness Scale
+
+```{r}
+#| label: fig-7-7-primary-model-acs-itt-ppc
+#| fig-cap: |
+#|   Posterior predictive distribution for mMRC scale 
+#|   by model covariates for primary model using ACS-ITT.
+#|   Red diamond indicates observed proportions.
+pth <- file.path("..", "outputs", "figures", "outcomes", "secondary",
+                 "7-7-primary-model-acs-itt-ppc.pdf")
 knitr::include_graphics(pth)
 ```
