@@ -560,6 +560,7 @@ summarise_daily_data <- function(dd) {
       DD_who_missing = sum(is.na(DD_who)),
       DD_who_worst = max(DD_who, na.rm = TRUE),
       DD_who_best = min(DD_who, na.rm = TRUE),
+      DD_who_gteq3 = sum(DD_who >= 3, na.rm = TRUE),
       # Pre-derived variable for meeting primary outcome
       DD_po = as.integer(any(DD_PrimaryEndpointReachedToday == "Yes", na.rm = TRUE)),
       # Daily ventilation status (new ventilation meeting po outcome)
