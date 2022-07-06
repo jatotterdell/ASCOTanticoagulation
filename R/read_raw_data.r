@@ -255,6 +255,22 @@ read_deviation_file <- function(fn) {
 }
 
 
+read_sae_file <- function() {
+  sae <- read_csv(
+    file.path(Sys.getenv("ASCOT_DATA"), "raw", "SAEs_31MAY2022.csv"),
+    na = c("", "NA", "n/a"),
+    col_types = cols(
+      DateofSAEOnset = col_date(format = "%d/%m/%Y"),
+      DateLoggedOnDatabase = col_date(format = "%d/%m/%Y"),
+      ProtocolTreatmentStartDate = col_date(format = "%d/%m/%Y"),
+      ProtocolTreatmentEndDate = col_date(format = "%d/%m/%Y")
+    )
+  ) %>%
+    rename(StudyPatientID = PatientID)
+  return(sae)
+}
+
+
 read_site_activation_file <- function() {
   active <- read_csv(file.path(
     ASCOT_DATA_RAW, "ASCOTADAPT_SiteActivationDates_20220620.csv"
