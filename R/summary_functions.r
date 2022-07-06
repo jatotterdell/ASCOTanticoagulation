@@ -217,6 +217,49 @@ ordinal_grp_ppc <- function(out, grp, d = 0:27) {
 }
 
 
+summarise_cat_var <- function(dat, var) {
+  dat %>%
+    dplyr::count(D28_death_fac, {{ var }}) %>%
+    group_by({{var}}) %>%
+    mutate(denom1 = sum(n),
+           denom2 = sum(n * (D28_death_fac != "Missing"))) %>%
+    ungroup() %>%
+    mutate(label = sprintf(
+      "%i (%.2f)",
+      n,
+      ifelse(D28_death_fac == "Missing",
+             n / denom1,
+             n / denom2)
+    )) %>%
+    ungroup() %>%
+    dplyr::select(-n, -denom1, -denom2) %>%
+    spread(D28_death_fac, label, fill = "0 (0.00)") %>%
+    rowwise() %>%
+    mutate(Total = sum(across(2:4, ~ as.integer(sub(" \\(.*", "", .)))))
+}
+
+summarise_2cat_var <- function(dat, var1, var2) {
+  dat %>%
+    dplyr::count(D28_death_fac, {{ var1 }}, {{ var2 }}) %>%
+    group_by( {{ var1 }}, {{ var2 }}) %>%
+    mutate(denom1 = sum(n),
+           denom2 = sum(n * (D28_death_fac != "Missing"))) %>%
+    ungroup() %>%
+    mutate(label = sprintf(
+      "%i (%.2f)",
+      n,
+      ifelse(D28_death_fac == "Missing",
+             n / denom1,
+             n / denom2)
+    )) %>%
+    ungroup() %>%
+    dplyr::select(-n, -denom1, -denom2) %>%
+    spread(D28_death_fac, label, fill = "0 (0.00)") %>%
+    rowwise() %>%
+    mutate(Total = sum(across(3:5, ~ as.integer(sub(" \\(.*", "", .)))))
+}
+
+
 # Baseline summary - demographics  ----
 
 #' Generate baseline demographics summary by a grouping variable
