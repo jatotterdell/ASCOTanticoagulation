@@ -1,0 +1,105 @@
+---
+title: "Data Checks"
+description: |
+  Run the data checks requested by Grace.
+author: "James Totterdell"
+date: last-modified
+format:
+  docx:
+    reference-doc: ../custom-reference-doc.docx
+execute: 
+  echo: false
+---
+
+```{r}
+#| label: pkgs
+library(tidyverse)
+library(kableExtra)
+```
+
+```{r}
+#| label: load-data
+devtools::load_all()
+all_data <- read_all_no_daily()
+all_daily_data <- read_all_daily()
+```
+
+## Checks
+
+**If site has answered ‘Yes’ to needing vasopressors/inotropes at Day 28 their number of cumulative days hospitalised should be more than their number of dailies**
+
+criteria: D28_OutcomeVasopressors == "Yes" & D28_OutcomeTotalDaysHospitalised > DIS_day where DIS_day is study day of discharge.
+
+```{r}
+all_data %>%
+  filter(ENR_rec == 1, D28_OutcomeVasopressors == "Yes") %>%
+  select(StudyPatientID, D28_OutcomeVasopressors, DIS_day, DD_total_days, D28_OutcomeTotalDaysHospitalised) %>%
+  mutate(criteria = D28_OutcomeTotalDaysHospitalised > DIS_day) %>%
+  filter(!criteria) %>%
+  kable(align = "lrrrr")
+```
+
+**If site has answered ‘Yes’ to needing vasopressors/inotropes at day 28 their WHO score should be >= 6**
+
+criteria: D28_OutcomeVasopressors == "Yes" & D28_who >= 6
+
+```{r}
+all_data %>%
+  filter(ENR_rec == 1, D28_OutcomeVasopressors == "Yes") %>%
+  select(StudyPatientID, D28_OutcomeVasopressors, D28_who) %>%
+  mutate(criteria = D28_who >= 6) %>%
+  filter(!criteria) %>%
+  kable(align = "lrrrr")
+```
+
+**If site has answered WHO score =>6 at Day 28, number of days free of ventilation should be less than 28**
+
+criteria: D28_who > 5 & D28_OutcomeDaysFreeOfVentilation < 28
+
+```{r}
+all_data %>%
+  filter(ENR_rec == 1, D28_who >= 6) %>%
+  select(StudyPatientID, D28_who, D28_OutcomeDaysFreeOfVentilation) %>%
+  mutate(criteria = D28_OutcomeDaysFreeOfVentilation < 28) %>%
+  filter(!criteria) %>%
+  kable(align = "lrrrr")
+```
+
+**If site has answered WHO score 3 or above at Day 28 their number of cumulative days hospitalised should be more than their number of dailies** 
+
+criteria: D28_who >= 3 & DIS_day < 28 & D28_OutcomeTotalDaysHospitalised > DIS_day
+
+```{r}
+all_data %>%
+  filter(ENR_rec == 1, D28_who >= 3, D28_who != 8, DIS_day < 28) %>%
+  select(StudyPatientID, D28_who, D28_OutcomeTotalDaysHospitalised, DIS_day, DD_total_days) %>%
+  mutate(criteria = D28_OutcomeTotalDaysHospitalised > pmin(28, DIS_day))  %>%
+  filter(!criteria) %>%
+  kable(align = "lrrrr")
+```
+
+**Whether cumulative days hospitalised matches the number of dailies with a WHO score >= 3**
+
+criteria: D28_OutcomeTotalDaysHospitalised >= DD_who_gteq3 where DD_who_gteq3 is number of days where WHO score was greater than or equal to 3.
+
+```{r}
+all_data %>%
+ filter(ENR_rec == 1, !is.na(D28_OutcomeTotalDaysHospitalised), D28_death == 0) %>%
+  select(StudyPatientID, D28_OutcomeTotalDaysHospitalised, DD_who_gteq3) %>%
+  mutate(criteria = D28_OutcomeTotalDaysHospitalised >= DD_who_gteq3) %>%
+  filter(!criteria) %>%
+  kable(align = "lrrrr")
+```
+
+**If major bleeding or HIT occurred between discharge and Day 28, then their number of cumulative days hospitalised should be more than their number of dailies**
+
+critera: (D28_AECHIT == "Yes" | D28_AECMajorBleeding == "Yes") & D28_OutcomeTotalDaysHospitalised > DD_total_days
+
+```{r}
+all_data %>%
+ filter(ENR_rec == 1, D28_AECHIT == "Yes" | D28_AECMajorBleeding == "Yes") %>%
+  select(StudyPatientID, D28_OutcomeTotalDaysHospitalised, D28_AECHIT, D28_AECMajorBleeding, DD_total_days) %>%
+  mutate(criteria = D28_OutcomeTotalDaysHospitalised > DD_total_days) %>%
+  filter(!criteria) %>%
+  kable(align = "lrrrr")
+```
