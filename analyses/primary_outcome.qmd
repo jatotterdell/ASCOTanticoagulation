@@ -344,36 +344,6 @@ make_subgroup_summary_table <- function(dat, format = "html") {
     pack_rows("Therapeutic", row_st[3], row_ed[3])  
 }
 
-
-plot_subgroup_or <- function(dat, grp) {
-  ggplot(ordat, aes(xdist = Posterior, y = !!grp)) +
-    facet_grid( ~ Contrast, scales = "free_x") +
-    stat_slabinterval(
-      aes(fill = 
-            stat(cut_cdf_qi(
-              cdf, 
-              .width = c(.5, .8, .95), 
-              labels = scales::percent_format()))),
-      adjust = 1, n = 1001, .width = c(0.5, 0.8, 0.95),
-      fatten_point = 1
-      ) + 
-    scale_fill_brewer(
-      palette = "Reds",
-      direction = -1, 
-      na.translate = FALSE) + 
-    labs(
-      x = "Odds ratio contrast",
-      fill = "Interval"
-    ) +
-    geom_vline(xintercept = 1, linetype = 2) +
-    scale_x_log10("Odds ratio (log scale)") +
-    scale_colour_manual("", values = c("red", "black")) +
-    guides(colour = "none") +
-    theme(panel.border = element_rect(fill = NA),
-          legend.position = "top")
-}
-
-
 plot_or_densities <- function(rvs) {
   tibble(Contrast = fct_inorder(names(rvs)), RV = rvs) %>% 
   ggplot(., aes(y = Contrast, xdist = RV)) + 
