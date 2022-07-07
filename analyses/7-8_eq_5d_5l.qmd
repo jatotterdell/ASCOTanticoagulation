@@ -46,7 +46,7 @@ acs_itt_dat <- all_dat %>%
   filter_acs_itt() %>%
   transmute_model_cols_grp_aus_nz() %>%
   left_join(
-    all_dat %>% select(StudyPatientID, starts_with("D28_EQ"), D28_death),
+    all_dat %>% select(StudyPatientID, starts_with("D28_EQ")),
     by = "StudyPatientID")
 
 ```
@@ -79,7 +79,7 @@ eq5d <- eq5d %>%
 #| label: counts
 #| code-summary: Derive counts
 
-missing <- eq5d_state %>% 
+missing <- eq5d %>% 
      group_by(CAssignment) %>% 
      summarise(missing_state = paste0(sum(is.na(state)), " (", round(sum(is.na(state))/n()*100, 2), "%)")) 
 
@@ -96,7 +96,7 @@ counts <- lapply(counts, function(x) cbind(names(x),
                                            cumsum(x), 
                                            round(cumsum(x/sum(x))*100,1))[c(1:10,length(x)),])
 counts  <- lapply(counts, function(x) rbind(x[1:10,], c("...", "", "", "", ""), x[11,]))
-counts <- do.call(rbind, counts) %>% as.tibble() 
+counts <- do.call(rbind, counts) %>% as_tibble() 
 
 make_table <- function(format = "html", fn = NULL)
 {
