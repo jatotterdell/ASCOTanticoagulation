@@ -51,16 +51,7 @@ all_dat <- read_all_no_daily()
 
 acs_itt_dat <- all_dat %>% 
   filter_acs_itt() %>%
-  transmute_model_cols_grp_aus_nz() %>%
-  left_join(
-    all_dat %>% 
-      select(
-        StudyPatientID, 
-        D28_death, 
-        D28_OutcomeTotalDaysHospitalised,
-        DIS_day, 
-        out_dafh),
-    by = "StudyPatientID")
+  transmute_model_cols_grp_aus_nz()
 acs_itt_nona_dat <- acs_itt_dat %>% 
   filter(!is.na(out_dafh))
 
@@ -563,8 +554,8 @@ The primary analysis uses the ACS-ITT set, so all participants have been randomi
 ```{r}
 #| label: fit-model-primary
 #| code-summary: Fit primary model
-# res <- fit_primary_model(acs_itt_nona_dat, fit = TRUE, save = TRUE)
-res <- fit_primary_model(acs_itt_nona_dat, fit = FALSE)
+res <- fit_primary_model(acs_itt_nona_dat, fit = TRUE, save = TRUE)
+# res <- fit_primary_model(acs_itt_nona_dat, fit = FALSE)
 ```
 
 ```{r}
@@ -772,8 +763,8 @@ The model is re-fit with priors specified on the treatment contrasts rather than
 
 ```{r}
 #| code-summary: Fit primary model using treatment contrasts
-# res <- fit_primary_model(acs_itt_nona_dat, ctr = contr.treatment, fit = TRUE, save = TRUE, fn = "primary-trt.rds")
-res <- fit_primary_model(acs_itt_nona_dat, fit = F, save = F, fn = "primary-trt.rds")
+res <- fit_primary_model(acs_itt_nona_dat, ctr = contr.treatment, fit = TRUE, save = TRUE, fn = "primary-trt.rds")
+# res <- fit_primary_model(acs_itt_nona_dat, fit = F, save = F, fn = "primary-trt.rds")
 ```
 
 ```{r}
@@ -805,8 +796,8 @@ Three separate analyses are conducted based on concurrent randomisations as was 
 
 In the following analyses, the set is restricted to participants who were randomised to either low-dose or intermediate-dose.
 
--   **Set**: patients randomised to either low-dose or intermediate-dose whilst anticoagulation domain remained open.
--   **Covariates**: anticoagulation intervention, age group, region of enrolment.
+- **Set**: ACS-ITT-intermediate
+- **Covariates**: anticoagulation intervention, age group, region of enrolment.
 
 ```{r}
 #| code-summary: Descriptive summary table
@@ -840,7 +831,7 @@ fit_acs_itt_intermediate <- function(fit = TRUE) {
       data = mdat,
       seed = 75136,
       chains = 8,
-      parallel_chains = 8,
+      parallel_chains = min(8, parallel::detectCores()),
       iter_warmup = 1000,
       iter_sampling = 2500,
       refresh = 0
@@ -861,7 +852,7 @@ fit_acs_itt_intermediate <- function(fit = TRUE) {
   return(list(dat = mdat, fit = mfit, drws = mdrws))
 }
 
-res <- fit_acs_itt_intermediate(FALSE)
+res <- fit_acs_itt_intermediate(TRUE)
 mdat <- res$dat
 mfit <- res$fit
 mdrws <- res$drws
@@ -936,7 +927,9 @@ mcmc_trace(mdrws["alpha"])
 
 ### Low-dose with aspirin
 
--   **Covariates**: anticoagulation intervention, age group, region of enrolment.
+- **Set**: ACS-ITT-aspirin
+- **Covariates**: anticoagulation intervention, age group, region of enrolment.
+
 
 ```{r}
 #| code-summary: Descriptive summary table
@@ -1050,6 +1043,7 @@ mcmc_trace(mdrws["alpha"])
 
 ### Therapeutic dose
 
+- **Set**: ACS-ITT-therapeutic
 - **Covariates**: anticoagulation intervention, age group, region of enrolment.
 
 ```{r}
