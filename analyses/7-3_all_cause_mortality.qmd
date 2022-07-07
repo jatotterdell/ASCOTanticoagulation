@@ -47,8 +47,7 @@ all_dat <- read_all_no_daily()
 # Anticoagulation set (intention-to-treat, including missing)
 acs_itt_dat <- all_dat %>% 
   filter_acs_itt() %>%
-  transmute_model_cols_grp_aus_nz() %>% 
-  left_join(all_dat %>% select(StudyPatientID, D28_death), by = "StudyPatientID")
+  transmute_model_cols_grp_aus_nz()
 
 # Anticoagulation set (intention-to-treat, excluding missing)
 acs_itt_nona_dat <- acs_itt_dat %>% 
@@ -76,10 +75,10 @@ acs_itt_concurc4_nona_dat <- acs_itt_concurc4_dat %>%
 ```{r}
 #| label: models
 #| code-summary: Load the Stan models
-model_full <- cmdstan_model(file.path("stan", "primary_logistic_model_site_epoch2.stan"))
-model_site_only <- cmdstan_model(file.path("stan", "primary_logistic_model_site.stan"))
-model_epoch_only <- cmdstan_model(file.path("stan", "primary_logistic_model_epoch.stan")) 
-model_fixed_only <- cmdstan_model(file.path("stan", "logistic_bernoulli.stan"))
+model_full <- cmdstan_model(file.path("stan", "binary", "logistic_site_epoch.stan"))
+model_site_only <- cmdstan_model(file.path("stan", "binary", "logistic_site.stan"))
+model_epoch_only <- cmdstan_model(file.path("stan", "binary", "logistic_epoch.stan")) 
+model_fixed_only <- cmdstan_model(file.path("stan", "binary", "logistic.stan"))
 ```
 
 ```{r}
@@ -688,6 +687,9 @@ A sensitivity analysis is performed on the reduced concurrent control analysis s
 
 ### Intermediate
 
+- **Set**: ACS-ITT-intermediate
+- **Covariates**: anticoagulation intervention, age group, region of enrolment.
+
 ```{r}
 #| code-summary: Overview of outcome
 #| tbl-cap: Summary of outcome for intermediate dose concurrent enrolments.
@@ -713,7 +715,8 @@ snk <- capture.output(
     parallel_chains = 8,
     iter_warmup = 1000,
     iter_sampling = 2500,
-    refresh = 0
+    refresh = 0,
+    adapt_delta = 0.95
 ))
 mdrws <- as_draws_rvars(mfit$draws(c("beta")))
 names(mdrws$beta) <- colnames(mdat$X)
@@ -802,6 +805,9 @@ plot_site_terms(exp(mdrws$gamma_site), site_facet)
 
 ### Low-dose with aspirin
 
+- **Set**: ACS-ITT-aspirin
+- **Covariates**: anticoagulation intervention, age group, region of enrolment.
+
 ```{r}
 #| code-summary: Overview of outcome
 #| tbl-cap: Summary of outcome for low-dose with aspirin concurrent enrolments.
@@ -874,6 +880,9 @@ mcmc_trace(mdrws["beta"])
 :::
 
 ### Therapeutic
+
+- **Set**: ACS-ITT-therapeutic
+- **Covariates**: anticoagulation intervention, age group, region of enrolment.
 
 ```{r}
 #| code-summary: Overview of outcome
