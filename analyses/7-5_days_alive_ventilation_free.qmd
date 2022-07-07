@@ -50,35 +50,9 @@ devtools::load_all()
 all_dat <- read_all_no_daily()
 all_dat_daily <- read_all_daily()
 
-fas_itt_dat <- all_dat %>% 
-  filter_fas_itt() %>%
-  transmute_model_cols_grp_aus_nz() %>%
-  left_join(
-    all_dat %>% 
-      select(
-        StudyPatientID, 
-        D28_death,
-        D28_OutcomeDaysFreeOfVentilation, 
-        DIS_day,
-        ANY_vent,
-        out_dafv),
-    by = "StudyPatientID")
-fas_itt_nona_dat <- fas_itt_dat %>% 
-  filter(!is.na(out_dafv))
-
 acs_itt_dat <- all_dat %>% 
   filter_acs_itt() %>%
-  transmute_model_cols_grp_aus_nz() %>%
-  left_join(
-    all_dat %>% 
-      select(
-        StudyPatientID, 
-        D28_death, 
-        D28_OutcomeDaysFreeOfVentilation,
-        DIS_day, 
-        ANY_vent,
-        out_dafv),
-    by = "StudyPatientID")
+  transmute_model_cols_grp_aus_nz()
 acs_itt_nona_dat <- acs_itt_dat %>% 
   filter(!is.na(out_dafv))
 
@@ -213,54 +187,11 @@ This outcome was defined as the number of days alive and free of positive pressu
 The outcome is calculated for a patient as:
 
 - missing, if day 28 mortality is unknown (`D28_PatientStatus`) or if the patient was known to have been alive
-  at day 28 but number of days in hospital (`D28_OutcomeDaysFreeOfVentilation`) is unknown
+  at day 28 but number of days requiring ventilation (`D28_OutcomeDaysFreeOfVentilation`) is unknown
 - 0 if they died by day 28 (`D28_PatientStatus`)
-- min(28, `D28_OutcomeDaysFreeOfVentilation`) otherwise
+- `min(28, D28_OutcomeDaysFreeOfVentilation)` otherwise
 
 ## Descriptive Analyses
-
-### Cross-Check
-
-
-
-```{r}
-acs_itt_dat %>% 
-  dplyr::count(D28_death, out_dafv, D28_OutcomeDaysFreeOfVentilation, ANY_vent) %>% 
-  spread(ANY_vent, n, fill = 0) %>%
-  print(n = Inf)
-
-# Cross check against what is reported in the daily data.
-# Mostly consistent.
-all_dat %>%
-  filter(ANY_vent == 0, out_dafv %in% c(10, 21, 27)) %>%
-  select(StudyPatientID, D28_Status, D28_PatientStatusDay28, D28_StatusVentilation, out_dafv, DD_vent, DIS_day, ANY_vent, D28_death)
-all_dat %>%
-  filter(ANY_vent == 1, out_dafv %in% 28) %>%
-  select(StudyPatientID, D28_Status, D28_PatientStatusDay28, D28_StatusVentilation, out_dafv, DD_vent, DIS_day, ANY_vent, D28_death)
-all_dat %>%
-  filter(ANY_vent == 0, out_dafv < 28) %>%
-  select(StudyPatientID, D28_Status, D28_PatientStatusDay28, D28_StatusVentilation, out_dafv, DD_vent, DIS_day, ANY_vent, D28_death)
-
-# Some participants with inconsistent outcome data:
-all_dat_daily %>%
-  filter(StudyPatientID == "JIV00155") %>%
-  select(DD_StudyDay, DD_ParticipantDailyStatus, DD_O2, DD_PrimaryEndpointReachedToday, DD_vent, DIS_day, out_dafv)
-all_dat_daily %>%
-  filter(StudyPatientID == "PUN00027") %>%
-  select(DD_StudyDay, DD_ParticipantDailyStatus, DD_O2, DD_PrimaryEndpointReachedToday, DD_vent, DIS_day, out_dafv)
-all_dat_daily %>%
-  filter(StudyPatientID == "RPH00005") %>%
-  select(DD_StudyDay, DD_ParticipantDailyStatus, DD_O2, DD_PrimaryEndpointReachedToday, DD_vent, DIS_day, out_dafv)
-
-# DAFV == 1 but ANY_vent == 1
-all_dat_daily %>%
-  filter(StudyPatientID == "VEL00003") %>%
-  select(DD_StudyDay, DD_ParticipantDailyStatus, DD_O2, DD_PrimaryEndpointReachedToday, DD_vent, DIS_day, out_dafv)
-all_dat_daily %>%
-  filter(StudyPatientID == "VEL00023") %>%
-  select(DD_StudyDay, DD_ParticipantDailyStatus, DD_O2, DD_PrimaryEndpointReachedToday, DD_vent, DIS_day, out_dafv)
-```
-
 
 ### Overall
 
@@ -569,12 +500,12 @@ fit_primary_model <- function(dat, ctr = contr.orthonorm, fit = TRUE, save = FAL
   mdrws$trtA <- mdrws$Acon[-1] - mdrws$Acon[1]
   mdrws$trtC <- mdrws$Ccon[-1] - mdrws$Ccon[1]
   mdrws$compare <- c(
-    "Intermediate vs standard" = exp(mdrws$trtC[1]),
-    "Standard plus aspirin vs standard" = exp(mdrws$trtC[2]),
-    "Therapeutic vs standard" = exp(mdrws$trtC[3]),
-    "Intermediate vs standard plus aspirin" = exp(mdrws$trtC[1] - mdrws$trtC[2]),
+    "Intermediate vs low" = exp(mdrws$trtC[1]),
+    "Low with aspirin vs low" = exp(mdrws$trtC[2]),
+    "Therapeutic vs low" = exp(mdrws$trtC[3]),
+    "Intermediate vs low with aspirin" = exp(mdrws$trtC[1] - mdrws$trtC[2]),
     "Intermediate vs therapeutic" = exp(mdrws$trtC[1] - mdrws$trtC[3]),
-    "Standard plus aspirin vs therapeutic" = exp(mdrws$trtC[2] - mdrws$trtC[3])
+    "Low with aspirin vs therapeutic" = exp(mdrws$trtC[2] - mdrws$trtC[3])
   )
   mdrws$OR <- c(
     setNames(exp(mdrws$trtC), c("Intermediate", "Low with aspirin", "Therapeutic")),
@@ -584,8 +515,8 @@ fit_primary_model <- function(dat, ctr = contr.orthonorm, fit = TRUE, save = FAL
   )
   return(list(dat = mdat, fit = mfit, drws = mdrws))
 }
-# res <- fit_primary_model(acs_itt_nona_dat, fit = TRUE, save = TRUE)
-res <- fit_primary_model(acs_itt_nona_dat, fit = FALSE)
+res <- fit_primary_model(acs_itt_nona_dat, fit = TRUE, save = TRUE)
+# res <- fit_primary_model(acs_itt_nona_dat, fit = FALSE)
 ```
 
 ```{r}
@@ -771,7 +702,7 @@ mdrws <- as_draws_rvars(mfit$draws())
 names(mdrws$beta) <- colnames(X)
 mdrws$Ccon <- as.vector(ctr(2) %**% mdrws$beta[1])
 mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
-mdrws$compare <- c("Intermediate vs standard" = exp(mdrws$Ctrt[1]))
+mdrws$compare <- c("Intermediate vs low" = exp(mdrws$Ctrt[1]))
 mdrws$OR <- c("Intermediate" = exp(mdrws$Ctrt), 
               setNames(exp(mdrws$beta[2:4]), c("Age 60+", "Australia/New Zealand", "Nepal")))
 ```
@@ -786,7 +717,7 @@ pdat <- acs_itt_concurc2_nona_dat %>%
     CAssignment = factor(
       CAssignment, 
       levels = c("C1", "C2"),
-      labels = c("Standard", "Intermediate")),
+      labels = c("Low", "Intermediate")),
     dafv = ordered(out_dafv, levels = 0:28), 
     .drop = F) %>%
   group_by(CAssignment) %>%
