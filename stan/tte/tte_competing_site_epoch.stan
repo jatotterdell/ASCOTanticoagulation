@@ -1,11 +1,13 @@
 // time to event model - competing risk
-// prototype discrete cause-specific time-to-event multinomial logit model
+// discrete cause-specific time-to-event multinomial logit model
 // to account for death in evaluating time to recovery
 
 functions {
+  // multinomial logit transformation on vector x
   vector mlogit (vector x) {
     return exp(x - log1p(sum(exp(x))));
   }
+  // multinomial logit transformation on row_vector x
   row_vector mlogit (row_vector x) {
     return exp(x - log1p(sum(exp(x))));
   }
@@ -16,15 +18,15 @@ data {
   int R; // number of event types
   int K; // number of design parameters
   int T; // number of time-points
-  int M_site;
-  int M_region;
-  int M_epoch;
+  int M_site; // number of sites
+  int M_region; // number of regions
+  int M_epoch; // number of epochs
   array[N, R + 1] int<lower=0,upper=1> y; // multinomial outcome
-  matrix[N, K] X;
-  array[N] int time;
+  matrix[N, K] X; // Design
+  array[N] int time; // Study day
   array[M_site] int<lower=1> region_by_site; // region indicator for each site
   array[N] int<lower=1> site;                // site indicator
-  array[N] int epoch;
+  array[N] int epoch; // epoch indicator
   vector[K] beta_sd; // prior for design coefficient parameters
 }
 
@@ -74,5 +76,4 @@ model {
   to_vector(tau_site) ~ student_t(3, 0, 1);
   to_vector(epsilon_epoch) ~ normal(0, 1);
   tau_epoch ~ student_t(3, 0, 1);
-  tau_epoch ~ student_t(3, 0, 2.5);
 }

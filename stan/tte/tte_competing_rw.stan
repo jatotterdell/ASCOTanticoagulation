@@ -1,11 +1,12 @@
-// time to event model - competing risk
-// prototype discrete cause-specific time-to-event multinomial logit model
-// to account for death in evaluating time to recovery
+// discrete cause-specific time-to-event multinomial logit model
+// to account for competing death in evaluating time to recovery
 
 functions {
+  // multinomial logit transformation on vector x
   vector mlogit (vector x) {
     return exp(x - log1p(sum(exp(x))));
   }
+  // multinomial logit transformation on row_vector x
   row_vector mlogit (row_vector x) {
     return exp(x - log1p(sum(exp(x))));
   }
@@ -18,7 +19,7 @@ data {
   int T; // number of time-points
   array[N, R + 1] int<lower=0,upper=1> y; // multinomial outcome
   matrix[N, K] X;
-  array[N] int time;
+  array[N] int time; // study day
   vector[K] beta_sd; // prior for design coefficient parameters
 }
 
@@ -52,7 +53,7 @@ model {
     lambda[n, 1] = 1 - sum(lambda[n, 2:(R+1)]); // Unrecovered
     y[n] ~ multinomial(to_vector(lambda[n]));
   }
-  to_vector(alpha_raw) ~ normal(0, 1); // alpha[r] | tau[r] ~ RW(1, tau[r])
+  to_vector(alpha_raw) ~ normal(0, 1); // alpha[r] | tau[r] ~ RW(order = 1, tau[r])
   to_vector(beta_raw) ~ normal(0, 1);  // beta[k,r] ~ Normal(0, 1)
   tau_alpha ~ student_t(3, 0, 1);      // tau[r] ~ t(3, 0, 1)
 }
