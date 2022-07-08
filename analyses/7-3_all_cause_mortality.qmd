@@ -395,7 +395,7 @@ mdrws$compare <- c(
 )
 mdrws$OR <- c(
   setNames(exp(mdrws$Ctrt), c("Intermediate", "Low with aspirin", "Therapeutic")),
-  setNames(exp(mdrws$beta[7:8]), c("Ineligible aspirin", "Age 60+")),
+  setNames(exp(mdrws$beta[7:8]), c("Ineligible aspirin", "Age \u2265 60")),
   setNames(exp(mdrws$beta[9:10]), c("Australia/New Zealand", "Nepal"))
 )
 ```
@@ -532,7 +532,7 @@ mdrws$Ccon <- attr(mdat$X, "contrasts")$randC %**% mdrws$beta[2:4]
 mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
 mdrws$OR <- c(
   setNames(exp(mdrws$Ctrt), c("Intermediate", "Low with aspirin", "Therapeutic")),
-  setNames(exp(mdrws$beta[-(1:6)]), c("Ineligible aspirin", "Age 60+", "Australia/New Zealand", "Nepal"))
+  setNames(exp(mdrws$beta[-(1:6)]), c("Ineligible aspirin", "Age \u2265 60", "Australia/New Zealand", "Nepal"))
 )
 ```
 
@@ -596,7 +596,7 @@ mdrws$Ccon <- attr(mdat$X, "contrasts")$randC %**% mdrws$beta[2:4]
 mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
 mdrws$OR <- c(
   setNames(exp(mdrws$Ctrt), c("Intermediate", "Low with aspirin", "Therapeutic")),
-  setNames(exp(mdrws$beta[-(1:6)]), c("Ineligible aspirin", "Age 60+", "Australia/New Zealand", "Nepal"))
+  setNames(exp(mdrws$beta[-(1:6)]), c("Ineligible aspirin", "Age \u2265 60", "Australia/New Zealand", "Nepal"))
 )
 ```
 
@@ -656,7 +656,7 @@ mdrws$Ccon <- attr(mdat$X, "contrasts")$randC %**% mdrws$beta[2:4]
 mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
 mdrws$OR <- c(
   setNames(exp(mdrws$Ctrt), c("Intermediate", "Low with aspirin", "Therapeutic")),
-  setNames(exp(mdrws$beta[-(1:6)]), c("Ineligible aspirin", "Age 60+", "Australia/New Zealand", "Nepal"))
+  setNames(exp(mdrws$beta[-(1:6)]), c("Ineligible aspirin", "Age \u2265 60", "Australia/New Zealand", "Nepal"))
 )
 ```
 
@@ -725,7 +725,7 @@ mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
 mdrws$compare <- c("Intermediate vs low" = exp(mdrws$Ctrt[1]))
 mdrws$OR <- c(
   setNames(exp(mdrws$Ctrt), c("Intermediate")),
-  setNames(exp(mdrws$beta[-(1:2)]), c("Age 60+", "Australia/New Zealand", "Nepal"))
+  setNames(exp(mdrws$beta[-(1:2)]), c("Age \u2265 60", "Australia/New Zealand", "Nepal"))
 )
 ```
 
@@ -791,7 +791,7 @@ mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
 mdrws$compare <- c("Intermediate vs low" = exp(mdrws$Ctrt[1]))
 mdrws$OR <- c(
   setNames(exp(mdrws$Ctrt), c("Intermediate")),
-  setNames(exp(mdrws$beta[-(1:4)]), c("Age 60+", "Australia/New Zealand", "Nepal"))
+  setNames(exp(mdrws$beta[-(1:4)]), c("Age \u2265 60", "Australia/New Zealand", "Nepal"))
 )
 ```
 
@@ -844,7 +844,7 @@ mdrws$compare <- c("Intermediate vs low" = exp(mdrws$Ctrt[1]),
                    "Intermediate vs low with aspirin" = exp(mdrws$Ctrt[1] - mdrws$Ctrt[2]))
 mdrws$OR <- c(
   setNames(exp(mdrws$Ctrt), c("Intermediate", "Low with aspirin")),
-  setNames(exp(mdrws$beta[-(1:3)]), c("Age 60+", "Australia/New Zealand"))
+  setNames(exp(mdrws$beta[-(1:3)]), c("Age \u2265 60", "Australia/New Zealand"))
 )
 ```
 
@@ -920,7 +920,7 @@ mdrws$compare <- c("Intermediate vs low" = exp(mdrws$Ctrt[1]),
                    "Intermediate vs therapeutic" = exp(mdrws$Ctrt[1] - mdrws$Ctrt[2]))
 mdrws$OR <- c(
   setNames(exp(mdrws$Ctrt), c("Intermediate", "Therapeutic")),
-  setNames(exp(mdrws$beta[-(1:3)]), c("Age 60+", "India", "Australia/New Zealand"))
+  setNames(exp(mdrws$beta[-(1:3)]), c("Age \u2265 60", "India", "Australia/New Zealand"))
 )
 ```
 

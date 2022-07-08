@@ -227,7 +227,7 @@ fit_primary_model <- function(
   mdrws$OR <- c(
     setNames(exp(mdrws$trtC), c("Intermediate", "Low with aspirin", "Therapeutic")),
     "Ineligible aspirin" = exp(mdrws$beta[which(grepl("inelg", colnames(mdat$X)))]),
-    "Age 60+" = exp(mdrws$beta[which(grepl("age", colnames(mdat$X)))]),
+    "Age \u2265 60" = exp(mdrws$beta[which(grepl("age", colnames(mdat$X)))]),
     setNames(exp(mdrws$beta[which(grepl("ctry", colnames(mdat$X)))]), c("AU/NZ", "NP"))
   )
   return(list(dat = mdat, fit = mfit, drws = mdrws))
@@ -733,7 +733,7 @@ fit_no_site_model <- function(dat) {
   mdrws$OR <- c(
     setNames(exp(mdrws$trtC), c("Intermediate", "Low with aspirin", "Therapeutic")),
     "Ineligible aspirin" = exp(mdrws$beta[which(grepl("inelg", colnames(mdat$X)))]),
-    "Age 60+" = exp(mdrws$beta[which(grepl("age", colnames(mdat$X)))]),
+    "Age \u2265 60" = exp(mdrws$beta[which(grepl("age", colnames(mdat$X)))]),
     setNames(exp(mdrws$beta[which(grepl("ctry", colnames(mdat$X)))]), c("AU/NZ", "NP"))
   )
   
@@ -848,7 +848,7 @@ fit_acs_itt_intermediate <- function(fit = TRUE) {
   mdrws$compare <- c("Intermediate vs low" = exp(mdrws$Ctrt[1]))
   mdrws$OR <- c(
     "Intermediate" = exp(mdrws$Ctrt), 
-    setNames(exp(mdrws$beta[2:4]), c("Age 60+", "Australia/New Zealand", "Nepal"))) 
+    setNames(exp(mdrws$beta[2:4]), c("Age \u2265 60", "Australia/New Zealand", "Nepal"))) 
   return(list(dat = mdat, fit = mfit, drws = mdrws))
 }
 
@@ -979,7 +979,7 @@ mdrws$compare <- c("Intermediate vs low" = exp(mdrws$Ctrt[1]),
 
 mdrws$OR <- c("Intermediate" = exp(mdrws$Ctrt[1]),
               "Low with aspirin" = exp(mdrws$Ctrt[2]),
-              setNames(exp(mdrws$beta[3:4]), c("Age 60+", "Australia/New Zealand")))
+              setNames(exp(mdrws$beta[3:4]), c("Age \u2265 60", "Australia/New Zealand")))
 ```
 
 ```{r}
@@ -1094,7 +1094,7 @@ mdrws$compare <- c("Intermediate vs low" = exp(mdrws$Ctrt[1]),
 
 mdrws$OR <- c("Intermediate" = exp(mdrws$Ctrt[1]),
               "Therapeutic" = exp(mdrws$Ctrt[2]),
-              setNames(exp(mdrws$beta[3:5]), c("Age 60+", "India", "Australia/New Zealand")))
+              setNames(exp(mdrws$beta[3:5]), c("Age \u2265 60", "India", "Australia/New Zealand")))
 ```
 
 ```{r}
