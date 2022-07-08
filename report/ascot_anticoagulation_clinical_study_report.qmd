@@ -84,16 +84,20 @@ Missing outcome data were not imputed for any of the models (with the exception 
 
 ### Further Details
 
+For binary outcomes, the following logistic regression model was specified.
 
+For ordinal outcomes, the following proportional-odds cumulative logistic regression model was specified.
+
+For the analysis of time-to-clinical-recovery, the following multinomial logistic regression model was specified.
 
 ## Trial Decision Criteria
 
 As per the statistical appendix to the core protocol, the following decision quantities were of interest in the anticoagulation domain for the primary outcome model:
 
-- **Superiority**: superiority is assessed using the posterior probability that the intervention has the lowest odds of the outcome amongst all interventions in the domain. If a single intervention had probability exceeding 0.99 superiority would be triggered for that intervention.
-- **Effectiveness**: effectiveness is assessed relative to the standard dose arm as the posterior probability that the intervention reduces the odds of the outcome. If any intervention had probability exceeding 0.99 than effectiveness would be triggered for that intervention.
-- **Futility**: futility is assessed relative to the standard dose arm as the posterior probability that the intervention reduces the odds of the outcome by no more than a factor of 1/1.1. If any intervention had probability exceeding 0.95 than futility would be triggered for that intervention.
-- **Equivalence**: equivalence is assessed relative to the standard dose arm as the posterior probability that the intervention alters the odds of the outcome by a factor bounded by (1/1.1, 1.1).
+- **Superiority**: superiority was assessed using the posterior probability that the intervention has the lowest odds of the outcome amongst all interventions in the domain. If a single intervention had probability exceeding 0.99 superiority would be triggered for that intervention.
+- **Effectiveness**: effectiveness was assessed relative to the low-dose arm as the posterior probability that the intervention reduces the odds of the outcome. If any intervention had probability exceeding 0.99 than effectiveness would be triggered for that intervention.
+- **Futility**: futility was assessed relative to the low-dose arm as the posterior probability that the intervention reduces the odds of the outcome by no more than a factor of 1/1.1. If any intervention had probability exceeding 0.95 than futility would be triggered for that intervention.
+- **Equivalence**: equivalence was assessed relative to the low-dose arm as the posterior probability that the intervention alters the odds of the outcome by a factor bounded by (1/1.1, 1.1).
 
 # Results
 
@@ -195,7 +199,7 @@ Platform and domain specific flow diagrams are included in @fig-platform-flow an
 
 ![Anticoagulation domain flowchart.](domain_anticoagulation_flowchart.tex){#fig-anticoagulation-flow}
 
-@fig-enrolments presents overall platform enrolments by calendar time with timing of intervention availabilities and interim analyses. Enrolments by country are presented in @fig-enrolments-country. Due to the changes to the trial which occurred independently of the within trial results, the initial allocation ratios were not changed during recruitment to the anticoagulation domain. Therefore, the only trial adaptations which occurred were the cessation of the standard dose plus aspirin intervention in the anticoagulation domain, the opening of the antiviral domain, and the introduction of the therapeutic dose intervention into the anticoagulation domain. Despite this, the timing of interim analyses are indicated on the Figures.
+@fig-enrolments presents overall platform enrolments by calendar time with timing of intervention availabilities and interim analyses. Due to the changes to the trial which occurred independently of the within trial results, the initial allocation ratios were not changed during recruitment to the anticoagulation domain. Therefore, the only trial adaptations which occurred were the cessation of the standard dose plus aspirin intervention in the anticoagulation domain, the opening of the antiviral domain, and the introduction of the therapeutic dose intervention into the anticoagulation domain. Despite this, the timing of interim analyses are indicated on the Figures.
 
 ```{r}
 #| label: fig-enrolments
@@ -203,17 +207,7 @@ Platform and domain specific flow diagrams are included in @fig-platform-flow an
 #|   Overall enrolment to the anti-coagulation domain and intervention availability.
 #|   Vertical dashed lines indicate timing of interim analyses.
 knitr::include_graphics(
-  "../outputs/figures/baseline/enrolment-overall.pdf"
-)
-```
-
-```{r}
-#| label: fig-enrolments-country
-#| fig-cap: |
-#|   Enrolment to platform and intervention availability by country.
-#|   Vertical dashed lines indicate timing of interim analyses.
-knitr::include_graphics(
-  "../outputs/figures/baseline/enrolment-country.pdf"
+  "../outputs/figures/baseline/enrolment-overall-country.pdf"
 )
 ```
 
@@ -2254,10 +2248,10 @@ writeLines(tab)
 ```{r}
 #| label: tbl-7-7-primary-model-acs-itt-summary
 #| tbl-cap: |
-#|   Summary of model parameters (fixed-effects odds-ratios) 
+#|   Summary of model parameters (fixed-effects odds-ratios)
 #|   for the mMRC scale at day 28 primary model fit to the ACS-ITT set.
 #| results: asis
-tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", 
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary",
                            "7-7-primary-model-acs-itt-summary-table.tex"))
 writeLines(tab)
 ```
@@ -2265,17 +2259,13 @@ writeLines(tab)
 ```{r}
 #| label: fig-7-7-primary-model-acs-itt-site-epoch-parameters
 #| fig-cap: |
-#|   Posterior Summaries (point - median, block - 75% CrI, line - 95% CrI) 
-#|   of odds ratio for epoch and site effects on the mMRC scale at day 28 for 
+#|   Posterior Summaries (point - median, block - 75% CrI, line - 95% CrI)
+#|   of odds ratio for epoch and site effects on the mMRC scale at day 28 for
 #|   the primary model fit to the ACS-ITT set.
 knitr::include_graphics(
   "../outputs/figures/outcomes/secondary/7-7-primary-model-epoch-site-terms.pdf"
 )
 ```
-
-\clearpage
-
-#### Sensitivity: Concurrent Enrolments
 
 \clearpage
 
