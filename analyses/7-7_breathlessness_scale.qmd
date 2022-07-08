@@ -1,5 +1,5 @@
 ---
-title: "Breathlessness scale"
+title: "7-7 mMRC Breathlessness scale"
 description: |
   Analyse of the modified Medical Research Council breathlessness scale.
 author: 
@@ -10,7 +10,7 @@ author:
 date: last-modified
 ---
 
-# Preamble {#preamble}
+## Preamble {#preamble}
 
 ```{r}
 #| label: pkgs
@@ -24,38 +24,15 @@ library(bayestestR)
 library(bayesplot)
 library(matrixStats)
 library(ggdist)
-```
+library(patchwork)
+library(lubridate)
 
-```{r}
-#| label: kable-hack
-#| code-summary: Hack to make kable print in dark theme
-# https://stackoverflow.com/questions/53247896/the-contents-of-kableextra-table-invisible-if-rstudio-editor-theme-is-dark
-print.kableExtra <- function (x, ...) {
-  view_html <- getOption("kableExtra_view_html", TRUE)
-  if (view_html & interactive()) {
-    dep <- list(
-      rmarkdown::html_dependency_jquery(), 
-      rmarkdown::html_dependency_bootstrap(theme = "cosmo"), 
-      kableExtra::html_dependency_kePrint(), 
-      kableExtra::html_dependency_lightable()
-    )
-    
-    x <- sub('style="', 'style="color: black; ', as.character(x), fixed = TRUE)
-        
-    html_kable <- htmltools::browsable(
-      htmltools::HTML(
-        as.character(x), 
-        "<script type=\"text/x-mathjax-config\">MathJax.Hub.Config({tex2jax: {inlineMath: [[\"$\",\"$\"]]}})</script><script async src=\"https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML\"></script>"
-      )
-    )
-    htmltools::htmlDependencies(html_kable) <- dep
-    class(html_kable) <- "shiny.tag.list"
-    print(html_kable)
-  }
-  else {
-    cat(as.character(x))
-  }
-}
+theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank()))
+bayesplot_theme_set(theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank())))
 ```
 
 ```{r}
@@ -76,86 +53,163 @@ breath_labels_short <-c("Only breathless with strenuous exercise",
                      "Stops for breath after walking about 100 metres",
                      "Too breathless to leave the house")
 
-# Full analysis set (intention-to-treat, including missing)
-fas_itt_dat <- all_dat %>% 
-  filter_fas_itt() %>%
-  transmute_model_cols() %>% 
-  left_join(all_dat %>% select(StudyPatientID, D28_BreathScale, D28_death), by = "StudyPatientID") %>%
-  mutate(D28_BreathScale = D28_BreathScale + 1) %>%
-  mutate(D28_BreathScale = factor(D28_BreathScale, 
-                          levels = 1:5,
-                          labels = breath_labels))
-
-# Full analysis set (intention-to-treat, excluding missing)
-fas_itt_nona_dat <- fas_itt_dat %>% 
-  filter(!is.na(D28_BreathScale)) 
-
-# Anticoagulation set (intention-to-treat, including missing)
 acs_itt_dat <- all_dat %>% 
   filter_acs_itt() %>%
-  transmute_model_cols() %>% 
-  left_join(all_dat %>% select(StudyPatientID, D28_BreathScale, D28_death), by = "StudyPatientID") %>%
-  mutate(D28_BreathScale = D28_BreathScale + 1) %>%
-  mutate(D28_BreathScale = factor(D28_BreathScale, 
-                          levels = 1:5,
-                          labels = breath_labels))
+  transmute_model_cols_grp_aus_nz() %>%
+  mutate(
+    out_mmrc_lab = fct_explicit_na(
+      factor(out_mmrc_scale, 
+             levels = c(1:5, 0),
+             labels = c(breath_labels_short, "Not asked"))))
+acs_itt_nona_dat <- all_dat %>% 
+  filter_acs_itt()  %>%
+  filter(!is.na(out_mmrc_scale), out_mmrc_scale != 0) %>%
+  transmute_model_cols_grp_aus_nz() %>%
+  mutate(out_mmrc_lab = fct_explicit_na(
+  factor(out_mmrc_scale, 
+         levels = c(1:5, 0),
+         labels = c(breath_labels_short, "Not asked"))))
+acs_itt_nona2_dat <- all_dat %>% 
+  filter_acs_itt()  %>%
+  filter(!is.na(out_mmrc_scale)) %>%
+  transmute_model_cols_grp_aus_nz() %>%
+  mutate(out_mmrc_lab = fct_explicit_na(
+  factor(out_mmrc_scale, 
+         levels = c(1:5, 0),
+         labels = c(breath_labels_short, "Not asked")))) %>%
+  mutate(out_mmrc_scale = out_mmrc_scale + 1)
 
-# Anticoagulation set (intention-to-treat, excluding missing)
-acs_itt_nona_dat <- acs_itt_dat %>% 
-  filter(!is.na(D28_BreathScale))  %>%
-  mutate(country = case_when(country == "IN" ~ "IN",
-                             country == "NP" ~ "NP",
-                             country == "AU" ~ "AU/NZ",
-                             country == "NZ" ~ "AU/NZ")) %>%
-  mutate(country = as.factor(country)) %>%
-  mutate(country = relevel(country, ref = "IN")) %>%
-  mutate(ctry_num = as.integer(country))
+# Concurrent enrolments for C2
+acs_itt_concurc2_dat <- acs_itt_dat %>%
+  filter_concurrent_intermediate()
+acs_itt_concurc2_nona_dat <- acs_itt_concurc2_dat %>% 
+  filter(!is.na(out_mmrc_scale), out_mmrc_scale != 0)
+
+# Concurrent enrolments for C3
+acs_itt_concurc3_dat <- acs_itt_dat %>%
+  filter_concurrent_std_aspirin()
+acs_itt_concurc3_nona_dat <- acs_itt_concurc3_dat %>% 
+  filter(!is.na(out_mmrc_scale), out_mmrc_scale != 0)
+
+# Concurrent enrolments for C4
+acs_itt_concurc4_dat <- acs_itt_dat %>%
+  filter_concurrent_therapeutic()
+acs_itt_concurc4_nona_dat <- acs_itt_concurc4_dat %>% 
+  filter(!is.na(out_mmrc_scale), out_mmrc_scale != 0)
 ```
 
-# Descriptive
+```{r}
+#| label: load-models
+#| code-summary: Compiles stan models.
+seed <- 59579
+model_tx           <- cmdstan_model(file.path("stan", "ordinal", "logistic_cumulative.stan"))
+model_site         <- cmdstan_model(file.path("stan", "ordinal", "logistic_cumulative_site.stan"))
+model_region_epoch <- cmdstan_model(file.path("stan", "ordinal", "logistic_cumulative_epoch.stan"))
+model_site_epoch   <- cmdstan_model(file.path("stan", "ordinal", "logistic_cumulative_epoch_site.stan"))
+```
+
+```{r}
+#| label: helper-functions
+#| code-summary: Helper functions
+
+# Makes stan data for ordinal outcome.
+make_stan_data <- function(dat, vars, outcome, beta_sd_var, ctr = contr.orthonorm, p_mult = 2) {
+  
+  X <- make_X_design(dat, vars, ctr)
+  attX <- attr(X, "contrasts")
+  X <- X[, -1]
+  attr(X, "contrasts") <- attX
+  nXtrt <- sum(grepl("rand", colnames(X)))
+  beta_sd <- c(rep(1, nXtrt), beta_sd_var)
+  
+  y <- as.integer(dat[[outcome]])
+  N <- dim(X)[1]
+  K <- dim(X)[2]  
+  J <- max(y)
+  
+  epoch <- dat[["epoch"]]
+  M_epoch <- max(dat[["epoch"]])
+  region <- as.integer(dat[["ctry"]])
+  M_region <- max(region)
+  site <- dat[["site_num"]]
+  M_site <- length(levels(dat[["site"]]))
+  region_by_site <- dat %>% 
+    dplyr::count(ctry_num, site_num) %>% 
+    pull(ctry_num)
+  
+  list(
+    N = N, K = K, X = X, y = y, J = J, p_par = rep(p_mult, J),
+    M_region = M_region, region = region,
+    M_site = M_site, site = site,
+    M_epoch = M_epoch, epoch = epoch, 
+    region_by_site = region_by_site,
+    beta_sd = beta_sd)
+}
+
+# Wrapper to run stan
+run_stan <- function(model, data, ...) {
+  model[["sample"]](data = data,
+                    seed = seed,
+                    refresh = 0,
+                    iter_sampling = 2500,
+                    chains = 8,
+                    parallel_chains = min(8, parallel::detectCores()),
+                    ...
+  )
+}
+```
+
+
+The mMRC Breathlessness Scale was only asked of participants who reported that they had been "experiencing shortness of breath that is worse than or new since before they got COVID" (`D28_BreathSinceGettingCovid == Yes`). Therefore, the outcome as analysed is conditional on a patient having worse breathlessness than before.
+
+Given that a patient who is not experiencing *worse* shortness of breath, may have still been experiencing *some* shortness of breath before they got COVID, it does not make sense to assign these participants to a score of 0 on the scale.
+
+This means that most of the data is missing, as only about ~ 20% of participants responded "Yes" to experiencing worse shortness of breath. One option is to augment the scale and threat it as a measure of "worsening" of shortness of breath, where a "No" to `D28_BreathSinceGettingCovid` is taken as a score of -1, and for a "Yes", the score is taken as that reported for `D28_BreathScale`.
+
+## Descriptive
 
 ```{r}
 #| label: po-component-ordinal
 #| code-summary: Summarise the ordinal component
 descriptive_table <- acs_itt_dat %>% 
-  mutate(D28_BreathScale = fct_explicit_na(D28_BreathScale)) %>%
-  dplyr::count(CAssignment, D28_BreathScale) %>%
+  dplyr::count(CAssignment, out_mmrc_lab) %>%
   spread(CAssignment, n, fill = 0) %>%
   mutate(
     Overall = C1 + C2 + C3 + C4,
     across(C1:Overall, ~ sprintf("%i (%.0f)", .x, 100 * .x / sum(.x)))
+  ) %>%
+  rename(
+    Low = C1,
+    Intermediate = C2,
+    `Low\nwith aspirin` = C3,
+    Therapeutic = C4
   )
+
+tab <- kable(
+  descriptive_table,
+  format = "latex",
+  booktabs = TRUE,
+  escape = F,
+  col.names = linebreak(c("mMRC breathlessness scale (day 28)", names(descriptive_table)[-1]), align = "c"),
+  caption = "Secondary endpoint breakdown - mMRC breathlessness scale (day 28).",
+  align = "lrrrrr") %>%
+  kable_styling(font_size = 9, latex_options = "HOLD_position")
+save_tex_table(tab, "outcomes/secondary/7-7_mmrc_scale_descriptive")
 
 kable(
   descriptive_table,
   col.names = c("mMRC breathlessness scale (day 28)", names(descriptive_table)[-1]),
   caption = "Secondary endpoint breakdown - mMRC breathlessness scale (day 28).",
-  align = "llrrrrr") %>%
+  align = "lrrrrr") %>%
   kable_styling(font_size = 11) %>%
   collapse_rows(1, valign = "top", latex_hline = 'custom', custom_latex_hline = 1)
-```
-
-```{r, fig.width=10, fig.height=4}
-#| label: graph-component-ordinal
-#| code-summary: Graph the ordinal component
-acs_itt_nona_dat %>%
-  dplyr::count(CAssignment, D28_BreathScale = D28_BreathScale) %>%
-  group_by(CAssignment) %>%
-  mutate(p = n / sum(n)) %>%
-  ggplot(., aes(CAssignment, p)) +
-  geom_col(aes(fill = D28_BreathScale)) + 
-  scale_fill_viridis_d(option = "B", name = "mMRC breathlessness scale (day 28)") + 
-  theme(legend.position = "right", 
-        legend.direction = "vertical", aspect.ratio = 5/6) +
-  ylab("Proportion in each category") +
-  xlab("Treatment")
 ```
 
 ```{r, fig.width=10, fig.height=4}
 #| label: graph-clogits-ordinal
 #| code-summary: Graph the sample cumulative logits
 acs_itt_nona_dat %>% 
-  group_by(CAssignment, D28_BreathScale) %>%
+  group_by(CAssignment, out_mmrc_lab) %>%
   summarise(n = n()) %>%
   mutate(p = n/sum(n)) %>%
   select(-n) %>%
@@ -167,402 +221,233 @@ acs_itt_nona_dat %>%
   mutate(across(C2:C4, ~ .x/(mean(.x, na.rm = TRUE)))) %>%
   gather("id", "value", 2:4) %>%
   rename(Treatment = id, `Cumulative odds ratio` = value) %>%
-  ggplot(., aes(reorder(D28_BreathScale, desc(D28_BreathScale)), `Cumulative odds ratio`, group = Treatment, col=Treatment)) + 
+  ggplot(., aes(reorder(out_mmrc_lab, desc(out_mmrc_lab)), `Cumulative odds ratio`, group = Treatment, col=Treatment)) + 
   geom_line() + geom_point() +  
   coord_flip() + 
   xlab("") + ylab("Mean centred cumulative odds ratio") + 
   labs(caption = "Note: cumulative odds for highest category do not exist.") +
-  theme(plot.caption=element_text(hjust = 0))
-
+  theme(plot.caption = element_text(hjust = 0))
 ```
 
+## Analyses
 
-# TODO:look at individual logits.
-
-
-# Modelling
-
-The analysis for all cause mortality is specified equivalently to that for the primary outcome. It includes intervention as randomised, age category, country, site nested within country, epoch, and intervention eligibility. The main analysis restricts the population to only those participants randomised to the anticoagulation domain.
+### Primary Model
 
 ```{r}
-#| label: load-models
-#| code-summary: Compiles stan models.
-seed <- 59579
-model_tx           <- cmdstan_model(file.path("stan", "ordinal.stan"))
-model_region       <- cmdstan_model(file.path("stan", "ordinal_region.stan"))
-model_site         <- cmdstan_model(file.path("stan", "ordinal_site.stan"))
-model_region_epoch <- cmdstan_model(file.path("stan", "ordinal_region_epoch.stan"))
-model_site_epoch   <- cmdstan_model(file.path("stan", "ordinal_site_epoch_sap.stan"))
+fit_primary_model <- function(dat, ctr = contr.orthonorm) {
+  
+  mdat <- make_stan_data(
+    dat = dat,
+    vars = c("inelgc3", "agegte60", "ctry"),
+    outcome = "out_mmrc_scale",
+    beta_sd_var = c(10, 2.5, 1, 1),
+    ctr = ctr)
+  mfit <- run_stan(model_site_epoch, mdat, adapt_delta = 0.99)
+  mdrws <- as_draws_rvars(
+    mfit$draws(c("alpha", "beta", "gamma_site", "gamma_epoch", 
+                 "tau_site", "tau_epoch", "y_ppc")))
+  
+  # Add names
+  epoch_map <- dat %>% dplyr::count(epoch, epoch_lab)
+  site_map <- dat %>% dplyr::count(site_num, site)
+  names(mdrws$beta) <- colnames(mdat$X)
+  names(mdrws$gamma_epoch) <- epoch_map$epoch_lab
+  names(mdrws$gamma_site) <- site_map$site
+  # Convert to treatment log odds ratios
+  mdrws$Acon <- attr(mdat$X, "contrasts")$randA %**% 
+    mdrws$beta[grepl("randA[0-9]", names(mdrws$beta))]
+  mdrws$Ccon <- attr(mdat$X, "contrasts")$randC %**% 
+    mdrws$beta[grepl("randC[0-9]", names(mdrws$beta))]
+  mdrws$trtA <- mdrws$Acon[-1] - mdrws$Acon[1]
+  mdrws$trtC <- mdrws$Ccon[-1] - mdrws$Ccon[1]
+    mdrws$compare <- c(
+    "Intermediate vs low" = exp(mdrws$trtC[1]),
+    "Low with aspirin vs low" = exp(mdrws$trtC[2]),
+    "Therapeutic vs low" = exp(mdrws$trtC[3]),
+    "Intermediate vs low with aspirin" = exp(mdrws$trtC[1] - mdrws$trtC[2]),
+    "Intermediate vs therapeutic" = exp(mdrws$trtC[1] - mdrws$trtC[3]),
+    "Low with aspirin vs therapeutic" = exp(mdrws$trtC[2] - mdrws$trtC[3])
+  )
+  mdrws$OR <- c(
+    setNames(exp(mdrws$trtC), c("Intermediate", "Low with aspirin", "Therapeutic")),
+    "Ineligible aspirin" = exp(mdrws$beta[which(grepl("inelg", colnames(mdat$X)))]),
+    "Age \u2265 60" = exp(mdrws$beta[which(grepl("age", colnames(mdat$X)))]),
+    setNames(exp(mdrws$beta[which(grepl("ctry", colnames(mdat$X)))]), c("Australia/New Zealand", "Nepal"))
+  )
+  return(list(dat = mdat, fit = mfit, drws = mdrws))
+}
+res <- fit_primary_model(acs_itt_nona_dat)
 ```
 
 ```{r}
-#| label: functions-analysis.
-#| code-summary: Defines functions for analysis.
+#| label: odds-ratio-summary-table-primary-model-save
+#| code-summary: Odds ratio summary table
+#| tbl-cap: Posterior summaries for model parameters (fixed-effects).
+save_tex_table(
+  odds_ratio_summary_table(res$drws$OR, "latex"),
+  "outcomes/secondary/7-7-primary-model-acs-itt-summary-table")
+odds_ratio_summary_table(res$drws$OR)
+```
 
-# Makes stan data for ordinal outcome.
-make_stan_data <- function(dat, vars, outcome, beta_sd) 
-{
-  X <- model.matrix(
-     as.formula(paste("~", paste(vars, collapse = " + "))),
-    data = dat)
-  
-  X <- X[,-1]
-  y <- as.integer(dat[[outcome]])
-  N <- dim(X)[1]
-  K <- dim(X)[2]  
-  J <- max(y)
-  
-    epoch  <- dat[["epoch"]]
-  M_epoch  <- max(dat[["epoch"]])
-    region <- as.integer(dat[["country"]])
-  M_region <- max(region)
-    site  <- dat[["site_num"]]
-  M_site  <- length(levels(dat[["site"]]))
-  
-  list(N = N, K = K, X = X, y = y, J = J, p_par = rep(1, J),
-       M_region = M_region, region = region,
-       M_site = M_site, site = site,
-       M_epoch = M_epoch, epoch = epoch, region_by_site = region_by_site,
-       beta_sd = beta_sd)
+```{r}
+#| code-summary: Odds ratio summary for epoch and site
+#| fig-cap: Summary of epoch and site posterior odds ratios.
+p <- plot_epoch_site_terms(
+  exp(res$drws$gamma_epoch),
+  exp(res$drws$gamma_site),
+  factor(res$dat$region_by_site, 
+         labels = c("India", "Australia\nNew Zealand", "Nepal"))
+)
+pth <- file.path("outputs", "figures", "outcomes", "secondary", "7-7-primary-model-epoch-site-terms.pdf")
+ggsave(pth, p, width = 6, height = 4.5)
+p
+```
+
+```{r}
+#| code-summary: Posterior contrasts
+#| fig-cap: Summaries on comparisons.
+plot_or_densities(res$drws$compare)
+```
+
+:::{.callout-caution collapse="true"}
+##### Diagnostics
+```{r}
+res$fit$summary(
+  c("alpha", "beta", "gamma_epoch", "gamma_site", "tau_epoch", "tau_site")) %>%
+  print(n = Inf)
+res$fit$diagnostic_summary()
+```
+:::
+
+:::{.callout-caution collapse="true"}
+##### Trace plots
+```{r}
+mcmc_trace(res$drws["beta"])
+mcmc_trace(res$drws["alpha"])
+mcmc_trace(res$drws["gamma_site"])
+mcmc_trace(res$drws["gamma_epoch"])
+```
+:::
+
+#### Posterior Predictive
+
+```{r}
+y_ppc <- res$drws$y_ppc
+ppc_dat <- bind_cols(acs_itt_nona_dat, tibble(y_ppc = y_ppc)) %>%
+  mutate(CAssignment = factor(
+    CAssignment, 
+    levels = names(intervention_labels_short_break()$CAssignment),
+    labels = intervention_labels_short_break()$CAssignment))
+
+
+plot_grp_ppc <- function(dat, lab = "", xlab = "Probability") {
+  ggplot(dat %>% 
+           filter(response == "ypp", event == "eq"), 
+         aes(y = out)) +
+    facet_wrap( ~ grp, nrow = 1, scales = "free_x") +
+    stat_pointinterval(aes(xdist = posterior), fatten_point = 1)  +
+    geom_point(data = dat %>% filter(response == "y", event == "eq"), 
+               aes(y = out, x = mean(posterior)),
+               colour = "red",
+               shape = 23) +
+    scale_x_continuous(
+      xlab, breaks = c(0, 0.3, 0.6),
+      sec.axis = sec_axis(
+        ~ . , name = lab, breaks = NULL, labels = NULL)) +
+    scale_y_continuous("mMRC scale") +
+    theme(strip.text = element_text(size = rel(0.7)),
+          axis.title.x = element_text(size = rel(0.7)),
+          axis.text.x = element_text(size = rel(0.65)),
+          axis.title.y = element_text(size = rel(0.75)),
+          axis.title.x.bottom = element_blank())
 }
 
-# Wrapper to run stan
-run_stan <- function(model, data)
-{
-  model[["sample"]](data = data,
-                    seed = seed,
-                    refresh = 0,
-                    iter_sampling = 2500,
-                    chains = 8,
-                    parallel_chains = 8)
-}
+pp_C <- ordinal_grp_ppc(out_mmrc_scale, CAssignment, 1:5)
+pp_ctry <- ordinal_grp_ppc(out_mmrc_scale, country, 1:5)
+pp_epoch <- ordinal_grp_ppc(out_mmrc_scale, epoch, 1:5)
+pp_site <- ordinal_grp_ppc(out_mmrc_scale, site, 1:5) %>%
+  left_join(ppc_dat %>% dplyr::count(site, country), 
+            by = c("grp" = "site"))
 
+p1 <- plot_grp_ppc(pp_C, "Anticoagulation", "")
+p2 <- plot_grp_ppc(pp_ctry, "Country", "") 
+p3 <- plot_grp_ppc(pp_epoch, "Epoch", "")
+p4 <- plot_grp_ppc(
+  pp_site %>% filter(country == "IN"), "Sites India", "")
+p5 <- plot_grp_ppc(
+  pp_site %>% filter(country == "AU"), "Sites Australia", "")
+p6 <- plot_grp_ppc(
+  pp_site %>% filter(country == "NP"), "Sites Nepal", "")
+p7 <- plot_grp_ppc(
+  pp_site %>% filter(country == "NP"), "Sites New Zealand", "")
+
+p <- (p1 | p2) / p3 / p4 / p5 / (p6 | p7)
+pth <- file.path("outputs", "figures", "outcomes", "secondary",
+                 "7-7-primary-model-acs-itt-ppc.pdf")
+ggsave(pth, p, width = 6, height = 5.75)
+p
+```
+
+### Sensitivity: Treatment Coding
+
+```{r}
+res <- fit_primary_model(acs_itt_nona_dat, contr.treatment)
 ```
 
 ```{r}
-# Relevel the antiviral assignment for stability.
-acs_itt_nona_dat[["AAssignment"]] <- relevel(acs_itt_nona_dat[["AAssignment"]], "A0")
-
-# Data with antiviral and anticoagulation assignment (and region, site, and epoch).
-dat_tx <- make_stan_data(dat = acs_itt_nona_dat,
-                           vars    = c("CAssignment", "AAssignment"),
-                           outcome = "D28_BreathScale", 
-                           beta_sd = c(1,1,1,1,1))
-
-# 'data_tx' and age category
-dat_tx_age <- make_stan_data(dat = acs_itt_nona_dat,
-                             vars    = c("CAssignment", "AAssignment", "agegte60_c"),
-                             outcome = "D28_BreathScale",
-                             beta_sd = c(1,1,1,1,1,2.5))
-
-# 'data_tx_age' and ineligibility.
-dat_full <- make_stan_data(dat = acs_itt_nona_dat,
-                            vars    = c("CAssignment", "AAssignment", "agegte60_c", "inelgc3"),
-                            outcome = "D28_BreathScale",
-                            beta_sd = c(1,1,1,1,1,2.5,10))
+odds_ratio_summary_table(res$drws$OR)
 ```
 
-## Analysis models
+### Sensitivity: Reduced Models
 
 ```{r, eval = F, include = F}
 #| label: model-treatment
 #| code-summary: Treatment only model
-
+dat_tx <- make_stan_data(
+  dat = acs_itt_nona_dat, 
+  vars    = NULL,
+  outcome = "out_mmrc_scale", 
+  beta_sd_var = NULL)
 stan_tx <- run_stan(model_tx, dat_tx)
 stan_tx$cmdstan_diagnose()
-stan_tx$summary(variables = c("p",
-                              "alpha",
-                              "beta")) 
-
-```
-
-```{r, eval = F, include = F}
-#| label: model-treatment-age
-#| code-summary: Treatment and age model
-
-stan_tx_age <- run_stan(model_tx, dat_tx_age)
-stan_tx_age$cmdstan_diagnose()
-stan_tx_age$summary(variables = c("p",
-                                  "alpha",
-                                  "beta")) 
-
-```
-
-```{r, eval = F, include = F}
-#| label: model-treatment-age
-#| code-summary: Treatment, age, and ineligibility model
-
-stan_tx_age_inlg <- run_stan(model_tx, data_full)
-stan_tx_age_inlg$cmdstan_diagnose()
-stan_tx_age_inlg$summary(variables = c("p",
-                                       "alpha",
-                                       "beta")) 
-
+stan_tx$summary(variables = c("p0", "alpha", "beta"))
 ```
 
 ```{r}
 #| label: model-site
 #| code-summary: Full design model plus site
-
-stan_region <- run_stan(model_region, dat_full)
+dat_full <- make_stan_data(
+  dat = acs_itt_nona_dat,
+  vars    = c("inelgc3", "agegte60", "ctry"),
+  outcome = "out_mmrc_scale",
+  beta_sd = c(10, 2.5, 1, 1))
+stan_region <- run_stan(model_site, dat_full)
 stan_region$cmdstan_diagnose()
-stan_region$summary(variables = c("p",
-                                "alpha",
-                                "beta",
-                                "beta_region"))
+stan_region$summary(variables = c("p0", "alpha", "beta"))
+```
 
+### Expanded Outcome
+
+```{r}
+res <- fit_primary_model(acs_itt_nona2_dat)
 ```
 
 ```{r}
-#| label: model-region-epoch
-#| code-summary: Full design model plus region and epoch
-
-stan_region_epoch <- run_stan(model_region_epoch, dat_full)
-stan_region_epoch$cmdstan_diagnose()
-stan_region_epoch$summary(variables = c("p",
-                                "alpha",
-                                "beta",
-                                "beta_region",
-                                "tau_epoch", "sigma_epoch", "epsilon_epoch"))
-
+odds_ratio_summary_table(res$drws$OR)
 ```
 
 ```{r}
-#| label: model-site
-#| code-summary: Full design model plus site
-
-stan_site <- run_stan(model_site, dat_full)
-stan_site$cmdstan_diagnose()
-stan_site$summary(variables = c("p",
-                                "alpha",
-                                "beta",
-                                "beta_region",
-                                "xi_site", "sigma_site"))
-
+plot_or_densities(res$drws$compare)
 ```
 
 ```{r}
-#| label: model-site-epoch
-#| code-summary: Full design model plus site and epoch
-
-stan_full <- run_stan(model_site_epoch, dat_full)
-stan_full$cmdstan_diagnose()
-stan_full$summary(variables = c("p",
-                                "alpha",
-                                "beta",
-                                "beta_region",
-                                "xi_site", "sigma_site",
-                                "tau_epoch", "sigma_epoch", "epsilon_epoch"))
-
+res <- fit_primary_model(acs_itt_nona2_dat, contr.treatment)
 ```
-
-
-
-
 
 ```{r}
-#| label: model-trace
-#| code-summary: Trace plots
-mcmc_trace(stan_full$draws("p",             format = "matrix"))
-mcmc_trace(stan_full$draws("alpha",         format = "matrix"))
-mcmc_trace(stan_full$draws("beta",          format = "matrix"))
-mcmc_trace(stan_full$draws("beta_region",   format = "matrix"))
-mcmc_trace(stan_full$draws("xi_site",       format = "matrix"))
-mcmc_trace(stan_full$draws("sigma_site",    format = "matrix"))
-mcmc_trace(stan_full$draws("tau_epoch",     format = "matrix"))
-mcmc_trace(stan_full$draws("sigma_epoch",   format = "matrix"))
-mcmc_trace(stan_full$draws("epsilon_epoch",   format = "matrix"))
-
+odds_ratio_summary_table(res$drws$OR)
 ```
 
-## Check region and site model estimates 
 ```{r}
-get_rvs <- function(fit, var)
-{
-  as_draws_rvars(fit[["draws"]](var))[[var]]
-}
-
-check_ests <- function(region_ind) 
-{
-  p_cond <- do.call(cbind, sapply(1:27, function(x) ordered_logit(get_rvs(stan_site, "alpha") - 
-                                                                     get_rvs(stan_site, "xi_site")[x])))
-  p_marg  <- do.call(cbind, sapply(1:3, function(x) ordered_logit(get_rvs(stan_region, "alpha") -
-                                                                       get_rvs(stan_region, "beta_region")[x])))
-  # p_marg  <- logit(rvs_alpha$alpha) # marginal India p
-  p_check <- acs_itt_nona_dat %>%
-    filter(CAssignment == "C1") %>%
-    dplyr::count(site, D28_BreathScale, .drop = F) %>%
-    group_by(site) %>%
-    mutate(p = n / sum(n)) %>%
-    ungroup() %>%
-    mutate(pred = as.vector(p_cond)) %>%
-    mutate(D28_BreathScale = factor(D28_BreathScale, 
-                            levels = breath_labels,
-                            labels = breath_labels_short)) 
-  site_list <- list(c("AMH", "APM", "BCM", "COR", "JIV", "LUD", "MAS", "PUN", "SAM", "SYM", "VEL"),
-                    c("ALF", "AU other", "BXH", "CAM", "LIV", "MMC", "RMH", "RNS", "RPH", "WES", "WWB", "NZ other", "MID", "NSH"),
-                    c("BHN", "TUT"))
-  
-  p_check <- p_check[p_check[["site"]] %in% site_list[[region_ind]],]
-  p_check <- data.frame(p_check, "marg" = rep(p_marg[,region_ind], length(site_list[[region_ind]])))
-  
-  ggplot(p_check, aes(reorder(D28_BreathScale, desc(D28_BreathScale)), p)) +
-    facet_wrap( ~ site) +
-    geom_point(position = position_nudge(x = 0)) +
-    geom_pointrange(aes(ymin = quantile(pred, 0.25), ymax = quantile(pred, 0.75), y = median(pred)),
-                    colour = "red", position = position_nudge(x = 0.2),
-                    fatten = 1.5) +
-    geom_pointrange(aes(ymin = quantile(marg, 0.25), ymax = quantile(marg, 0.75), y = median(marg)),
-                    colour = "blue", position = position_nudge(x = -0.2),
-                    fatten = 1.5) + coord_flip() + 
-    ylab("Proportion in category") + xlab("mMRC breathlessness scale (day 28)")
-  
-}
-
-check_ests(1)
-check_ests(2)
-check_ests(3)
-
+plot_or_densities(res$drws$compare)
 ```
-
-# Posterior predictive check
-
-```{r,echo = F}
-
-
-plot_ordinal_ppd <- function(variable, grouper)
-{
-  y_ppc <- as_draws_df(stan_region_epoch[["draws"]]("y_ppc"))[,-c((nrow(acs_itt_nona_dat)+1):(nrow(acs_itt_nona_dat)+3))]
-  ppc_dat <- bind_cols(acs_itt_nona_dat, tibble(y_ppc = t(y_ppc))) %>%
-    select(
-      StudyPatientID,
-      AAssignment,
-      grouper,
-      AgeAtEntry,
-      inelgc3,
-      ctry,
-      site,
-      epoch,
-      variable,
-      y_ppc)
-  
-  key <- with(ppc_dat, expand_grid("group" = levels(as.factor(ppc_dat[[grouper]])),
-                                   "cat"   = levels(as.factor(ppc_dat[[variable]]))))
-  f_1 <- function(x)
-  {
-    gp <- ppc_dat %>%
-      group_by(as.factor(!!sym(grouper)), as.character(y_ppc[,x])) %>%
-      summarise(n = n()) %>%
-      mutate(freq = n / sum(n)) %>% select(-n)
-    colnames(gp) <- c("group", "cat", "freq")
-    gp <- gp %>% mutate(cat = factor(cat, levels = 1:5, labels = breath_labels))
-    gp <- left_join(key, gp, by = c("group", "cat")) %>% select(freq)
-    colnames(gp) <- NULL
-    gp
-  }
-  
-  gp_dat <- lapply(1:500, f_1)
-  
-  prop_dat <- do.call(cbind, gp_dat)
-  prop_dat[is.na(prop_dat)] <- 0
-  prop_dat <- rvar_apply(prop_dat, 1, rvar)
-  prop_dat <- cbind(key, prop_dat)
-  
-  joiner <- ppc_dat %>%
-    group_by(as.factor(!!sym(grouper)), !!sym(variable)) %>%
-    summarise(n = n()) %>%
-    mutate(freq = n / sum(n)) %>% select(-n)
-  colnames(joiner) <- c("group", "cat", variable)
-  
-  joiner <- left_join(key, joiner, by = c("group", "cat"))
-  joiner[is.na(joiner)] <- 0
-  prop_dat <- left_join(prop_dat, joiner, by = c("group", "cat"))
-  
-  ggplot(prop_dat, aes(y = cat, xdist = prop_dat)) +
-    facet_wrap(~ group) +
-    stat_histinterval() +
-    geom_point(aes_string(x = variable, y = "cat"), colour = 'red')
-
-}
-
-plot_ordinal_ppd(variable = "D28_BreathScale", grouper = "CAssignment")
-plot_ordinal_ppd(variable = "D28_BreathScale", grouper = "AAssignment")
-plot_ordinal_ppd(variable = "D28_BreathScale", grouper = "country")
-plot_ordinal_ppd(variable = "D28_BreathScale", grouper = "site")
-plot_ordinal_ppd(variable = "D28_BreathScale", grouper = "epoch")
-
-```
-```{r, eval = F}
-#| label: model-summaries
-#| code-summary: Model summaries
-
-# Extract the betas as a random variable type (using 'posterior' package)
-rvs_p      <- as_draws_rvars(stan_region_epoch[["draws"]](c("p")))
-rvs_alpha  <- as_draws_rvars(stan_region_epoch[["draws"]](c("alpha")))
-rvs_beta   <- as_draws_rvars(stan_region_epoch[["draws"]](c("beta")))
-rvs_trt    <- setNames(exp(rvs_beta[["beta"]][2:4]), c("C2 vs C1", "C3 vs C1", "C4 vs C1"))
-rvs_region <- as_draws_rvars(stan_region_epoch[["draws"]](c("beta_region")))[[1]]
-rvs_epoch  <- as_draws_rvars(stan_region_epoch[["draws"]](c("tau_epoch")))[[1]]
-
-# Define names of random variables. 
-map_labels <- function(data, num, lab)
-{
-  lab_map <- paste0(data[[num]], ":", data[[lab]])
-  lab_map <- unique(lab_map)     
-  lab_map <- as.data.frame(str_split(lab_map, pattern = ":", simplify = T))
-  names(lab_map) <- c("number", "label")
-  lab_map[["number"]] <- as.numeric(lab_map[["number"]])
-  lab_map <- lab_map[order(lab_map[["number"]]),]
-}
-
-acs_itt_nona_dat[["site_nest"]] <- with(acs_itt_nona_dat, paste0(ctry,": ", site))
-
-epoch_lab  <- map_labels(acs_itt_nona_dat, "epoch", "epoch_lab")
-region_lab <- map_labels(acs_itt_nona_dat, "ctry_num", "country")
-
-names_agegrp <- "60+"
-names_inlgc3 <- "Ineligible C3"
-
-# Set names and exponentiation.
-rvs_agegrp <- setNames(exp(rvs_beta[[1]][6]), names_agegrp)  
-rvs_inlgc3 <- setNames(exp(rvs_beta[[1]][7]), names_inlgc3)  
-rvs_region <- setNames(exp(rvs_region), region_lab[["label"]])
-rvs_epoch  <- setNames(exp(rvs_epoch),  epoch_lab[["label"]])
-
-# Combine random variables and tabulate.
-rvs_all <- c(rvs_trt, rvs_inlgc3, rvs_agegrp, rvs_region, rvs_epoch)
-
-# Put the outcome table together.
-make_outcome_table <- function(OR, format = "html", fn = NULL)
-{
-  out <- tibble(Parameter = names(OR),
-                Mean = sprintf("%.2f", E(OR)),
-                SD   = sprintf("%.2f", sd(OR)),
-                Median = sprintf("%.2f", median(OR)),
-                `95% CrI` = apply(quantile(OR, c(0.025, 0.975)), 2, function(x) 
-                sprintf("(%.2f, %.2f)", x[1], x[2])),
-                `Pr(OR < 1)` = sprintf("%.2f", Pr(OR < 1))) %>%
-    kable(caption = "Model-estimated odds ratios for the all-cause mortality at day 28.",
-          format = format, digits = 2, booktabs = TRUE, linesep = "", align = "lrrrrr", longtable = TRUE) %>%
-    kable_styling(latex_options = "HOLD_position", font_size = 8) %>%
-    group_rows("Anticoagulation treatment", 1, 4) %>%
-    group_rows("Age group", 5, 5) %>%
-    group_rows("Country", 6, 8) %>%
-    group_rows("Epoch", 9, 20) %>%
-    add_footnote("Note: Epoch is the 4-week interval relative to the most recently randomised participant. Site ommitted from the model because of data sparsity.", notation = "none", escape = TRUE)
-  if (!is.null(fn) & format == "latex") {
-    out
-    save_tex_table(out, fn)
-  } else {
-    return(out)
-  }
-}
-
-# Save output
-
-make_outcome_table(rvs_all) %>% kable_styling()
-make_outcome_table(rvs_all, format = "latex", fn = "7-7_breathlessness_scale")
-
-```
-
-# End of script.

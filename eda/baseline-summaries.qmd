@@ -85,6 +85,72 @@ pth <- file.path("outputs", "figures", "baseline")
 ggsave(file.path(pth, "enrolment-overall.pdf"), p, height = 4.5, width = 6)
 ```
 
+```{r}
+#| label: fig-enrolment-ovr-ctry
+#| code-summary: Study enrolment
+#| fig-cap-location: margin
+#| fig-cap: |
+#|   Cumulative enrolments to the platform, 
+#|   vertical lines indicate timing of interim analyses
+#| fig-height: 7
+p1 <- all_data %>%
+  filter(ENR_rec == 1, CAssignment != "C0") %>%
+  dplyr::count(Country = PT_CountryName, RandDate) %>%
+  complete(
+    Country, 
+    RandDate = seq.Date(min(RandDate, na.rm = T), as.Date("2022-04-09"), by = "1 day"),
+    fill = list(n = 0)) %>%
+  group_by(Country) %>%
+  mutate(`Cumulative enrolments` = cumsum(n)) %>%
+  ungroup() %>%
+  mutate(Country = factor(Country, levels = c("India", "Australia", "Nepal", "New Zealand"))) %>%
+  rename(`Randomisation date` = RandDate) %>%
+  ggplot(., aes(`Randomisation date`, `Cumulative enrolments`, fill = Country)) +
+  # facet_wrap( ~ Country, ncol = 1, scales = "free_y") +
+  geom_area(position = "stack") +
+  geom_vline(data = md,
+             aes(xintercept = as.numeric(meet_date)),
+             linetype = 2) +
+  scale_fill_viridis_d("", begin = 0.2, end = 0.8, option = "B") +
+  labs(x = "", subtitle = "Cumulative enrolments", y = "") +
+  theme(legend.position = "top",
+        legend.key.size = unit(0.7, "lines"),
+        legend.text = element_text(size = rel(0.8)))
+
+p3 <- all_data %>%
+  filter(ENR_rec == 1, CAssignment != "C0") %>%
+  dplyr::count(Country = PT_CountryName, RandDate) %>%
+  complete(
+    Country, 
+    RandDate = seq.Date(min(RandDate, na.rm = T), as.Date("2022-04-09"), by = "1 day"),
+    fill = list(n = 0)) %>%
+  group_by(Country) %>%
+  mutate(`Cumulative enrolments` = cumsum(n)) %>%
+  ungroup() %>%
+  mutate(Country = factor(Country, levels = c("India", "Australia", "Nepal", "New Zealand"))) %>%
+  rename(`Randomisation date` = RandDate) %>%
+  ggplot(., aes(`Randomisation date`, `Cumulative enrolments`, group = Country)) +
+  # facet_wrap( ~ Country, ncol = 1, scales = "free_y") +
+  geom_step(position = "stack") +
+  geom_vline(data = md,
+             aes(xintercept = as.numeric(meet_date)),
+             linetype = 2) +
+  scale_fill_viridis_d("", begin = 0.2, end = 0.8, option = "B") +
+  labs(x = "", subtitle = "Cumulative enrolments", y = "") +
+  theme(legend.position = "top",
+        legend.key.size = unit(0.7, "lines"),
+        legend.text = element_text(size = rel(0.8)))
+
+p <- p1 / p2
+p
+```
+
+```{r}
+#| label: save-overall-enrolment-figure-ovr-ctry
+pth <- file.path("outputs", "figures", "baseline")
+ggsave(file.path(pth, "enrolment-overall-country.pdf"), p, height = 5, width = 6)
+```
+
 
 ```{r}
 #| label: fig-enrolment-country
