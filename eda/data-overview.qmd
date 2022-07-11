@@ -40,7 +40,7 @@ datatable(dict)
 ```{r}
 #| label: completeness-table
 #| column: page
-completeness <- summarise_completeness_data(generate_completeness_data(all_daily_data))
+completeness <- summarise_completeness_data(generate_completeness_data(all_daily_data %>% filter(ENR_rec == 1)))
 completeness$combined %>%
   datatable() %>%
   formatStyle(2:10, 'text-align' = "right", "white-space" = "nowrap")

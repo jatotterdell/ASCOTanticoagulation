@@ -9,10 +9,13 @@ format:
     reference-doc: ../custom-reference-doc.docx
 execute: 
   echo: false
+  message: false
+  warning: false
 ---
 
 ```{r}
 #| label: pkgs
+#| include: false
 library(tidyverse)
 library(kableExtra)
 ```
@@ -32,7 +35,7 @@ criteria: D28_OutcomeVasopressors == "Yes" & D28_OutcomeTotalDaysHospitalised > 
 
 ```{r}
 all_data %>%
-  filter(ENR_rec == 1, D28_OutcomeVasopressors == "Yes") %>%
+  filter(ENR_rec == 1, D28_OutcomeVasopressors == "Yes", D28_death != 1) %>%
   select(StudyPatientID, D28_OutcomeVasopressors, DIS_day, DD_total_days, D28_OutcomeTotalDaysHospitalised) %>%
   mutate(criteria = D28_OutcomeTotalDaysHospitalised > DIS_day) %>%
   filter(!criteria) %>%

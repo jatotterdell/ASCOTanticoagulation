@@ -456,8 +456,6 @@ Below, each component is summarised in aggregate.
 
 ## Day 28 mortality
 
-There were 50 participants who had died by day 28, 40 were are reported as a discharge status of death and 10 were reported as a death post-discharge. Day 28 mortality was missing or unknown for 30 participants.
-
 ```{r}
 #| label: po-component-death
 #| code-summary: Summarise the death component
@@ -489,8 +487,6 @@ kable(
 
 ## Vasopressor/inotropic requirement
 
-Vasopressor/inotropic support is reported on both the daily (from day 1 to discharge) and the day 28 (from discharge to day 28) extracts. There were 39 participants who required vasopressor/inotropic support. Of these, 21 were reported between discharge and day 28, 20 were reported prior to discharge, and 2 were reported for both. The component was missing for 35 participants. Either due to missing information at day 28 or due to missing daily information.
-
 ```{r}
 #| label: po-component-vasopressor
 #| code-summary: Summarise the vasopressor/inotropes component
@@ -521,8 +517,6 @@ kable(
 ```
 
 ## New intensive respiratory support
-
-Respiratory support is reported on both the daily (from day 1 to discharge) and the day 28 (at day 28) extracts. There were 70 participants who required new intensive respiratory support. Of these, 60 were prior to discharge, 6 were reported at day 28, and 4 were both. The outcome was unknown for 36 participants due to either missing day 28 information (34) or missing daily information (2).
 
 ```{r}
 #| label: po-component-respiratory
@@ -573,8 +567,6 @@ all_dat %>%
 ```
 
 ## Composite
-
-There were 107 (7% of observed outcomes) participants who met the composite outcome and 36 (2% of all outcomes) participants whose outcome was unknown. Of the 107 who met the outcome, 12 met all three criteria (death, vasopressor, ventilation) and the remaining met some subset of them. Of the 36 with missing outcome, 26 were missing all three components.
 
 ```{r}
 #| label: tbl-po-composite
@@ -860,7 +852,7 @@ acs_itt_dat %>%
 #| fig-cap: Primary outcome by country.
 tdat <- all_dat %>%
   filter_acs_itt() %>%
-  dplyr::count(Country = PT_CountryName, PO) %>%
+  dplyr::count(Country = factor(PT_CountryName, levels = c("India", "Australia", "Nepal", "New Zealand")), PO) %>%
   group_by(Country) %>%
   spread(PO, n, fill = 0) %>%
   mutate(
@@ -1745,6 +1737,21 @@ save_tex_table(
   "outcomes/primary/primary-model-acs-itt-c2-summary-table")
 odds_ratio_summary_table(sdrws$OR)
 ```
+
+:::{.callout-caution collapse="true"}
+#### Diagnostics
+```{r}
+res$fit$summary(c("beta"))
+res$fit$diagnostic_summary()
+```
+:::
+
+:::{.callout-caution collapse="true"}
+#### Trace plots
+```{r}
+mcmc_trace(res$drws["beta"])
+```
+:::
 
 #### Low-dose with aspirin
 

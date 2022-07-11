@@ -8,7 +8,7 @@ author:
     affiliation: University of Sydney
   - name: Rob Mahar
     affiliation: University of Melbourne
-date: last-modified
+date: today
 ---
 
 # Preamble
@@ -262,8 +262,8 @@ colnames(tab)[2] <- "Outcome, n (\\%)"
 kable(
   tab[, -1],
   booktabs = TRUE,
-  align = "lrrrr",
-  escape = T
+  align = "lrrrrr",
+  escape = F
 ) %>%
   kable_styling(
     latex_options = "HOLD_position"
@@ -361,14 +361,14 @@ drws$treat <- (transform_coding(cbind(1, contr.orthonorm(4)), cbind(1, contr.tre
   drws$beta[1:4])[2:4]
 
 drws$OR <- exp(c(
-  rvar(0), drws$treat, 
-  rvar(0), drws$beta[7], 
-  rvar(0), drws$beta[8], 
-  rvar(0), drws$beta[9:10]))
+  drws$treat, 
+  drws$beta[7], 
+  drws$beta[8], 
+  drws$beta[9:10]))
 names(drws$OR) <- c(
-  "Standard (ref)", "Intermediate", "Standard plus aspirin", "Therapeutic", 
-  "Eligible aspirin (ref)", "Ineligible aspirin", "Age < 60 (ref)", "Age 60+", 
-  "India (ref)", "Australia/NZ", "Nepal")
+  "Intermediate", "Low with aspirin", "Therapeutic", 
+  "Ineligible aspirin", "Age \u2265 60", 
+  "Australia/NZ", "Nepal")
 ```
 
 ```{r}
