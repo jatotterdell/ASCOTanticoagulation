@@ -133,7 +133,23 @@ add_database_corrections <- function(dat) {
 
 
 add_d28_corrections <- function(dat) {
-  dat
+  dat %>%
+    mutate(
+      D28_OutcomeTotalDaysHospitalised = case_when(
+        # <= 19 days, but actual amount unknown
+        StudyPatientID == "JIV00223" ~ NA_real_,
+        # Reported as 3, but actually hospitalised for 28 days
+        StudyPatientID == "SAM00060" ~ 28,
+        TRUE ~ D28_OutcomeTotalDaysHospitalised
+      ),
+      D28_OutcomeDaysFreeOfVentilation = case_when(
+        # Followed up on day 27 with 27 days free of vent,
+        # really this is interval censored as in {27, 28}, convert to 28,
+        # assuming no ventilation on day 28 (given not hospitalised on day 27)
+        StudyPatientID == "PUN00027" ~ 28,
+        TRUE ~ D28_OutcomeDaysFreeOfVentilation
+      )
+    )
 }
 
 
@@ -237,6 +253,12 @@ add_primary_outcome_components <- function(dat) {
         is.na(D28_Status) ~ NA_real_,
         TRUE ~ 0
       ),
+      D28_vent2 = case_when(
+        is.na(D28_OutcomeDaysFreeOfVentilation) ~ NA_real_,
+        D28_OutcomeDaysFreeOfVentilation >= 28 ~ 0,
+        D28_OutcomeDaysFreeOfVentilation < 28 ~ 1,
+        TRUE ~ NA_real_
+      ),
       PO_dama = case_when(
         DIS_DAMAlikelytodie == 1 & (is.na(D28_PatientStatusDay28) | D28_PatientStatusDay28 == "Unknown") ~ 1,
         TRUE ~ 0
@@ -259,8 +281,13 @@ add_primary_outcome_components <- function(dat) {
         DAILY_missing == 1 | is.na(DAILY_missing) ~ NA_real_,
         TRUE ~ 0
       ),
-      # Any ventilation, daily or at day 28
+      # Any ventilation, daily or day 28
       ANY_vent = case_when(
+        D28_vent == 1 | D28_vent2 == 1 | ANY_DD_vent == 1 ~ 1,
+        is.na(ANY_DD_vent) | is.na(D28_vent) ~ NA_real_,
+        TRUE ~ 0
+      ),
+      ANY_vent2 = case_when(
         D28_vent == 1 | ANY_DD_vent == 1 ~ 1,
         is.na(ANY_DD_vent) | is.na(D28_vent) ~ NA_real_,
         TRUE ~ 0
