@@ -9,7 +9,7 @@ author:
     affiliation: University of Sydney
   - name: Rob Mahar
     affiliation: University of Melbourne
-date: last-modified
+date: today
 toc-depth: 5
 freeze: true
 ---
@@ -460,33 +460,25 @@ The primary analysis uses the ACS-ITT set, so all participants have been randomi
 ```{r}
 #| label: fit-model-primary
 #| code-summary: Fit primary model
-fit_primary_model <- function(dat, ctr = contr.orthonorm, fit = TRUE, save = FALSE) {
+fit_primary_model <- function(dat, ctr = contr.orthonorm, save = FALSE) {
   mdat <- make_primary_model_data(
     dat, c("inelgc3", "agegte60", "ctry"), 
     c(10, 2.5, 1, 1), 
     ctr)
-  
-  if(fit) {
-    snk <- capture.output(
-    mfit <- ordmod$sample(
-      data = mdat,
-      seed = 3510392,
-      chains = 8,
-      parallel_chains = 8,
-      iter_warmup = 1000,
-      iter_sampling = 2500,
-      refresh = 0,
-      adapt_delta = 0.98
-    )) 
-    if(save) {
-      mfit$save_object(
-        file.path("outputs", "models", "secondary", "7-5-dafv", "primary.rds"))  
-    }
-  } else {
-    mfit <- readRDS(
-      file.path("outputs", "models", "secondary", "7-5-dafv", "primary.rds"))
+  snk <- capture.output(
+  mfit <- ordmod$sample(
+    data = mdat,
+    seed = 3510392,
+    chains = 8,
+    parallel_chains = 8,
+    iter_warmup = 1000,
+    iter_sampling = 2500,
+    refresh = 0,
+    adapt_delta = 0.98
+  )) 
+  if (save) {
+    mfit$save_object(file.path("outputs", "models", "secondary", "7-5.rds"))    
   }
-
   mdrws <- as_draws_rvars(mfit$draws())
   # Add names
   epoch_map <- dat %>% dplyr::count(epoch, epoch_lab)
@@ -515,8 +507,7 @@ fit_primary_model <- function(dat, ctr = contr.orthonorm, fit = TRUE, save = FAL
   )
   return(list(dat = mdat, fit = mfit, drws = mdrws))
 }
-res <- fit_primary_model(acs_itt_nona_dat, fit = TRUE, save = TRUE)
-# res <- fit_primary_model(acs_itt_nona_dat, fit = FALSE)
+res <- fit_primary_model(acs_itt_nona_dat, save = TRUE)
 ```
 
 ```{r}

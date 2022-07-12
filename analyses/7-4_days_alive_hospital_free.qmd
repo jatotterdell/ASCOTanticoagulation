@@ -10,7 +10,7 @@ author:
     affiliation: University of Sydney
   - name: Rob Mahar
     affiliation: University of Melbourne
-date: last-modified
+date: today
 freeze: true
 ---
 
@@ -174,32 +174,25 @@ make_primary_model_data <- function(
 
 fit_primary_model <- function(
     dat, 
-    ctr = contr.orthonorm, 
-    fit = TRUE,
-    save = FALSE,
-    fn = "primary.rds"
+    ctr = contr.orthonorm,
+    save = FALSE
   ) {
   
   mdat <- make_primary_model_data(
     dat, c("inelgc3", "agegte60", "ctry"), c(10, 2.5, 1, 1), ctr)
-  
-  if(fit) {
-    snk <- capture.output(
-      mfit <- ordmod$sample(
-        data = mdat,
-        seed = 813508,
-        chains = 8,
-        parallel_chains = min(8, parallel::detectCores()),
-        iter_warmup = 1000,
-        iter_sampling = 2500,
-        refresh = 0,
-        adapt_delta = 0.98
-    ))
-    if (save) {
-      mfit$save_object(file.path("outputs", "models", "secondary", "7-4-dafh", fn))  
-    }
-  } else {
-    mfit <- readRDS(file.path("outputs", "models", "secondary", "7-4-dafh", fn))
+  snk <- capture.output(
+    mfit <- ordmod$sample(
+      data = mdat,
+      seed = 813508,
+      chains = 8,
+      parallel_chains = min(8, parallel::detectCores()),
+      iter_warmup = 1000,
+      iter_sampling = 2500,
+      refresh = 0,
+      adapt_delta = 0.98
+  ))
+  if (save) {
+    mfit$save_object(file.path("outputs", "models", "secondary", "7-4.rds"))  
   }
   mdrws <- as_draws_rvars(mfit$draws())
   
@@ -255,6 +248,7 @@ As a cross check, @fig-dis-day-vs-days-hospitalised plots the number of days hos
 #|   Number of days hospitalised against day of discharge from index admission.
 #| fig-height: 4
 pdat <- acs_itt_dat %>%
+  filter(D28_death != 1) %>%
   dplyr::count(D28_day = pmin(28, D28_OutcomeTotalDaysHospitalised), DIS_day = pmin(28, DIS_day))
 ggplot(pdat, aes(D28_day, DIS_day)) +
   geom_point(aes(size = n), shape = 21) +
@@ -554,8 +548,7 @@ The primary analysis uses the ACS-ITT set, so all participants have been randomi
 ```{r}
 #| label: fit-model-primary
 #| code-summary: Fit primary model
-res <- fit_primary_model(acs_itt_nona_dat, fit = TRUE, save = TRUE)
-# res <- fit_primary_model(acs_itt_nona_dat, fit = FALSE)
+res <- fit_primary_model(acs_itt_nona_dat, save = TRUE)
 ```
 
 ```{r}
@@ -763,8 +756,7 @@ The model is re-fit with priors specified on the treatment contrasts rather than
 
 ```{r}
 #| code-summary: Fit primary model using treatment contrasts
-res <- fit_primary_model(acs_itt_nona_dat, ctr = contr.treatment, fit = TRUE, save = TRUE, fn = "primary-trt.rds")
-# res <- fit_primary_model(acs_itt_nona_dat, fit = F, save = F, fn = "primary-trt.rds")
+res <- fit_primary_model(acs_itt_nona_dat, ctr = contr.treatment, save = FALSE)
 ```
 
 ```{r}

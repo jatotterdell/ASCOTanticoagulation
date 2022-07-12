@@ -7,7 +7,7 @@ author:
     affiliation: University of Sydney
   - name: Rob Mahar
     affiliation: University of Melbourne
-date: last-modified
+date: today
 toc-depth: 5
 ---
 
@@ -448,7 +448,7 @@ ggplot(trt_logit, aes(D28_who, rel_clogit)) +
 ```{r}
 #| label: fit-model-primary
 #| code-summary: Fit primary model
-fit_primary_model <- function(dat, ctr = contr.orthonorm) {
+fit_primary_model <- function(dat, ctr = contr.orthonorm, save = FALSE) {
   mdat <- make_primary_model_data(
     dat, c("inelgc3", "agegte60", "ctry"), 
     c(10, 2.5, 1, 1), 
@@ -464,6 +464,9 @@ fit_primary_model <- function(dat, ctr = contr.orthonorm) {
       refresh = 0,
       adapt_delta = 0.98
   ))
+  if (save) {
+    mfit$save_object(file.path("outputs", "models", "secondary", "7-2.rds"))  
+  }
   mdrws <- as_draws_rvars(mfit$draws())
   # Add names
   epoch_map <- dat %>% dplyr::count(epoch, epoch_lab)
@@ -494,7 +497,7 @@ fit_primary_model <- function(dat, ctr = contr.orthonorm) {
   )
   return(list(dat = mdat, fit = mfit, drws = mdrws))
 }
-res <- fit_primary_model(acs_itt_nona_dat)
+res <- fit_primary_model(acs_itt_nona_dat, save = TRUE)
 ```
 
 ```{r}
@@ -991,7 +994,7 @@ mcmc_trace(mdrws["alpha"])
 ```{r}
 #| label: fit-model-primary-trt-ctr
 #| code-summary: Fit primary model
-res <- fit_primary_model(acs_itt_nona_dat, contr.treatment)
+res <- fit_primary_model(acs_itt_nona_dat, contr.treatment, save = FALSE)
 ```
 
 ```{r}

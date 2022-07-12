@@ -7,7 +7,7 @@ author:
     affiliation: University of Melbourne
   - name: James Totterdell
     affiliation: University of Sydney
-date: last-modified
+date: today
 toc-depth: 4
 ---
 
@@ -374,6 +374,7 @@ snk <- capture.output(
     parallel_chains = 8,
     adapt_delta = 0.95
 ))
+mfit$save_object(file.path("outputs", "models", "secondary", "7-6.rds"))
 mdrws <- as_draws_rvars(mfit$draws())
 names(mdrws$beta) <- colnames(mdat$X)
 names(mdrws$gamma_epoch) <- acs_itt_nona_dat %>% dplyr::count(epoch, epoch_lab) %>% pull(epoch_lab)
