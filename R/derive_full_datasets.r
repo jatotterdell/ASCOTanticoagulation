@@ -485,6 +485,18 @@ format_baseline_data <- function(bas) {
     ungroup() %>%
     mutate(
       across(BAS_Comorbidities_None:BAS_IatrogenicImmuno, ~ if_else(is.na(.x), "No", .x))
+    ) %>%
+    mutate(
+      # 11 patients had peripheral oxygen reported but said "No" to no room air
+      BAS_PeripheralOxygen = case_when(
+        BAS_OnRoomAir24hrs == "No" ~ NA_real_,
+        TRUE ~ BAS_PeripheralOxygen
+      ),
+      # If "Unknown" thet set to missing
+      BAS_OnRoomAir24hrs = case_when(
+        BAS_OnRoomAir24hrsUnknown == "Yes" ~ NA_character_,
+        TRUE ~ BAS_OnRoomAir24hrs
+      )
     )
 }
 

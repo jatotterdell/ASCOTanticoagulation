@@ -7,7 +7,7 @@ subtitle: |
 description: |
   *This script was used to undertake the analysis of the primary outcome for ASCOT.*
 author: "James Totterdell"
-date: last-modified
+date: today
 ---
 
 # Preamble
@@ -340,7 +340,7 @@ make_subgroup_summary_table <- function(dat, format = "html") {
       font_size = 9
     ) %>%
     group_rows("Intermediate", row_st[1], row_ed[1]) %>%
-    pack_rows("Standard plus aspirin", row_st[2], row_ed[2]) %>%
+    pack_rows("Low with aspirin", row_st[2], row_ed[2]) %>%
     pack_rows("Therapeutic", row_st[3], row_ed[3])  
 }
 
@@ -404,19 +404,24 @@ decision_quantity_summary_table <- function(OR, format = "html", fut_val = 1.1) 
                         median(posterior), 
                         quantile(posterior, 0.025), 
                         quantile(posterior, 0.975)),
-    Superior = sprintf("%.2f", E(posterior == rvar_min(posterior))),
-    Effective = sprintf("%.2f", Pr(posterior < 1)),
-    Futile = sprintf("%.2f", Pr(posterior > 1/fut_val)),
-    Equivalent = sprintf("%.2f", Pr(posterior < fut_val & posterior > 1/fut_val))
+    `Superior\nPr(OR = min(OR))` = sprintf("%.2f", E(posterior == rvar_min(posterior))),
+    `Effective\nPr(OR < 1)` = sprintf("%.2f", Pr(posterior < 1)),
+    `Futile\nPr(OR > 1/1.1)` = sprintf("%.2f", Pr(posterior > 1/fut_val)),
+    `Equivalent\nPr(1/1.1 < OR < 1.1)` = sprintf("%.2f", Pr(posterior < fut_val & posterior > 1/fut_val))
   ) %>%
     select(-posterior)
+  tdat[1, 2] <- "1.00"
   tdat[1, -(1:3)] <- "-"
+  if(format == "latex") {
+    colnames(tdat) <- linebreak(colnames(tdat), align = "c", linebreaker = "\n")  
+  }
   out <- kable(
     tdat,
     format = format, 
     digits = 2, 
     align = "lrrrrr",
     linesep = "",
+    escape = F,
     booktabs = TRUE) %>%
     kable_styling(
       font_size = 9,
@@ -528,7 +533,7 @@ vent_table <- all_dat %>%
     `Ventilation_Not required_` = sum(1 - ANY_vent, na.rm = TRUE),
     `Ventilation_Use within 28 days_Total` = sum(ANY_vent, na.rm = TRUE),
     `Ventilation_Use within 28 days_Prior to discharge` = sum(ANY_DD_vent, na.rm = TRUE),
-    `Ventilation_Use within 28 days_Post-discharge` = sum(D28_vent, na.rm = TRUE),
+    `Ventilation_Use within 28 days_Post-discharge` = sum(ANY_vent & ANY_DD_vent == 0, na.rm = TRUE),
     `Ventilation_Unknown_` = sum(is.na(ANY_vent))
   ) %>%
   gather(key, Frequency, -CAssignment, factor_key = T) %>%
@@ -712,7 +717,7 @@ intdat <- all_dat %>%
       TRUE ~ 4
     )),
     CAssignment = factor(
-      CAssignment, labels = c("Standard", "Intermediate", "Standard\nplus aspirin", "Therapuetic"))
+      CAssignment, labels = c("Low", "Intermediate", "Low\nwith aspirin", "Therapuetic"))
   )
 intcounts <- intdat %>% 
   dplyr::count(interim) %>% 
@@ -829,7 +834,7 @@ p
 
 ```{r}
 #| label: tbl-age
-#| code-summary: Relationship age 60+ to outcome
+#| code-summary: Relationship age \u2265 60 to outcome
 #| tbl-cap: |
 #|   Relationship between age >= 60 and the primary outcome.
 acs_itt_dat %>%
@@ -955,15 +960,6 @@ ggsave(file.path(path, "outcome-calendar-time.pdf"), p, height = 2, width = 6)
 p
 ```
 
-## Country and Calendar Time
-
-```{r}
-acs_itt_nona_dat %>% 
-  dplyr::group_by(country, epoch) %>% 
-  summarise(n = sprintf("%i/%i (%.2f)", sum(PO), n(), mean(PO))) %>% 
-  spread(country, n, fill = 0)
-```
-
 ## Days since symptom onset
 
 ```{r}
@@ -1000,50 +996,6 @@ p <- p1 | p2
 path <- file.path("outputs", "figures", "outcomes", "primary")
 ggsave(file.path(path, "outcome-dsfs.pdf"), p, height = 2, width = 6)
 p
-```
-
-## Oxygen
-
-```{r}
-#| label: tbl-on-room-air
-#| code-summary: Relationship of on room air at baseline to outcome
-#| tbl-cap: |
-#|   Relationship between on room air and the primary outcome.
-all_dat %>%
-  filter_fas_itt() %>%
-  dplyr::count(BAS_OnRoomAir24hrsUnknown, BAS_OnRoomAir24hrs, PO) %>%
-  spread(PO, n, fill = 0) %>%
-  mutate(
-    p_1 = `1` / (`1` + `0`),
-    p_miss = `<NA>` / (`1` + `0` + `<NA>`)
-  ) %>%
-  kable(digits = 2) %>%
-  kable_styling(bootstrap_options = "striped")
-```
-
-```{r}
-#| label: fig-oxygen-sat
-#| code-summary: Relationship oxygen saturation to outcome
-#| fig-cap: |
-#|   Relationship (logistic regression linear) 
-#|   between oxygen saturation at entry and the primary outcome.
-podat <- acs_itt_dat %>%
-  dplyr::count(PO, oxygen_sat) %>% 
-  spread(PO, n, fill = 0) %>% 
-  mutate(p = `1` / (`1` + `0`))
-pomod <- glm(
-  cbind(`1`, `0`) ~ I(oxygen_sat - 94), 
-  data = podat, 
-  family = binomial())
-podat <- podat %>%
-  mutate(
-    ypred = predict(pomod, newdata = podat, type = "response")
-  )
-p <- ggplot(podat, aes(oxygen_sat, p)) +
-    geom_point() +
-    geom_line(aes(y = ypred)) +
-    labs(y = "Proportion with outcome", x = "Days since onset")
-ggplotly(p)
 ```
 
 ## Anti-coagulation Domain
@@ -1312,6 +1264,7 @@ res <- fit_primary_model(
   seed = 32915,
   adapt_delta = 0.99
 )
+res$fit$save_object(file.path("outputs", "models", "primary", "acs-itt-primary.rds"))
 names(res$drws$OR) <- c(
   intervention_labels2()$CAssignment[-(1:2)], 
   "Ineligible aspirin", "Age \u2265 60", "Australia/New Zealand", "Nepal")
@@ -1330,10 +1283,10 @@ odds_ratio_summary_table(res$drws$OR)
 #| label: tbl-decision-quantities
 #| tbl-cap: Decision quantity summaries
 save_tex_table(
-  decision_quantity_summary_table(c("Standard" = rvar(1), res$drws$OR[1:3]), "latex"),
+  decision_quantity_summary_table(c("Low-dose" = rvar(1), res$drws$OR[1:3]), "latex"),
   "outcomes/primary/primary-model-acs-itt-decision-table")
 decision_quantity_summary_table(
-  c("Standard" = rvar(1), res$drws$OR[1:3])
+  c("Low-dose" = rvar(1), res$drws$OR[1:3])
 )
 ```
 
@@ -1435,8 +1388,6 @@ p
 ## Sensitivity Analyses
 
 ### Sens: Treatment Contrasts
-
-The pre-specified model encoded priors on the orthonormal contrasts. In this section, the primary model is re-fit using the more standard treatment contrasts for a comparison of results.
 
 ```{r}
 res <- fit_primary_model(
@@ -1675,14 +1626,12 @@ p
 
 ### Sens: Concurrent Randomisation
 
-In the following section, we undertake analyses where the analysis set is restricted to participants who were randomised concurrently amongst the relevant interventions. For example, the standard dose plus aspirin intervention was closed on 2021-09-10. Therefore, we perform a sensitivity analysis where we restrict the analysis set to participants randomised to the anticoagulation domain between trial start and 2021-09-10.
-
 #### Intermediate-dose
 
 ```{r}
 #| label: tbl-acs-itt-c2-summary-table
 #| tbl-cap: Primary outcome summary for participants randomised to either
-#|   standard dose or intermediate dose arms (ACS-ITT-intermediate).
+#|   low-dose or intermediate dose arms (ACS-ITT-intermediate).
 save_tex_table(
   make_po_table(
     acs_itt_concurc2_dat,
@@ -1722,8 +1671,8 @@ sdrws$beta_trt <- as.vector(
   transform_coding(cbind(1, ctr(2)), cbind(1, contr.treatment(2))) %**% sdrws$beta[1:2]
 )
 sdrws$OR <- c(
-  "Intermediate dose" = exp(sdrws$beta_trt[2]),
-  "Age 60+" = exp(sdrws$beta[3]),
+  "Intermediate-dose" = exp(sdrws$beta_trt[2]),
+  "Age \u2265 60" = exp(sdrws$beta[3]),
   "Australia/New Zealand" = exp(sdrws$beta[4]),
   "Nepal" = exp(sdrws$beta[5])
 )
@@ -1755,12 +1704,10 @@ mcmc_trace(res$drws["beta"])
 
 #### Low-dose with aspirin
 
-In what follows, the analysis set is restricted to participants in the ACS-ITT set who were randomised between study start and 2021-09-10. A summary of the number of participants randomised and meeting the primary outcome are provided in @tbl-acs-itt-c3-summary-table, noting that 35 participants were ineligible for the standard dose plus aspirin intervention.
-
 ```{r}
 #| label: tbl-acs-itt-c3-summary-table
 #| tbl-cap: Primary outcome summary for participants randomised whilst the
-#|   standard dose plus aspirin arm was available (ACS-ITT-aspirin).
+#|   low-dose plus aspirin arm was available (ACS-ITT-aspirin).
 save_tex_table(
   make_po_table(
     acs_itt_concurc3_dat,
@@ -1769,14 +1716,6 @@ save_tex_table(
 make_po_table(acs_itt_concurc3_dat)
 ```
 
-Given there was non RAR activated in the domain, the only factor influencing allocation probabilities are eligibility for the standard dose plus aspirin intervention, and the region of enrolment (antiviral interventions open to Aus/NZ but not India). Therefore, a reduced model is fit to the data where the only terms are:
-
-- anticoagulation intervention group
-- ineligibility for aspirin group
-- age 60+
-- country (India or Aus/NZ)
-
-No terms are included for site, epoch, or for the antiviral intervention received.
 
 ```{r}
 #| label: fit-model-acs-itt-c3
@@ -1810,9 +1749,9 @@ sdrws$beta_trt <- as.vector(
 )
 
 sdrws$OR <- c(
-  "Intermediate dose" = exp(sdrws$beta_trt[2]),
-  "Standard dose plus aspirin" = exp(sdrws$beta_trt[3]),
-  "Age 60+" = exp(sdrws$beta[4]),
+  "Intermediate-dose" = exp(sdrws$beta_trt[2]),
+  "Low-dose with aspirin" = exp(sdrws$beta_trt[3]),
+  "Age \u2265 60" = exp(sdrws$beta[4]),
   "Australia/New Zealand" = exp(sdrws$beta[5])
 )
 ```
@@ -1830,8 +1769,7 @@ odds_ratio_summary_table(sdrws$OR)
 
 ```{r}
 #| label: tbl-acs-itt-c4-summary-table
-#| tbl-cap: Primary outcome summary for participants randomised whilst the
-#|   standard dose plus aspirin arm was available (ACS-ITT-therapeutic).
+#| tbl-cap: Primary outcome summary for participants randomised under protocol 5.0 (ACS-ITT-therapeutic).
 save_tex_table(
   make_po_table(
     acs_itt_concurc4_dat,
@@ -1874,7 +1812,7 @@ sdrws$beta_trt <- as.vector(
 sdrws$OR <- c(
   "Intermediate dose" = exp(sdrws$beta_trt[2]),
   "Therapeutic dose" = exp(sdrws$beta_trt[3]),
-  "Age 60+" = exp(sdrws$beta[4]),
+  "Age \u2265 60" = exp(sdrws$beta[4]),
   "India" = exp(sdrws$beta[5]),
   "Australia/New Zealand" = exp(sdrws$beta[6])
 )
@@ -1961,11 +1899,11 @@ mdrws$Ccon <- Cc %**% mdrws$beta[grepl("randC[0-9]", names(mdrws$beta))]
 mdrws$Atrt <- mdrws$Acon[-1] - mdrws$Acon[1]
 mdrws$Ctrt <- mdrws$Ccon[-1] - mdrws$Ccon[1]
 
-mdrws$OR <- setNames(exp(mdrws$Ctrt), c("Intermediate", "Standard plus aspirin", "Therapeutic"))
+mdrws$OR <- setNames(exp(mdrws$Ctrt), c("Intermediate", "Low with aspirin", "Therapeutic"))
 mdrws$OR <- c(
   mdrws$OR, 
   "Ineligible aspirin" = exp(mdrws$beta[7]), 
-  "Age 60+" = exp(mdrws$beta[8]),
+  "Age \u2265 60" = exp(mdrws$beta[8]),
    setNames(exp(mdrws$beta[9:10]), c("Australia/New Zealand", "Nepal")))
 mdrws$ORepoch <- setNames(exp(mdrws$gamma_epoch), epoch_map$epoch_lab)
 mdrws$ORsites <- setNames(exp(mdrws$gamma_site), site_map$site)

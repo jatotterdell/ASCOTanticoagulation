@@ -288,6 +288,12 @@ transmute_model_cols <- function(dat) {
       weight = BAS_Weight,
       weightgt120 = as.numeric(weight > 120),
       oxygen_sat = if_else(BAS_PeripheralOxygen < 10, NA_real_, BAS_PeripheralOxygen),
+      airoxy = case_when(
+        is.na(BAS_OnRoomAir24hrs) ~ NA_real_,
+        BAS_OnRoomAir24hrs == "No" | (BAS_OnRoomAir24hrs == "Yes" & oxygen_sat >= 94) ~ 0,
+        BAS_OnRoomAir24hrs == "Yes" ~ 1,
+        TRUE ~ NA_real_
+      ),
       dsfs = as.numeric(RandDate - EL_FirstSymptoms),
       dsfsgt7 = as.numeric(dsfs > 7),
       vax = case_when(
@@ -409,6 +415,12 @@ transmute_model_cols_grp_aus_nz <- function(dat) {
       weight = BAS_Weight,
       weightgt120 = as.numeric(weight > 120),
       oxygen_sat = if_else(BAS_PeripheralOxygen < 10, NA_real_, BAS_PeripheralOxygen),
+      airoxy = case_when(
+        is.na(BAS_OnRoomAir24hrs) ~ NA_real_,
+        BAS_OnRoomAir24hrs == "No" | (BAS_OnRoomAir24hrs == "Yes" & oxygen_sat >= 94) ~ 0,
+        BAS_OnRoomAir24hrs == "Yes" ~ 1,
+        TRUE ~ NA_real_
+      ),
       dsfs = as.numeric(RandDate - EL_FirstSymptoms),
       dsfsgt7 = as.numeric(dsfs > 7),
       vax = case_when(

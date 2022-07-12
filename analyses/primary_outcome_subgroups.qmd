@@ -7,7 +7,7 @@ subtitle: |
 description: |
   *This script was used to undertake the subgroup analyses of the primary outcome for ASCOT.*
 author: "James Totterdell"
-date: last-modified
+date: today
 ---
 
 ## Preamble
@@ -487,6 +487,103 @@ make_subgroup_summary_table(ordat)
 ```{r}
 tab <- make_subgroup_summary_table(compdat, "latex")
 save_tex_table(tab, "outcomes/primary/subgroup/dsfs-odds-ratios-compare")
+make_subgroup_summary_table(compdat)
+```
+
+### On Room Air and Oxygen Saturation
+
+The pre-specified subgroup analysis was for patients who were "on room air in the preceding 24 hours **or** had an oxygen saturation < 94" vs "not on room air and oxygen saturation $\geq$ 94. However, oxygen saturation was only reported for participants who were reported as on room air in the preceding 24 hours. For participants who were not on room air, their oxygen saturation was unknown. Therefore, the pre-specified subgroup is not identifiable.
+
+```{r}
+all_dat %>% 
+  filter_acs_itt() %>%
+  dplyr::count(
+    "On room air in preceding 24 hours" = BAS_OnRoomAir24hrs, 
+    "Missing peripheral oxygen" = factor(is.na(BAS_PeripheralOxygen), labels = c("No", "Yes")))
+```
+
+Instead, what has been analysed below is the subgroup "not on room air **or** on room air with oxygen saturation > 94" vs "on room air and oxygen saturation < 94".
+
+```{r}
+all_dat %>% 
+  filter_acs_itt() %>%
+  dplyr::count(
+    "Not on room air or oxygen 94+" = 
+      BAS_OnRoomAir24hrs == "No" | (BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen >= 94), 
+    "On room air and oxygen < 94" = 
+      BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen < 94)
+```
+
+```{r}
+#| tbl-cap: Primary outcome by anti-coagulation intervention by days since first symptom group.
+make_subgroup_air_table <- function(format = "html") {
+  make_base_subgroup_table(acs_itt_dat %>% filter(!is.na(airoxy)), airoxy, format = format)  %>%
+    pack_rows("Not on room air or oxygen saturation \u2265 94", 1, 4) %>%
+    pack_rows("On room air and oxygen saturation < 94", 5, 8)
+}
+tab <- make_subgroup_air_table("latex")
+save_tex_table(tab, "outcomes/primary/descriptive-acs-itt-subgroup-air-descriptive")
+make_subgroup_air_table()
+```
+
+```{r}
+res <- fit_primary_model(
+  acs_itt_nona_dat %>% filter(!is.na(airoxy)),
+  primary_mod,
+  vars = c("CAssignment", "AAssignment", "inelgc3", "agegte60", "airoxy", "ctry", "CAssignment:airoxy"),
+  beta_sd = c(2.5, rep(1, 5), 10, 2.5, 2.5, 1, 1, rep(1, 3)),
+  ctr = contr.treatment,
+  seed = 46732,
+  iter_warmup = 500,
+  iter_sampling = 2500,
+  chains = 8,
+  parallel_chains = min(8, parallel::detectCores()),
+  adapt_delta = 0.98
+)
+
+# Derive subgroup-specific effects
+labs <- c("No room air or SpO2 \u2265 94", "Room air and SpO2 < 94")
+betaC <- res$drws$beta[grepl("CAssignment", names(res$drws$beta))]
+res$drws$trt1 <- betaC[1:3]
+res$drws$trt2 <- betaC[1:3] + betaC[4:6]
+res$drws$logOR <- rbind(res$drws$trt1, res$drws$trt2)
+res$drws$OR <- exp(res$drws$logOR)
+rownames(res$drws$OR) <- labs
+colnames(res$drws$OR) <- intervention_labels_short()$CAssignment[-(1:2)]
+res$drws$compare <- sweep(res$drws$OR, 2, res$drws$OR[1, ], FUN = "/")
+
+ordat <- expand_grid(
+  Contrast = intervention_labels_short()$CAssignment[-(1:2)],
+  `Oxygen` = labs
+) %>%
+  mutate(Posterior = c(res$drws$OR)) %>%
+  summarise_posterior()
+compdat <- expand_grid(
+  Contrast = intervention_labels_short()$CAssignment[-(1:2)],
+  `Oxygen` = labs
+) %>%
+  mutate(Posterior = c(res$drws$compare)) %>%
+  summarise_posterior() %>%
+  select(-`Pr(OR > 1/1.1)`)
+```
+
+```{r}
+p <- plot_subgroup_or(ordat, sym("Oxygen"))
+ggsave(file.path("outputs", "figures", "outcomes", "primary", "acs-itt-subgroup-air-hte.pdf"),
+       p, device = cairo_pdf,
+       height = 3, width = 6)
+p
+```
+
+```{r}
+tab <- make_subgroup_summary_table(ordat, "latex")
+save_tex_table(tab, "outcomes/primary/subgroup/air-odds-ratios")
+make_subgroup_summary_table(ordat)
+```
+
+```{r}
+tab <- make_subgroup_summary_table(compdat, "latex")
+save_tex_table(tab, "outcomes/primary/subgroup/air-odds-ratios-compare")
 make_subgroup_summary_table(compdat)
 ```
 
