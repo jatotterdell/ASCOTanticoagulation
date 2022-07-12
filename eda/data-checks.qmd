@@ -3,7 +3,7 @@ title: "Data Checks"
 description: |
   Run the data checks requested by Grace.
 author: "James Totterdell"
-date: last-modified
+date: today
 format:
   docx:
     reference-doc: ../custom-reference-doc.docx

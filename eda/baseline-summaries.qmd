@@ -3,7 +3,7 @@ title: "Enrolment and Baseline Summaries"
 description: |
   Exploratory summaries of enrolments and baseline data.
 author: "James Totterdell"
-date: last-modified
+date: today
 ---
 
 ```{r}

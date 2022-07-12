@@ -3,7 +3,7 @@ title: "Data Overview"
 description: |
   Exploratory overview of ASCOT anticoagulation data.
 author: "James Totterdell"
-date: last-modified
+date: today
 ---
 
 ```{r}
