@@ -1,6 +1,6 @@
 ---
 title: "ASCOT Anticoagulation Statistical Analysis Report"
-date: '2022-06-30'
+date: '2022-07-15'
 author:
   - name: James Totterdell
     affiliation: University of Sydney
@@ -84,11 +84,50 @@ Missing outcome data were not imputed for any of the models (with the exception 
 
 ### Further Details
 
-For binary outcomes, the following logistic regression model was specified.
+For all models, the primary linear predictor was the same. For a participant $i$ with outcome $y_i$, their region of enrolment is denoted by $r(i)\in\{1,...,R\}$, their site by $s(i)\in\{1,...,S_{r(i)}\}$, and their epoch by $t(i)\in\{1,...,T\}$. Their anticoagulation design vector is denoted by $x_{Ci}$ and their antiviral design vector by $x_{Ai}$, their aspirin ineligibility by $e_i$, and their age group by $a_i$, so that
+$$
+\eta_i = x_{Ci}^{\mathsf{T}}\beta_C + x_{Ai}^{\mathsf{T}}\beta_A + \rho_{r(i)} + \xi_{r(i), s(i)} + \tau_{t(i)} + \omega_1e_i + \omega_2a_i,
+$$
+was the linear predictor for the outcome for participant $i$.
 
-For ordinal outcomes, the following proportional-odds cumulative logistic regression model was specified.
+For all models, the prior distribution on the linear components were
+$$
+\begin{aligned}
+  \beta_C &\overset{\text{iid}}{\sim} \text{Normal}(0, 1) \\
+  \beta_A &\overset{\text{iid}}{\sim} \text{Normal}(0, 1) \\
+  \rho_1 = 0, \rho_r &\sim \text{Normal}(0, 1), \quad r=2,...,R \\
+  \tau_1 = 0, \tau_t &\sim \text{Normal}(\tau_{t-1}, \sigma_\tau^2), \quad t=2,...,T \\
+  \sigma_\tau &\sim \text{Student-}t(3, 0, 1) \\
+  \xi_{r,s} &\sim \text{Normal}(0, \sigma_{\xi_r}^2),\quad s=1,...,S_r,\quad r=1,...,R \\
+  \sigma_{\xi_r} &\sim \text{Student-}t(3, 0, 1),\quad r=1,...,R \\
+  \omega_1 &\sim \text{Normal}(0, 10^2) \\
+  \omega_2 &\sim \text{Normal}(0, 2.5^2).
+\end{aligned}
+$$
 
-For the analysis of time-to-clinical-recovery, the following multinomial logistic regression model was specified.
+For binary outcomes, the model was
+$$
+\begin{aligned}
+\pi(\eta) &= \text{logit}^{-1}(\beta_0 + \eta) \\
+y_i &\sim \text{Bernoulli}(\pi(\eta_i))
+\end{aligned}
+$$
+with $\beta_0 \sim \text{Normal}(0, 2.5^2)$.
+
+For ordinal outcomes with $K$ levels, the model was
+$$
+\begin{aligned}
+\pi_{k}(\eta) &= \begin{cases}
+1 - \text{logit}^{-1}(\eta - \alpha_1) & k=1 \\
+\text{logit}^{-1}(\eta - \alpha_{k-1}) - \text{logit}^{-1}(\eta - \alpha_{k}) & k=2,...,K-1 \\
+\text{logit}^{-1}(\eta - \alpha_{K-1}) & k=K
+\end{cases} \\
+y_i &\sim \text{Categorical}(\pi_k(\eta_i))
+\end{aligned}
+$$
+where $\alpha_k < \alpha_{k+1}$ for $k\in\{1,...,K-2\}$ and $\pi(0) \sim \text{Dirichlet}(2/K, \cdots, 2/K)$.
+
+For the time-to-clinical-recovery outcome, the model was
 
 ## Trial Decision Criteria
 
@@ -925,10 +964,6 @@ knitr::include_graphics(
   "../outputs/figures/outcomes/primary/acs-itt-subgroup-aspirin-hte.pdf"
 )
 ```
-
-\clearpage
-
-#### Joint Model
 
 \clearpage
 

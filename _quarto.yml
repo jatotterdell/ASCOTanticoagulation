@@ -8,7 +8,6 @@ project:
     - "eda/*.qmd"
     - "!eda/data-checks.qmd"
     - "!eda/check_who.qmd"
-    - "!analyses/7-1*"
     - "!analyses/7-7_breathlessness_scale_RM.qmd"
 
 website:
@@ -29,6 +28,7 @@ website:
         contents:
           - "analyses/primary_outcome.qmd"
           - "analyses/primary_outcome_subgroups.qmd"
+          - "analyses/7-1_time_to_clinical_recovery.qmd"
           - "analyses/7-2_who_ordinal_scale.qmd"
           - "analyses/7-3_all_cause_mortality.qmd"
           - "analyses/7-4_days_alive_hospital_free.qmd"

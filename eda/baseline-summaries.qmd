@@ -320,16 +320,6 @@ all_data %>%
 ```
 
 ```{r}
-#| label: tbl-intervention-assignments-both
-#| tbl-cap: Counts of intervention assignments to regimen
-#| tbl-cap-location: margin
-all_data %>%
-  count(FAS_ITT, ACS_ITT, AVS_ITT, AAssignment, CAssignment) %>%
-  kable() %>%
-  kable_styling("striped", font_size = 14)
-```
-
-```{r}
 #| label: fig-intervention-assignment-overtime
 #| code-summary: Intervention allocations overtime
 #| fig-cap: |
