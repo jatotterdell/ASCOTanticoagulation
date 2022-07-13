@@ -549,22 +549,11 @@ fit <- mlogit_site_epoch$sample(
   iter_sampling = 500, 
   iter_warmup = 250,
   adapt_delta = 0.99)
-fit$save_output_files(
-  dir = file.path("outputs", "models", "secondary", "7-1-ttr"),
-  basename = "primary",
-  timestamp = FALSE, 
-  random = FALSE)
 fit$save_object(file.path("outputs", "models", "secondary", "7-1-ttr", "primary.rds"))
 ```
 
 ```{r}
-fit <- as_cmdstan_fit(
-  grep("primary-[0-9].csv", 
-       list.files(
-         file.path("outputs", "models", "secondary", "7-1-ttr"), 
-         full.names = T), 
-       value = T)
-)
+fit <- readRDS(file.path("outputs", "models", "secondary", "7-1-ttr", "primary.rds"))
 drws <- as_draws_rvars(fit$draws())
 rownames(drws$beta) <- colnames(sdat$X)
 epoch_map <- acs_itt_outdat %>% dplyr::count(epoch, epoch_lab)
