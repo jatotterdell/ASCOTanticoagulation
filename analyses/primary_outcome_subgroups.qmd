@@ -8,6 +8,7 @@ description: |
   *This script was used to undertake the subgroup analyses of the primary outcome for ASCOT.*
 author: "James Totterdell"
 date: today
+freeze: true
 ---
 
 ## Preamble

@@ -8,6 +8,7 @@ author:
   - name: Rob Mahar
     affiliation: University of Melbourne
 date: today
+freeze: true
 ---
 
 ## Preamble {#preamble}
