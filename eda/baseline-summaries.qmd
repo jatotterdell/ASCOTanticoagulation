@@ -76,13 +76,9 @@ p2 <- id %>%
   labs(x = "", y = "Calendar date", subtitle = "Available interventions")
 
 p <- p1 / p2
-p
-```
-
-```{r}
-#| label: save-overall-enrolment-figure
 pth <- file.path("outputs", "figures", "baseline")
 ggsave(file.path(pth, "enrolment-overall.pdf"), p, height = 4.5, width = 6)
+p
 ```
 
 ```{r}
@@ -142,15 +138,10 @@ p3 <- all_data %>%
         legend.text = element_text(size = rel(0.8)))
 
 p <- p1 / p2
-p
-```
-
-```{r}
-#| label: save-overall-enrolment-figure-ovr-ctry
 pth <- file.path("outputs", "figures", "baseline")
 ggsave(file.path(pth, "enrolment-overall-country.pdf"), p, height = 5, width = 6)
+p
 ```
-
 
 ```{r}
 #| label: fig-enrolment-country
@@ -178,13 +169,9 @@ p1 <- all_data %>%
              linetype = 2) +
   labs(x = "", subtitle = "Cumulative enrolments", y = "")
 p <- (p1 / p2) + plot_layout(heights = c(5, 2))
-p
-```
-
-```{r}
-#| label: save-country-enrolment-figure
 pth <- file.path("outputs", "figures", "baseline")
 ggsave(file.path(pth, "enrolment-country.pdf"), p, height = 6, width = 6)
+p
 ```
 
 ```{r}
@@ -314,7 +301,8 @@ ggsave(file.path(pth, "enrolment-nepalnz-sites.pdf"), p_npnz, height = 3, width 
 #| tbl-cap: Counts of intervention assignments to anticoagulation
 #| tbl-cap-location: margin
 all_data %>%
-  count(FAS_ITT, ACS_ITT, CAssignment) %>%
+  filter_fas_itt() %>%
+  dplyr::count(FAS_ITT, ACS_ITT, CAssignment) %>%
   kable() %>%
   kable_styling("striped", font_size = 14)
 ```
@@ -326,10 +314,10 @@ all_data %>%
 #|   Allocation to interventions by calendar date.
 p1 <- all_data %>%
   filter(ENR_rec == 1) %>%
-  count(Intervention = CAssignment, RandDate) %>%
+  dplyr::count(Intervention = CAssignment, RandDate) %>%
   complete(Intervention,
            RandDate = seq.Date(min(RandDate, na.rm = T),
-                               max(Sys.Date(), na.rm = T),
+                              as.Date("2022-04-09"),
                                by = "1 day"),
            fill = list(n = 0)) %>%
   group_by(Intervention) %>%
@@ -353,7 +341,7 @@ Allocations to interventions by country of enrolment.
 #|   Allocation to anti-coagulation interventions by country
 all_data %>%
   filter(ENR_rec == 1) %>%
-  count(Country = PT_CountryName, Intervention = CAssignment) %>%
+  dplyr::count(Country = PT_CountryName, Intervention = factor(CAssignment, labels = intervention_labels2()$CAssignment)) %>%
   group_by(Country) %>%
   mutate(p = n / sum(n)) %>%
   mutate(lab = sprintf("%i (%.2f)", n, p)) %>%
@@ -362,6 +350,30 @@ all_data %>%
   spread(Intervention, lab, fill = "0 (0.00)") %>%
   kable(align = "lrrrrr") %>%
   kable_styling(bootstrap_options = "striped", font_size = 12)
+```
+
+```{r}
+#| label: fig-allocation-country
+#| code-summary: Allocations by country
+#| fig-cap: |
+#|   Allocation to anti-coagulation interventions by country
+#| fig-height: 8
+p <- all_data %>%
+  filter(ENR_rec == 1) %>%
+  dplyr::count(Country = Country,
+        Intervention = factor(CAssignment, labels = c("Not randomised", intervention_labels_short()$CAssignment[-1]))) %>%
+  group_by(Country) %>%
+  mutate(p = n / sum(n)) %>%
+  ggplot(., aes(Intervention, n)) +
+  facet_wrap( ~ Country, scales = "free_y", ncol = 4) +
+  geom_col() +
+  scale_y_continuous("Frequency",
+    breaks = function(x) 
+      unique(floor(pretty(seq(0, (max(x) + 1) * 1.1))))) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.25))
+pth <- file.path("outputs", "figures", "baseline")
+ggsave(file.path(pth, "allocations-country.pdf"), p, height = 2.5, width = 7)
+p
 ```
 
 ### Site
@@ -376,9 +388,9 @@ Allocations to interventions by site of enrolment.
 #| fig-height: 8
 p <- all_data %>%
   filter(ENR_rec == 1) %>%
-  count(Country = Country, 
+  dplyr::count(Country = Country, 
         Site = Location,
-        Intervention = CAssignment) %>%
+        Intervention = factor(CAssignment, labels = c("Not randomised", intervention_labels_short()$CAssignment[-1]))) %>%
   group_by(Site = paste(Country, Site, sep = ": ")) %>%
   mutate(p = n / sum(n)) %>%
   ggplot(., aes(Intervention, n)) +
@@ -386,9 +398,41 @@ p <- all_data %>%
   geom_col() +
   scale_y_continuous("Frequency",
     breaks = function(x) 
-      unique(floor(pretty(seq(0, (max(x) + 1) * 1.1)))))
-ggplotly(p)
+      unique(floor(pretty(seq(0, (max(x) + 1) * 1.1))))) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.25))
+pth <- file.path("outputs", "figures", "baseline")
+ggsave(file.path(pth, "allocations-sites.pdf"), p, height = 6, width = 7)
+p
 ```
+
+### Calender Time
+
+```{r}
+#| label: fig-allocation-epoch
+#| code-summary: Allocations by epoch
+#| fig-cap: |
+#|   Allocation to anti-coagulation interventions by country
+#| fig-height: 8
+p <- all_data %>%
+  filter(ENR_rec == 1) %>%
+  dplyr::count(yr = year(RandDate), mth = month(RandDate),
+        Intervention = factor(CAssignment, labels = c("Not randomised", intervention_labels_short()$CAssignment[-1]))) %>%
+  group_by(yr, mth) %>%
+  mutate(p = n / sum(n)) %>%
+  ggplot(., aes(mth, p, fill = Intervention)) +
+  facet_grid( ~ yr, drop = T, scales = "free_x", space = "free") +
+  geom_col() +
+  scale_y_continuous("Distribution of\ninterventions") +
+  scale_fill_viridis_d(option = "B")  +
+    labs(
+      x = "Calendar date (month of year)") +
+  scale_x_continuous(breaks = 1:12) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.25))
+pth <- file.path("outputs", "figures", "baseline")
+ggsave(file.path(pth, "allocations-calendar.pdf"), p, height = 2.5, width = 7)
+p
+```
+
 
 # Baseline Factors
 
@@ -488,15 +532,10 @@ p_age <- all_data %>%
     x = "Age at randomisation (5-year bins, 30 to 34, 35 to 39, etc.)", 
     y = "Count") +
   scale_x_continuous(breaks = seq(20, 95, 5))
-p_age
-```
-
-```{r}
-#| label: save-age-figure
 pth <- file.path("outputs", "figures", "baseline")
 ggsave(file.path(pth, "age-overall.pdf"), p_age, height = 2, width = 4)
+p_age
 ```
-
 
 ```{r}
 #| label: fig-age-by-cassignment
@@ -537,23 +576,6 @@ p <- all_data %>%
 p
 ```
 
-## Oxygen
-
-```{r}
-all_data %>% 
-  dplyr::count(
-    BAS_OnRoomAir24hrs,
-    BAS_OnRoomAir24hrsUnknown,
-    is.na(BAS_PeripheralOxygen)
-  )
-
-all_data %>%
-  dplyr::count(
-    BAS_OnRoomAir24hrs == "Yes",
-    BAS_PeripheralOxygen < 94
-  )
-```
-
 ## Date since first symptoms
 
 ```{r}
@@ -587,102 +609,9 @@ p4 <- ggplot(tsfs_dat, aes(pt_to_rand)) +
   geom_bar() +
   labs(x = "Positive test to randomisation", y = "Frequency")
 p <- (p1 | p2) / (p3 | p4)
-```
-
-```{r}
-#| label: save-days-to-event-figure
 pth <- file.path("outputs", "figures", "baseline")
 ggsave(file.path(pth, "days-between-events-overall.pdf"), p, height = 3, width = 6)
-```
-
-```{r}
-tsfs_dat %>%
-  dplyr::count(CAssignment, `TSFS > 7 days` = fs_to_rand > 7) %>%
-  spread(CAssignment, n)
-```
-
-## D-dimer
-
-```{r}
-all_data %>%
-  filter_acs_itt() %>%
-  dplyr::count(
-    BAS_DDimerTestPerformed,
-    BAS_DDimerOutOfRange, 
-    BAS_DDimerUnits)
-```
-
-```{r}
-all_data %>% 
-  filter_acs_itt() %>%
-  ggplot(., aes(BAS_DDimerEntered, BAS_DDimerResult)) +
-  facet_wrap( ~ BAS_DDimerUnits, scales = "free_x") +
-  geom_point()
-```
-
-```{r}
-all_data %>% 
-  filter_acs_itt() %>%
-  ggplot(., aes(BAS_DDimerResult)) +
-  geom_histogram() +
-  scale_x_log10()
-```
-
-## Serum Creatinine
-
-There is an issue with the serum creatinine units for some participants. These have been reported as "umol/L" when in fact it is more likely they are in mg/dL (spike at values reported as umol/L and less than 1, noting that 1 mg/dL = 88.42 umol/L).
-
-```{r}
-#| label: fig-serum-creatinine
-#| fig-cap: |
-#|   Histogram of serum creatinine levels at 
-#|   baseline by reported units.
-#|   Note the cluster at ~ 1 umol/L for values reported
-#|   in umol/L.
-all_data %>%
-  filter(
-    EL_SerumCreatinineUnits == "umol/L",
-    EL_SerumCreatinineBlood <= 1.5
-  ) %>%
-  select(
-    EligibilityCode, 
-    StudyPatientID, 
-    starts_with("EL_Serum"))
-  # write_csv(file.path(ASCOT_DATA, "derived", "low_creatinine_values.csv"))
-ggplot(all_data %>% 
-         filter(!is.na(EL_SerumCreatinineUnits)), 
-       aes(EL_SerumCreatinine_umolL)) +
-  geom_histogram(bins = 25, boundary = 0) +
-  facet_wrap( ~ EL_SerumCreatinineUnits) +
-  scale_x_log10()
-```
-
-```{r}
-#| label: fig-creatinine-clearance
-#| fig-cap: |
-#|   Creatinine clearance rate from formula.
-#|   Facets are the reported units 
-#|   (converted to umol/L where required).
-#|   Vertical line marks 30 mL/min.
-tmp <- all_data %>%
-  filter(!is.na(EL_SerumCreatinineUnits)) %>%
-  mutate(
-    clearance = creatinine_clearance(
-      Sex, AgeAtEntry, BAS_Weight, EL_SerumCreatinine_umolL)
-  )
-p1 <- ggplot(tmp, aes(clearance)) + 
-  facet_wrap( ~ EL_SerumCreatinineUnits) +
-  geom_histogram() + 
-  geom_vline(xintercept = 30) +
-  scale_x_log10() +
-  labs(x = "Creatinine clearance\n(mL/min)", y = "Frequency")
-p2 <- ggplot(tmp, aes(EL_SerumCreatinine_umolL, clearance)) + 
-  facet_wrap( ~ EL_SerumCreatinineUnits) +
-  geom_point() + 
-  scale_x_log10() +
-  scale_y_log10() +
-  labs(x = "Serum creatinine\n(umol/L)", y = "Creatinine clearance\n(mL/min)")
-p1 / p2
+p
 ```
 
 # Drugs Received During Hospital Stay
