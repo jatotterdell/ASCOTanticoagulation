@@ -14,6 +14,7 @@ library(patchwork)
 library(DT)
 library(plotly)
 library(knitr)
+library(lubridate)
 library(kableExtra)
 
 theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
