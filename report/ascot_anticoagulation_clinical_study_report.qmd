@@ -1336,6 +1336,32 @@ knitr::include_graphics(
 ))
 ```
 
+```{r}
+#| label: fig-7-1-acs-itt-epoch-site-recovery
+#| fig-cap:
+#|   Posterior Summaries (point - median, block - 75% CrI, line - 95% CrI) 
+#|   of odds ratio for epoch and site effects on recovery to 
+#|   day 28 for the outcome model fit to the ACS-ITT set.
+knitr::include_graphics(
+  file.path(
+    "..", "outputs", "figures", "outcomes", "secondary",
+    "7-1-primary-model-acs-itt-epoch-site-recovery.pdf"
+))
+```
+
+```{r}
+#| label: fig-7-1-acs-itt-epoch-site-death
+#| fig-cap:
+#|   Posterior Summaries (point - median, block - 75% CrI, line - 95% CrI) 
+#|   of odds ratio for epoch and site effects on death to 
+#|   day 28 for the outcome model fit to the ACS-ITT set.
+knitr::include_graphics(
+  file.path(
+    "..", "outputs", "figures", "outcomes", "secondary",
+    "7-1-primary-model-acs-itt-epoch-site-death.pdf"
+))
+```
+
 \clearpage
 
 #### Sensitivity: Concurrent Enrolments

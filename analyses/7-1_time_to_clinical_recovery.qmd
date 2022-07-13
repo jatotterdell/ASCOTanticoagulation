@@ -593,10 +593,10 @@ p2 <- plot_epoch_site_terms(
     sdat$region_by_site, 
     labels = c("India", "Australia\nNew Zealand", "Nepal"))) +
   plot_annotation(title = "Death")
-pth <- file.path("outputs", "figures", "outcomes", "primary", 
+pth <- file.path("outputs", "figures", "outcomes", "secondary", 
                  "7-1-primary-model-acs-itt-epoch-site-recovery.pdf")
 ggsave(pth, p1, width = 6, height = 4.5)
-pth <- file.path("outputs", "figures", "outcomes", "primary", 
+pth <- file.path("outputs", "figures", "outcomes", "secondary", 
                  "7-1-primary-model-acs-itt-epoch-site-death.pdf")
 ggsave(pth, p2, width = 6, height = 4.5)
 p1

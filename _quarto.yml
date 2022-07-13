@@ -8,7 +8,6 @@ project:
     - "eda/*.qmd"
     - "!eda/data-checks.qmd"
     - "!eda/check_who.qmd"
-    - "!analyses/7-7_breathlessness_scale_RM.qmd"
 
 website:
   sidebar:
