@@ -427,8 +427,7 @@ p <- all_data %>%
   scale_fill_viridis_d(option = "B")  +
     labs(
       x = "Calendar date (month of year)") +
-  scale_x_continuous(breaks = 1:12) +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.25))
+  scale_x_continuous(breaks = 1:12)
 pth <- file.path("outputs", "figures", "baseline")
 ggsave(file.path(pth, "allocations-calendar.pdf"), p, height = 2.5, width = 7)
 p

@@ -107,7 +107,7 @@ $$
 \end{aligned}
 $$
 
-For binary outcomes, $y_i\in\{0,1\}$, the model was
+For **binary outcomes**, $y_i\in\{0,1\}$, the model was
 $$
 \begin{aligned}
 \pi(\eta) &= \text{logit}^{-1}(\beta_0 + \eta) \\
@@ -116,7 +116,7 @@ y_i &\sim \text{Bernoulli}(\pi(\eta_i))
 $$
 with $\beta_0 \sim \text{Normal}(0, 2.5^2)$.
 
-For ordinal outcomes with $K$ levels, $y_i\in\{1,...,K\}$, the model was
+For **ordinal outcomes** with $K$ levels, $y_i\in\{1,...,K\}$, the model was
 $$
 \begin{aligned}
 \pi_{k}(\eta) &= \begin{cases}
@@ -129,7 +129,7 @@ y_i &\sim \text{Categorical}(\pi_k(\eta_i))
 $$
 where $\alpha_k < \alpha_{k+1}$ for $k\in\{1,...,K-2\}$ and $\pi(0) \sim \text{Dirichlet}(2/K, \cdots, 2/K)$.
 
-For time-to-clinical-recovery outcome, where $d_i\in\{1,...,28\}$ denotes the day of first event (or censoring at day 28) and $m\in\{0,1,2\}$ indicates event types (unrecovered, recovered, died), and $y_{id}=(y_{id0}, y_{id1}, y_{id2})$ with $y_{itm}\in\{0,1\}$ indicates the status of patient $i$ at day $d\leq d_i$, then the model was
+For the **time-to-clinical-recovery outcome**, where $d_i\in\{1,...,28\}$ denotes the day of first event (or censoring at day 28) and $m\in\{0,1,2\}$ indicates event types (unrecovered, recovered, died), and $y_{id}=(y_{id0}, y_{id1}, y_{id2})$ with $y_{itm}\in\{0,1\}$ indicates the status of patient $i$ at day $d\leq d_i$, then the model was
 $$
 \begin{aligned}
 \lambda_m(d,\eta) &= \frac{\exp(\alpha_{dm} + \eta_m)}{1 + \sum_{l=1}^M \exp(\alpha_{dl} + \eta_l)},\quad m=1,2 \\
@@ -424,10 +424,6 @@ There were 18 participants without a discharge record (due to withdrawal of cons
 tab <- readLines(file.path("..", "outputs", "tables", "baseline", "drugs.tex"))
 writeLines(tab[-which(grepl("caption", tab))])
 ```
-
-\clearpage
-
-### Adherence
 
 \clearpage
 
