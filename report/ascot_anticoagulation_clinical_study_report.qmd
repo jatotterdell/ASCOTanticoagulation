@@ -47,6 +47,8 @@ For full details of the interventions, refer to the domain specific appendix to 
 
 ## Outcomes
 
+For details on the primary and secondary outcomes, refer to the core protocol. For details on the domain specific outcomes refer to the anticoagulation domain-specific appendix.
+
 ## Modelling
 
 ### General Considerations
@@ -1279,6 +1281,8 @@ This section reports on the analysis for time to clinical recovery. Time to clin
 
 The analysis of the time to clinical recovery to day 28 outcome used a discrete-time competing risk time-to-event model (multinomial logistic regression). The events of interest were death or recovery. Baseline cause-specific hazards were modelled separately for death and recovery with some smoothing enforced across adjacent time points via a first order random walk prior on the logit intercept terms.
 
+This modelling approach deviated from that specified in the SAP which did not account for the competing risk of death.
+
 - **Model**: multinomial logistic regression
 - **Terms**: anticoagulation intervention, antiviral intervention, aspirin eligibility, age group, region, epoch
 - **Set**: ACS-ITT
@@ -2336,7 +2340,7 @@ writeLines(tab)
 
 ### Modified Medical Research Council (mMRC) breathlessness scale at day 28
 
-The mMRC scale was only asked of participants who responded "yes" to the question of new or worsening breathlessness since COVID. Therefore, the distribution of this outcome scale is conditional on the patient responding that they were experiencing new or worse breathlessness since having COVID. In the following tables "Not asked" refers to participants who responded "no" the question of breathlessness.
+The mMRC scale was only asked of participants who responded "yes" to the question of new or worsening breathlessness since COVID. Therefore, the distribution of this outcome scale is conditional on the patient responding that they were experiencing new or worse breathlessness since having COVID. In the following tables "Not asked" refers to participants who responded "no" to the question of breathlessness.
 
 ```{r}
 #| label: tbl-7-7-mmrc-acs-itt
@@ -2418,7 +2422,7 @@ tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "secondary", "
 writeLines(tab)
 ```
 
-The SAP described a formal analysis of the two composite outcomes: any thrombotic event (or death), and any clinical relevant bleeding. Due to the small number of bleeding events (10 of 1,521 known outcomes) this analysis was not undertaken. Similarly, for any thrombotic event or death, due to the majority of the events being due to death, the results were expected to be similar to those for all-cause mortality to day 28. Despite this, the analysis *was* performed for any thrombotic event or death and the results reported below.
+The SAP described a formal analysis of the two composite outcomes: any thrombotic event (or death), and any clinical relevant bleeding. Due to the small number of bleeding events this analysis was not undertaken. Similarly, for any thrombotic event or death, due to the majority of the events being due to death, the results were expected to be similar to those for all-cause mortality to day 28. Despite this, the analysis *was* performed for any thrombotic event or death and the results reported below.
 
 ### Any thrombotic event (or death) to day 28
 

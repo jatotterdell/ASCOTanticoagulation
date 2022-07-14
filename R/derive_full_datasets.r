@@ -610,6 +610,10 @@ summarise_daily_data <- function(dd) {
       DD_death = as.integer(any(DD_who == 8)),
       DD_recover_who = as.integer(any(DD_who <= 3)),
       DD_ttr_who = as.numeric(findfirst(DD_who <= 3)),
+      # Adherence
+      DD_any_aspirin = any(DD_AspirinAdministered == "Yes", na.rm = TRUE),
+      DD_n_aspirin = sum(DD_AspirinAdministered == "Yes", na.rm = TRUE),
+      DD_n_aspirin_2to27 = sum((DD_AspirinAdministered == "Yes") & (DD_StudyDay > 1 & DD_StudyDay < 28), na.rm = TRUE),
       .groups = "drop"
     ) %>%
     mutate(

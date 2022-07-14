@@ -42,9 +42,8 @@ options(digits = 4)
 
 ```{r}
 #| label: model
-logistic_mod <- cmdstan_model("stan/logistic_bernoulli.stan")
-primary_mod2 <- cmdstan_model("stan/primary_logistic_model_site_epoch2.stan")
-primary_mod3 <- cmdstan_model("stan/primary_logistic_model_site_epoch3.stan")
+logistic_mod <- cmdstan_model("stan/binary/logistic.stan")
+primary_mod <- cmdstan_model("stan/binary/logistic_site_epoch.stan")
 ```
 
 
@@ -336,7 +335,7 @@ mdat <- list(N = nrow(X), K = ncol(X), X = X, y = acs_itt_nona_dat$out_ated,
        beta_sd = c(2.5, rep(1, nXassign), 10, 2.5, rep(1, 2)))
 
 snk <- capture.output(
-  mfit <- primary_mod2$sample(
+  mfit <- primary_mod$sample(
     data = mdat,
     seed = 28497,
     refresh = 0,
@@ -415,7 +414,7 @@ mdat <- list(N = nrow(X), K = ncol(X), X = X, y = acs_itt_nona_dat$out_ated,
        beta_sd = c(2.5, rep(1, nXassign), 10, 2.5, rep(1, 2)))
 
 snk <- capture.output(
-  mfit <- primary_mod2$sample(
+  mfit <- primary_mod$sample(
     data = mdat,
     seed = 28497,
     refresh = 0,

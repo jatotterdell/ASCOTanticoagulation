@@ -156,6 +156,63 @@ intervention_strata <- function() {
   )
 }
 
+
+# Note for therapeutic dose
+# Enoxaparin: PP_Dose is 1 x BAS_Weight twice per day, or 1.5 x BAS_Weight once
+# per day. PP_Dose is in milligrams (mg) at the frequency in the 'times' column.
+# Tinzaparin: PP_Dose is IU/kg - Note only 1 patient received Tinzaparin and
+# none received Dalteparin.
+
+# common to protocol 3 (incl C3 arm) and protocol 5.
+# Matches original pp_lmwh_dose table that did not account
+# for creatinine levels at baseline and assumes creatinine clearance >30mL/min.
+pp_lwmh_dose <- function() {
+  tribble(
+    ~DD_TypeLMWH, ~times, ~weight_low, ~weight_high, ~weight_group, ~CAssignment, ~PP_Dose,
+    "Enoxaparin", "Once", 0, 50, "< 50", "C1", 20,
+    "Enoxaparin", "Once", 0, 50, "< 50", "C2", 40,
+    "Enoxaparin", "Once", 0, 50, "< 50", "C3", 20,
+    "Enoxaparin", "Twice", 0, 50, "< 50", "C4", 1,
+    "Enoxaparin", "Once", 0, 50, "< 50", "C4", 1.5,
+    "Enoxaparin", "Once", 50, 120, "50 - 120", "C1", 40,
+    "Enoxaparin", "Twice", 50, 120, "50 - 120", "C2", 40,
+    "Enoxaparin", "Once", 50, 120, "50 - 120", "C2", 80,
+    "Enoxaparin", "Once", 50, 120, "50 - 120", "C3", 40,
+    "Enoxaparin", "Twice", 50, 120, "50 - 120", "C4", 1,
+    "Enoxaparin", "Once", 50, 120, "50 - 120", "C4", 1.5,
+    "Enoxaparin", "Once", 120, Inf, "> 120", "C1", 60,
+    "Enoxaparin", "Twice", 120, Inf, "> 120", "C2", 60,
+    "Enoxaparin", "Once", 120, Inf, "> 120", "C2", 120,
+    "Enoxaparin", "Once", 120, Inf, "> 120", "C3", 60,
+    "Enoxaparin", "Twice", 120, Inf, "> 120", "C4", 1,
+    "Enoxaparin", "Once", 120, Inf, "> 120", "C4", 1.5,
+    "Tinzaparin", "Once", NA, NA, NA, "C1", 75,
+    "Tinzaparin", "Once", NA, NA, NA, "C2", 125,
+    "Tinzaparin", "Once", NA, NA, NA, "C3", 75,
+    "Tinzaparin", "Once", NA, NA, NA, "C4", 175
+  )
+}
+
+# Protocol 5 Dosing table is not applicable to C3 (standard dose + aspirin)
+# Different means differs from creatinine over >30 dosing
+pp_lwmh_dose_creat_under <- function() {
+  tribble(
+    ~DD_TypeLMWH, ~times, ~weight_low, ~weight_high, ~weight_group, ~CAssignment, ~PP_Dose,
+    "Enoxaparin", "Once", 0, 50, "< 50", "C1", 20,
+    "Enoxaparin", "Once", 0, 50, "< 50", "C2", 0.5, # different
+    "Enoxaparin", "Once", 0, 50, "< 50", "C4", 1, # different
+    "Enoxaparin", "Once", 50, 120, "50 - 120", "C1", 20,
+    "Enoxaparin", "Once", 0, 50, "50 - 120", "C2", 0.5, # different
+    "Enoxaparin", "Once", 50, 120, "50 - 120", "C4", 1,
+    "Enoxaparin", "Once", 120, Inf, "> 120", "C1", 40,
+    "Enoxaparin", "Once", 120, Inf, "> 120", "C2", 0.5,
+    "Enoxaparin", "Once", 120, Inf, "> 120", "C4", 1,
+    "Tinzaparin", "Once", NA, NA, NA, "C1", 75,
+    "Tinzaparin", "Once", NA, NA, NA, "C2", 125,
+    "Tinzaparin", "Once", NA, NA, NA, "C4", 175
+  )
+}
+
 # Filter analysis sets ----
 
 #' @title filter_fas_itt
