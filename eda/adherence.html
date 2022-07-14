@@ -8,7 +8,7 @@
 
 <meta name="author" content="James Totterdell">
 <meta name="author" content="Rob Mahar">
-<meta name="dcterms.date" content="2022-07-13">
+<meta name="dcterms.date" content="2022-07-14">
 <meta name="description" content="Summarise anticoagulation domain adherence">
 
 <title>Adherence check and summary</title>
@@ -3879,10 +3879,235 @@ vertical-align: -.125em;
   }
 }</script>
 
+<script>$(document).ready(function(){
+    if (typeof $('[data-toggle="tooltip"]').tooltip === 'function') {
+        $('[data-toggle="tooltip"]').tooltip();
+    }
+    if ($('[data-toggle="popover"]').popover === 'function') {
+        $('[data-toggle="popover"]').popover();
+    }
+});
+</script>
+<style type="text/css">
+.lightable-minimal {
+border-collapse: separate;
+border-spacing: 16px 1px;
+width: 100%;
+margin-bottom: 10px;
+}
+.lightable-minimal td {
+margin-left: 5px;
+margin-right: 5px;
+}
+.lightable-minimal th {
+margin-left: 5px;
+margin-right: 5px;
+}
+.lightable-minimal thead tr:last-child th {
+border-bottom: 2px solid #00000050;
+empty-cells: hide;
+}
+.lightable-minimal tbody tr:first-child td {
+padding-top: 0.5em;
+}
+.lightable-minimal.lightable-hover tbody tr:hover {
+background-color: #f5f5f5;
+}
+.lightable-minimal.lightable-striped tbody tr:nth-child(even) {
+background-color: #f5f5f5;
+}
+.lightable-classic {
+border-top: 0.16em solid #111111;
+border-bottom: 0.16em solid #111111;
+width: 100%;
+margin-bottom: 10px;
+margin: 10px 5px;
+}
+.lightable-classic tfoot tr td {
+border: 0;
+}
+.lightable-classic tfoot tr:first-child td {
+border-top: 0.14em solid #111111;
+}
+.lightable-classic caption {
+color: #222222;
+}
+.lightable-classic td {
+padding-left: 5px;
+padding-right: 5px;
+color: #222222;
+}
+.lightable-classic th {
+padding-left: 5px;
+padding-right: 5px;
+font-weight: normal;
+color: #222222;
+}
+.lightable-classic thead tr:last-child th {
+border-bottom: 0.10em solid #111111;
+}
+.lightable-classic.lightable-hover tbody tr:hover {
+background-color: #F9EEC1;
+}
+.lightable-classic.lightable-striped tbody tr:nth-child(even) {
+background-color: #f5f5f5;
+}
+.lightable-classic-2 {
+border-top: 3px double #111111;
+border-bottom: 3px double #111111;
+width: 100%;
+margin-bottom: 10px;
+}
+.lightable-classic-2 tfoot tr td {
+border: 0;
+}
+.lightable-classic-2 tfoot tr:first-child td {
+border-top: 3px double #111111;
+}
+.lightable-classic-2 caption {
+color: #222222;
+}
+.lightable-classic-2 td {
+padding-left: 5px;
+padding-right: 5px;
+color: #222222;
+}
+.lightable-classic-2 th {
+padding-left: 5px;
+padding-right: 5px;
+font-weight: normal;
+color: #222222;
+}
+.lightable-classic-2 tbody tr:last-child td {
+border-bottom: 3px double #111111;
+}
+.lightable-classic-2 thead tr:last-child th {
+border-bottom: 1px solid #111111;
+}
+.lightable-classic-2.lightable-hover tbody tr:hover {
+background-color: #F9EEC1;
+}
+.lightable-classic-2.lightable-striped tbody tr:nth-child(even) {
+background-color: #f5f5f5;
+}
+.lightable-material {
+min-width: 100%;
+white-space: nowrap;
+table-layout: fixed;
+font-family: Roboto, sans-serif;
+border: 1px solid #EEE;
+border-collapse: collapse;
+margin-bottom: 10px;
+}
+.lightable-material tfoot tr td {
+border: 0;
+}
+.lightable-material tfoot tr:first-child td {
+border-top: 1px solid #EEE;
+}
+.lightable-material th {
+height: 56px;
+padding-left: 16px;
+padding-right: 16px;
+}
+.lightable-material td {
+height: 52px;
+padding-left: 16px;
+padding-right: 16px;
+border-top: 1px solid #eeeeee;
+}
+.lightable-material.lightable-hover tbody tr:hover {
+background-color: #f5f5f5;
+}
+.lightable-material.lightable-striped tbody tr:nth-child(even) {
+background-color: #f5f5f5;
+}
+.lightable-material.lightable-striped tbody td {
+border: 0;
+}
+.lightable-material.lightable-striped thead tr:last-child th {
+border-bottom: 1px solid #ddd;
+}
+.lightable-material-dark {
+min-width: 100%;
+white-space: nowrap;
+table-layout: fixed;
+font-family: Roboto, sans-serif;
+border: 1px solid #FFFFFF12;
+border-collapse: collapse;
+margin-bottom: 10px;
+background-color: #363640;
+}
+.lightable-material-dark tfoot tr td {
+border: 0;
+}
+.lightable-material-dark tfoot tr:first-child td {
+border-top: 1px solid #FFFFFF12;
+}
+.lightable-material-dark th {
+height: 56px;
+padding-left: 16px;
+padding-right: 16px;
+color: #FFFFFF60;
+}
+.lightable-material-dark td {
+height: 52px;
+padding-left: 16px;
+padding-right: 16px;
+color: #FFFFFF;
+border-top: 1px solid #FFFFFF12;
+}
+.lightable-material-dark.lightable-hover tbody tr:hover {
+background-color: #FFFFFF12;
+}
+.lightable-material-dark.lightable-striped tbody tr:nth-child(even) {
+background-color: #FFFFFF12;
+}
+.lightable-material-dark.lightable-striped tbody td {
+border: 0;
+}
+.lightable-material-dark.lightable-striped thead tr:last-child th {
+border-bottom: 1px solid #FFFFFF12;
+}
+.lightable-paper {
+width: 100%;
+margin-bottom: 10px;
+color: #444;
+}
+.lightable-paper tfoot tr td {
+border: 0;
+}
+.lightable-paper tfoot tr:first-child td {
+border-top: 1px solid #00000020;
+}
+.lightable-paper thead tr:last-child th {
+color: #666;
+vertical-align: bottom;
+border-bottom: 1px solid #00000020;
+line-height: 1.15em;
+padding: 10px 5px;
+}
+.lightable-paper td {
+vertical-align: middle;
+border-bottom: 1px solid #00000010;
+line-height: 1.15em;
+padding: 7px 5px;
+}
+.lightable-paper.lightable-hover tbody tr:hover {
+background-color: #F9EEC1;
+}
+.lightable-paper.lightable-striped tbody tr:nth-child(even) {
+background-color: #00000008;
+}
+.lightable-paper.lightable-striped tbody td {
+border: 0;
+}
+</style>
+
 
 </head>
 
-<body class="nav-sidebar floating">
+<body class="nav-sidebar floating slimcontent">
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top">
@@ -4010,12 +4235,19 @@ vertical-align: -.125em;
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#aspirin" id="toc-aspirin" class="nav-link active" data-scroll-target="#aspirin">Aspirin</a></li>
+  <li><a href="#aspirin" id="toc-aspirin" class="nav-link active" data-scroll-target="#aspirin">Aspirin</a>
+  <ul class="collapse">
+  <li><a href="#dosing" id="toc-dosing" class="nav-link" data-scroll-target="#dosing">Dosing</a></li>
+  </ul></li>
+  <li><a href="#lmwh" id="toc-lmwh" class="nav-link" data-scroll-target="#lmwh">LMWH</a>
+  <ul class="collapse">
+  <li><a href="#dosing-1" id="toc-dosing-1" class="nav-link" data-scroll-target="#dosing-1">Dosing</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
 <!-- main -->
-<main class="content" id="quarto-document-content">
+<main class="content page-columns page-full" id="quarto-document-content">
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
@@ -4056,7 +4288,7 @@ vertical-align: -.125em;
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">July 13, 2022</p>
+      <p class="date">July 14, 2022</p>
     </div>
   </div>
     
@@ -4086,17 +4318,19 @@ vertical-align: -.125em;
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>all_dat <span class="ot">&lt;-</span> <span class="fu">read_all_no_daily</span>()</span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>all_dat_daily <span class="ot">&lt;-</span> <span class="fu">read_all_daily</span>()</span>
 <span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>saes <span class="ot">&lt;-</span> <span class="fu">read_sae_file</span>()</span>
-<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>site_list <span class="ot">&lt;-</span> all_dat_daily <span class="sc">%&gt;%</span></span>
-<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(PT_CountryName, PT_LocationName) <span class="sc">%&gt;%</span></span>
-<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">distinct</span>(PT_LocationName, <span class="at">.keep_all =</span> <span class="cn">TRUE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>pp <span class="ot">&lt;-</span> <span class="fu">read_per_protocol_list</span>()</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>dev <span class="ot">&lt;-</span> <span class="fu">read_protocol_deviations</span>()</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>site_list <span class="ot">&lt;-</span> all_dat_daily <span class="sc">%&gt;%</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(PT_CountryName, PT_LocationName) <span class="sc">%&gt;%</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">distinct</span>(PT_LocationName, <span class="at">.keep_all =</span> <span class="cn">TRUE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 </div>
 <div class="cell">
 <details>
 <summary>Code</summary>
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Patient attributes</span></span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>pt_vars <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;StudyPatientID&quot;</span>, <span class="st">&quot;EL_ProtocolVersion&quot;</span>)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>pt_vars <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;StudyPatientID&quot;</span>, <span class="st">&quot;EL_ProtocolVersion&quot;</span>, <span class="st">&quot;WTH_FU&quot;</span>)</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>rand_vars <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;AAssignment&quot;</span>, <span class="st">&quot;BAssignment&quot;</span>, <span class="st">&quot;CAssignment&quot;</span>)</span>
 <span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>day_vars <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;RandDate&quot;</span>, <span class="st">&quot;DD_Date&quot;</span>, <span class="st">&quot;DD_StudyDay&quot;</span>)</span>
 <span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>date_vars <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;DIS_DateOfDischarge&quot;</span>, <span class="st">&quot;D28_DateOfFollowUp&quot;</span>)</span>
@@ -4107,6 +4341,7 @@ vertical-align: -.125em;
 </div>
 <section id="aspirin" class="level2">
 <h2 class="anchored" data-anchor-id="aspirin">Aspirin</h2>
+<p>The treatment protocol for participants assigned to receive aspirin was one dose daily until discharge. Exceptions were allowed for day 1 (time of randomisation may have prohibited receipt of aspirin), day of discharge (again, may have prohibited treatment), and SAE’s.</p>
 <div class="cell">
 <details>
 <summary>Code</summary>
@@ -4119,75 +4354,61 @@ vertical-align: -.125em;
 <span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>         <span class="fu">all_of</span>(aspirin_vars),</span>
 <span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>         <span class="fu">all_of</span>(date_vars),</span>
 <span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>         <span class="fu">all_of</span>(flag_vars)</span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Who didn&#39;t get aspirin on day 1 AND was allocated to receive aspirin? Consider</span></span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="co"># this case to be per-protocol (e.g. randomisation timing may have prevented</span></span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="co"># drug administration).</span></span>
-<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>asp_missing_on_d1 <span class="ot">&lt;-</span> aspirin_dat <span class="sc">%&gt;%</span></span>
-<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(CAssignment <span class="sc">==</span> <span class="st">&quot;C3&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_StudyDay <span class="sc">==</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_AspirinAdministered <span class="sc">==</span> <span class="st">&quot;No&quot;</span> <span class="sc">|</span> <span class="fu">is.na</span>(DD_AspirinAdministered)) <span class="sc">%&gt;%</span></span>
-<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span><span class="fu">all_of</span>(rand_vars))</span>
-<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>asp_missing_on_d1 <span class="sc">%&gt;%</span> <span class="fu">distinct</span>(StudyPatientID)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(pp, <span class="at">by =</span> <span class="st">&quot;StudyPatientID&quot;</span>)</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="co"># Who didn&#39;t get aspirin on day 1 AND was allocated to receive aspirin? Consider</span></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="co"># this case to be per-protocol (e.g. randomisation timing may have prevented</span></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a><span class="co"># drug administration).</span></span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>asp_missing_on_d1 <span class="ot">&lt;-</span> aspirin_dat <span class="sc">%&gt;%</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(CAssignment <span class="sc">==</span> <span class="st">&quot;C3&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_StudyDay <span class="sc">==</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_AspirinAdministered <span class="sc">==</span> <span class="st">&quot;No&quot;</span> <span class="sc">|</span> <span class="fu">is.na</span>(DD_AspirinAdministered)) <span class="sc">%&gt;%</span></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span><span class="fu">all_of</span>(rand_vars))</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a><span class="co"># asp_missing_on_d1 %&gt;% distinct(StudyPatientID, Reason)</span></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a><span class="co"># Which Dailies are missing an expected aspirin</span></span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a><span class="co"># administration after Day 1 excluding the date of discharge?</span></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>asp_missing_after_d1 <span class="ot">&lt;-</span>  aspirin_dat <span class="sc">%&gt;%</span></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(CAssignment <span class="sc">==</span> <span class="st">&quot;C3&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_StudyDay <span class="sc">&gt;</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_Date <span class="sc">&lt;</span> DIS_DateOfDischarge) <span class="sc">%&gt;%</span></span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_AspirinAdministered <span class="sc">==</span> <span class="st">&quot;No&quot;</span> <span class="sc">|</span> <span class="fu">is.na</span>(DD_AspirinAdministered)) <span class="sc">%&gt;%</span></span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span><span class="fu">all_of</span>(rand_vars))</span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>asp_missing_after_d1 <span class="sc">%&gt;%</span> </span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>  <span class="fu">distinct</span>(StudyPatientID, Reason)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 48 × 1
-   StudyPatientID
-   &lt;chr&gt;         
- 1 AMH00025      
- 2 APM00002      
- 3 APM00005      
- 4 APM00006      
- 5 APM00008      
- 6 APM00010      
- 7 JIV00005      
- 8 MAS00010      
- 9 MAS00014      
-10 MAS00015      
-# … with 38 more rows</code></pre>
+<pre><code># A tibble: 8 × 2
+  StudyPatientID Reason            
+  &lt;chr&gt;          &lt;chr&gt;             
+1 APM00005       Protocol Deviation
+2 APM00010       Protocol Deviation
+3 JIV00092       &lt;NA&gt;              
+4 JIV00110       &lt;NA&gt;              
+5 MAS00014       Protocol Deviation
+6 MAS00042       Protocol Deviation
+7 VEL00064       &lt;NA&gt;              
+8 VEL00099       Protocol Deviation</code></pre>
 </div>
 <details>
 <summary>Code</summary>
-<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Which Dailies are missing an expected aspirin</span></span>
-<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="co"># administration after Day 1 excluding the date of discharge?</span></span>
-<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>asp_missing_after_d1 <span class="ot">&lt;-</span>  aspirin_dat <span class="sc">%&gt;%</span></span>
-<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(CAssignment <span class="sc">==</span> <span class="st">&quot;C3&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_StudyDay <span class="sc">&gt;</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_Date <span class="sc">&lt;</span> DIS_DateOfDischarge) <span class="sc">%&gt;%</span></span>
-<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_AspirinAdministered <span class="sc">==</span> <span class="st">&quot;No&quot;</span> <span class="sc">|</span> <span class="fu">is.na</span>(DD_AspirinAdministered)) <span class="sc">%&gt;%</span></span>
-<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span><span class="fu">all_of</span>(rand_vars))</span>
-<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>asp_missing_after_d1 <span class="sc">%&gt;%</span> <span class="fu">distinct</span>(StudyPatientID)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
-</details>
-<div class="cell-output cell-output-stdout">
-<pre><code># A tibble: 8 × 1
-  StudyPatientID
-  &lt;chr&gt;         
-1 APM00005      
-2 APM00010      
-3 JIV00092      
-4 JIV00110      
-5 MAS00014      
-6 MAS00042      
-7 VEL00064      
-8 VEL00099      </code></pre>
-</div>
-<details>
-<summary>Code</summary>
-<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>asp_wd <span class="ot">&lt;-</span> all_dat_daily <span class="sc">%&gt;%</span> <span class="fu">select</span>(StudyPatientID, CON_WithdrawnDate)</span>
-<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>asp_sae <span class="ot">&lt;-</span> saes <span class="sc">%&gt;%</span> <span class="fu">select</span>(StudyPatientID, DateofSAEOnset)</span>
-<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Patients not on aspirin at baseline + not randomised to aspirin but received</span></span>
-<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a><span class="co"># aspirin during hospitalisaion. Used to query sites if clarification needed.</span></span>
-<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>asp_given_unexpected <span class="ot">&lt;-</span> aspirin_dat <span class="sc">%&gt;%</span></span>
-<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(CAssignment <span class="sc">==</span> <span class="st">&quot;C1&quot;</span> <span class="sc">|</span> CAssignment <span class="sc">==</span> <span class="st">&quot;C2&quot;</span> <span class="sc">|</span> CAssignment <span class="sc">==</span> <span class="st">&quot;C4&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_StudyDay <span class="sc">&gt;</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(BAS_PatientTakingAspirin <span class="sc">==</span> <span class="st">&quot;No&quot;</span>) <span class="sc">%&gt;%</span> <span class="co"># filter added 06.06.2022</span></span>
-<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_Date <span class="sc">&lt;</span> DIS_DateOfDischarge) <span class="sc">%&gt;%</span></span>
-<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_AspirinAdministered <span class="sc">==</span> <span class="st">&quot;Yes&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span>AAssignment, <span class="sc">-</span>BAssignment)</span>
-<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a>asp_given_unexpected <span class="sc">%&gt;%</span>  <span class="fu">distinct</span>(StudyPatientID)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Why were three not deviations?</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="co"># - Two participants had SAEs, not sure why 3rd wasn&#39;t considered a deviation</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>asp_sae <span class="ot">&lt;-</span> saes <span class="sc">%&gt;%</span> </span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(StudyPatientID <span class="sc">%in%</span> (asp_missing_after_d1 <span class="sc">%&gt;%</span> <span class="fu">pull</span>(StudyPatientID) <span class="sc">%&gt;%</span> <span class="fu">unique</span>()))</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Patients not on aspirin at baseline + not randomised to aspirin but received</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="co"># aspirin during hospitalisaion. Used to query sites if clarification needed.</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>asp_given_unexpected <span class="ot">&lt;-</span> aspirin_dat <span class="sc">%&gt;%</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(CAssignment <span class="sc">==</span> <span class="st">&quot;C1&quot;</span> <span class="sc">|</span> CAssignment <span class="sc">==</span> <span class="st">&quot;C2&quot;</span> <span class="sc">|</span> CAssignment <span class="sc">==</span> <span class="st">&quot;C4&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_StudyDay <span class="sc">&gt;</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(BAS_PatientTakingAspirin <span class="sc">==</span> <span class="st">&quot;No&quot;</span>) <span class="sc">%&gt;%</span> <span class="co"># filter added 06.06.2022</span></span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_Date <span class="sc">&lt;</span> DIS_DateOfDischarge) <span class="sc">%&gt;%</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_AspirinAdministered <span class="sc">==</span> <span class="st">&quot;Yes&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span>AAssignment, <span class="sc">-</span>BAssignment)</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>asp_given_unexpected <span class="sc">%&gt;%</span>  <span class="fu">distinct</span>(StudyPatientID)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </details>
 <div class="cell-output cell-output-stdout">
 <pre><code># A tibble: 6 × 1
@@ -4201,10 +4422,428 @@ vertical-align: -.125em;
 6 VEL00020      </code></pre>
 </div>
 </div>
+<section id="dosing" class="level3">
+<h3 class="anchored" data-anchor-id="dosing">Dosing</h3>
+<div class="cell">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>all_dat <span class="sc">%&gt;%</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter_acs_itt</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(<span class="at">CAssignment =</span> <span class="fu">factor</span>(CAssignment, <span class="at">labels =</span> <span class="fu">intervention_labels2</span>()<span class="sc">$</span>CAssignment[<span class="sc">-</span><span class="dv">1</span>])) <span class="sc">%&gt;%</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">n =</span> <span class="fu">n</span>(),</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Any aspirin received</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">sum</span>(DD_any_aspirin, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Days hospitalised</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">sum</span>(<span class="fu">pmin</span>(DIS_day, <span class="dv">28</span>), <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Days received aspirin</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">sum</span>(DD_n_aspirin, <span class="at">na.rm =</span> T)</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>  )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 4 × 5
+  CAssignment               n `Any aspirin r…` `Days hospital…` `Days received…`
+  &lt;fct&gt;                 &lt;int&gt;            &lt;int&gt;            &lt;dbl&gt;            &lt;int&gt;
+1 Low-dose                610                6             3785               45
+2 Intermediate-dose       613                6             3578               42
+3 Low-dose with aspirin   283              281             1915             1800
+4 Therapeutic-dose         50                0              356                0</code></pre>
+</div>
+</div>
+</section>
+</section>
+<section id="lmwh" class="level2 page-columns page-full">
+<h2 class="anchored" data-anchor-id="lmwh">LMWH</h2>
+<p>The treatment protocol was LWMH was conditional on the patients assigned intervention, baseline weight, and their creatinine clearance.</p>
+<section id="dosing-1" class="level3 page-columns page-full">
+<h3 class="anchored" data-anchor-id="dosing-1">Dosing</h3>
+<div class="cell page-columns page-full">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>generate_lmwh_dosing_table <span class="ot">&lt;-</span> <span class="cf">function</span>(ddat) {</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>  lwmhdat <span class="ot">&lt;-</span> ddat <span class="sc">%&gt;%</span></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(<span class="fu">grepl</span>(<span class="st">&quot;[1-4]&quot;</span>, CAssignment)) <span class="sc">%&gt;%</span> <span class="co"># omits anyone not in Domain C</span></span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>      StudyPatientID,</span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>      CAssignment,</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a>      BAS_Weight,</span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>      DD_StudyDay,</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>      DD_Date,</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>      DIS_DateOfDischarge,</span>
+<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a>      DD_LMWHAdministered,</span>
+<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a>      DD_TypeLMWH,</span>
+<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a>      DD_DoseLMWH,</span>
+<span id="cb10-14"><a href="#cb10-14" aria-hidden="true" tabindex="-1"></a>      DD_LMWHAdministeredToday,</span>
+<span id="cb10-15"><a href="#cb10-15" aria-hidden="true" tabindex="-1"></a>      DD_AspirinAdministered</span>
+<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">DD_DoseLMWH =</span> <span class="fu">as.numeric</span>(DD_DoseLMWH)) <span class="sc">%&gt;%</span></span>
+<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a>    <span class="fu">arrange</span>(StudyPatientID, DD_StudyDay) <span class="sc">%&gt;%</span></span>
+<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a>    <span class="co"># May not dose on day of discharge</span></span>
+<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(DD_Date <span class="sc">&lt;</span> DIS_DateOfDischarge) <span class="sc">%&gt;%</span></span>
+<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Disregard dosing on day 1</span></span>
+<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(DD_StudyDay <span class="sc">&gt;</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a>    <span class="co"># The one occasion reported in IU rather than IU/kg, convert</span></span>
+<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">DD_DoseLMWH =</span> <span class="fu">if_else</span>(DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Tinzaparin&quot;</span>, DD_DoseLMWH <span class="sc">/</span> BAS_Weight, DD_DoseLMWH))</span>
+<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a>  n_by_CAssignment <span class="ot">&lt;-</span> lwmhdat <span class="sc">%&gt;%</span></span>
+<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(CAssignment, DD_LMWHAdministered, DD_TypeLMWH, DD_LMWHAdministeredToday, DD_DoseLMWH) <span class="sc">%&gt;%</span></span>
+<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarise</span>(<span class="at">n =</span> <span class="fu">n</span>(), <span class="at">.groups =</span> <span class="st">&quot;drop&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(CAssignment) <span class="sc">%&gt;%</span></span>
+<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">value =</span> <span class="fu">sprintf</span>(<span class="st">&quot;%s (%3.1f)&quot;</span>, <span class="fu">formatC</span>(n, <span class="at">big.mark =</span> <span class="st">&quot;,&quot;</span>), <span class="dv">100</span> <span class="sc">*</span> n <span class="sc">/</span> <span class="fu">sum</span>(n))) <span class="sc">%&gt;%</span></span>
+<span id="cb10-30"><a href="#cb10-30" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb10-31"><a href="#cb10-31" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(<span class="sc">-</span>n) <span class="sc">%&gt;%</span></span>
+<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a>    <span class="fu">spread</span>(CAssignment, value, <span class="at">fill =</span> <span class="st">&quot;0 (0.0)&quot;</span>)</span>
+<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a>  n_total <span class="ot">&lt;-</span> lwmhdat <span class="sc">%&gt;%</span></span>
+<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(<span class="at">DD_LMWHAdministered =</span> <span class="st">&quot;Total days&quot;</span>, CAssignment) <span class="sc">%&gt;%</span></span>
+<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarise</span>(<span class="at">value =</span> <span class="fu">formatC</span>(<span class="fu">n</span>(), <span class="at">big.mark =</span> <span class="st">&quot;,&quot;</span>), <span class="at">.groups =</span> <span class="st">&quot;drop&quot;</span>)</span>
+<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a>  tabdat <span class="ot">&lt;-</span> n_by_CAssignment <span class="sc">%&gt;%</span></span>
+<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a>    <span class="fu">rename</span>(</span>
+<span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a>      <span class="at">Administered =</span> DD_LMWHAdministered,</span>
+<span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a>      <span class="at">Type =</span> DD_TypeLMWH,</span>
+<span id="cb10-40"><a href="#cb10-40" aria-hidden="true" tabindex="-1"></a>      <span class="at">Occasions =</span> DD_LMWHAdministeredToday,</span>
+<span id="cb10-41"><a href="#cb10-41" aria-hidden="true" tabindex="-1"></a>      <span class="at">Dose =</span> DD_DoseLMWH</span>
+<span id="cb10-42"><a href="#cb10-42" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb10-43"><a href="#cb10-43" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">Administered =</span> <span class="fu">factor</span>(Administered, <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">&quot;Yes&quot;</span>, <span class="st">&quot;No&quot;</span>))) <span class="sc">%&gt;%</span></span>
+<span id="cb10-44"><a href="#cb10-44" aria-hidden="true" tabindex="-1"></a>    <span class="fu">arrange</span>(Administered)</span>
+<span id="cb10-45"><a href="#cb10-45" aria-hidden="true" tabindex="-1"></a>  <span class="fu">colnames</span>(tabdat)[<span class="sc">-</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>)] <span class="ot">&lt;-</span> n_total <span class="sc">%&gt;%</span></span>
+<span id="cb10-46"><a href="#cb10-46" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">lab =</span> <span class="fu">linebreak</span>(<span class="fu">paste0</span>(CAssignment, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">(Days = &quot;</span>, value, <span class="st">&quot;)&quot;</span>), <span class="at">align =</span> <span class="st">&quot;c&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb10-47"><a href="#cb10-47" aria-hidden="true" tabindex="-1"></a>    <span class="fu">pull</span>(lab)</span>
+<span id="cb10-48"><a href="#cb10-48" aria-hidden="true" tabindex="-1"></a>  tab <span class="ot">&lt;-</span> <span class="fu">kable</span>(tabdat,</span>
+<span id="cb10-49"><a href="#cb10-49" aria-hidden="true" tabindex="-1"></a>               <span class="at">booktabs =</span> T, <span class="at">linesep =</span> <span class="st">&quot;&quot;</span>,</span>
+<span id="cb10-50"><a href="#cb10-50" aria-hidden="true" tabindex="-1"></a>               <span class="at">caption =</span> <span class="st">&quot;Daily dosing of low molecular weight heparin participants randomised to domain C.&quot;</span>,</span>
+<span id="cb10-51"><a href="#cb10-51" aria-hidden="true" tabindex="-1"></a>               <span class="at">align =</span> <span class="st">&quot;lrrrrrrrr&quot;</span>, <span class="at">escape =</span> F, <span class="at">longtable =</span> T</span>
+<span id="cb10-52"><a href="#cb10-52" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb10-53"><a href="#cb10-53" aria-hidden="true" tabindex="-1"></a>    <span class="fu">kable_styling</span>(<span class="at">font_size =</span> <span class="dv">9</span>, <span class="at">latex_options =</span> <span class="st">&quot;HOLD_position&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb10-54"><a href="#cb10-54" aria-hidden="true" tabindex="-1"></a>    <span class="fu">collapse_rows</span>(<span class="dv">2</span><span class="sc">:</span><span class="dv">3</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb10-55"><a href="#cb10-55" aria-hidden="true" tabindex="-1"></a>    <span class="fu">add_header_above</span>(<span class="fu">c</span>(<span class="st">&quot; &quot;</span> <span class="ot">=</span> <span class="dv">4</span>, <span class="st">&quot;Anticoagulation&quot;</span> <span class="ot">=</span> <span class="dv">4</span>))</span>
+<span id="cb10-56"><a href="#cb10-56" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(tab)</span>
+<span id="cb10-57"><a href="#cb10-57" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb10-58"><a href="#cb10-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-59"><a href="#cb10-59" aria-hidden="true" tabindex="-1"></a><span class="fu">generate_lmwh_dosing_table</span>(all_dat_daily)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output-display page-columns page-full">
+
+<table class="table" style="font-size: 9px; margin-left: auto; margin-right: auto;">
+
+ <thead>
+<tr>
+<th style="empty-cells: hide;border-bottom:hidden;" colspan="4"></th>
+<th style="border-bottom:hidden;padding-bottom:0; padding-left:3px;padding-right:3px;text-align: center; " colspan="4"><div style="border-bottom: 1px solid #ddd; padding-bottom: 5px; ">Anticoagulation</div></th>
+</tr>
+  <tr>
+   <th style="text-align:left;"> Administered </th>
+   <th style="text-align:right;"> Type </th>
+   <th style="text-align:right;"> Occasions </th>
+   <th style="text-align:right;"> Dose </th>
+   <th style="text-align:right;"> \makecell[c]{C1\\(Days = 2,573)} </th>
+   <th style="text-align:right;"> \makecell[c]{C2\\(Days = 2,357)} </th>
+   <th style="text-align:right;"> \makecell[c]{C3\\(Days = 1,352)} </th>
+   <th style="text-align:right;"> \makecell[c]{C4\\(Days = 256)} </th>
+  </tr>
+ </thead>
+<tbody>
+  <tr>
+   <td style="text-align:left;"> Yes </td>
+   <td style="text-align:right;"> Enoxaparin </td>
+   <td style="text-align:right;"> Once </td>
+   <td style="text-align:right;"> 20 </td>
+   <td style="text-align:right;"> 71 (2.8) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 32 (2.4) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Yes </td>
+   <td style="text-align:right;"> Enoxaparin </td>
+   <td style="text-align:right;"> Once </td>
+   <td style="text-align:right;"> 30 </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 2 (0.1) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Yes </td>
+   <td style="text-align:right;"> Enoxaparin </td>
+   <td style="text-align:right;"> Once </td>
+   <td style="text-align:right;"> 40 </td>
+   <td style="text-align:right;"> 2,306 (89.6) </td>
+   <td style="text-align:right;"> 104 (4.4) </td>
+   <td style="text-align:right;"> 1,231 (91.1) </td>
+   <td style="text-align:right;"> 16 (6.2) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Yes </td>
+   <td style="text-align:right;"> Enoxaparin </td>
+   <td style="text-align:right;"> Once </td>
+   <td style="text-align:right;"> 60 </td>
+   <td style="text-align:right;"> 60 (2.3) </td>
+   <td style="text-align:right;"> 3 (0.1) </td>
+   <td style="text-align:right;"> 7 (0.5) </td>
+   <td style="text-align:right;"> 33 (12.9) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Yes </td>
+   <td style="text-align:right;"> Enoxaparin </td>
+   <td style="text-align:right;"> Once </td>
+   <td style="text-align:right;"> 70 </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 1 (0.4) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Yes </td>
+   <td style="text-align:right;"> Enoxaparin </td>
+   <td style="text-align:right;"> Once </td>
+   <td style="text-align:right;"> 80 </td>
+   <td style="text-align:right;"> 10 (0.4) </td>
+   <td style="text-align:right;"> 18 (0.8) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 12 (4.7) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Yes </td>
+   <td style="text-align:right;"> Enoxaparin </td>
+   <td style="text-align:right;"> Once </td>
+   <td style="text-align:right;"> 90 </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 1 (0.4) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Yes </td>
+   <td style="text-align:right;"> Enoxaparin </td>
+   <td style="text-align:right;"> Once </td>
+   <td style="text-align:right;"> 100 </td>
+   <td style="text-align:right;"> 3 (0.1) </td>
+   <td style="text-align:right;"> 2 (0.1) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 1 (0.4) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Yes </td>
+   <td style="text-align:right;"> Enoxaparin </td>
+   <td style="text-align:right;"> Once </td>
+   <td style="text-align:right;"> 110 </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 1 (0.4) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Yes </td>
+   <td style="text-align:right;"> Enoxaparin </td>
+   <td style="text-align:right;"> Once </td>
+   <td style="text-align:right;"> 120 </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 3 (1.2) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Yes </td>
+   <td style="text-align:right;"> Enoxaparin </td>
+   <td style="text-align:right;"> Once </td>
+   <td style="text-align:right;"> 160 </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 4 (1.6) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Yes </td>
+   <td style="text-align:right;"> Enoxaparin </td>
+   <td style="text-align:right;"> Twice </td>
+   <td style="text-align:right;"> 40 </td>
+   <td style="text-align:right;"> 26 (1.0) </td>
+   <td style="text-align:right;"> 2,079 (88.2) </td>
+   <td style="text-align:right;"> 11 (0.8) </td>
+   <td style="text-align:right;"> 27 (10.5) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Yes </td>
+   <td style="text-align:right;"> Enoxaparin </td>
+   <td style="text-align:right;"> Twice </td>
+   <td style="text-align:right;"> 60 </td>
+   <td style="text-align:right;"> 58 (2.3) </td>
+   <td style="text-align:right;"> 79 (3.4) </td>
+   <td style="text-align:right;"> 49 (3.6) </td>
+   <td style="text-align:right;"> 108 (42.2) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Yes </td>
+   <td style="text-align:right;"> Enoxaparin </td>
+   <td style="text-align:right;"> Twice </td>
+   <td style="text-align:right;"> 70 </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 3 (1.2) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Yes </td>
+   <td style="text-align:right;"> Enoxaparin </td>
+   <td style="text-align:right;"> Twice </td>
+   <td style="text-align:right;"> 80 </td>
+   <td style="text-align:right;"> 6 (0.2) </td>
+   <td style="text-align:right;"> 14 (0.6) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 15 (5.9) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Yes </td>
+   <td style="text-align:right;"> Enoxaparin </td>
+   <td style="text-align:right;"> Twice </td>
+   <td style="text-align:right;"> 90 </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 5 (2.0) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Yes </td>
+   <td style="text-align:right;"> Enoxaparin </td>
+   <td style="text-align:right;"> Twice </td>
+   <td style="text-align:right;"> 100 </td>
+   <td style="text-align:right;"> 7 (0.3) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 13 (5.1) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Yes </td>
+   <td style="text-align:right;"> Enoxaparin </td>
+   <td style="text-align:right;"> Twice </td>
+   <td style="text-align:right;"> 110 </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 5 (2.0) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Yes </td>
+   <td style="text-align:right;"> Enoxaparin </td>
+   <td style="text-align:right;"> Twice </td>
+   <td style="text-align:right;"> 120 </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 3 (1.2) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> Yes </td>
+   <td style="text-align:right;"> Tinzaparin </td>
+   <td style="text-align:right;"> Once </td>
+   <td style="text-align:right;"> 125 </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 5 (0.2) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+   <td style="text-align:right;"> 0 (0.0) </td>
+  </tr>
+  <tr>
+   <td style="text-align:left;"> No </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> NA </td>
+   <td style="text-align:right;"> 26 (1.0) </td>
+   <td style="text-align:right;"> 51 (2.2) </td>
+   <td style="text-align:right;"> 22 (1.6) </td>
+   <td style="text-align:right;"> 5 (2.0) </td>
+  </tr>
+</tbody>
+</table>
+
+<div class="quarto-table-caption margin-caption">Daily dosing of low molecular weight heparin participants randomised to domain C.</div></div>
+</div>
+<div class="cell">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>check_lmwh_dose <span class="ot">&lt;-</span> <span class="cf">function</span>(ddat) {</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  ddat <span class="sc">%&gt;%</span></span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a>      <span class="at">expected_dose =</span> <span class="fu">case_when</span>(</span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;C1&quot;</span>, <span class="st">&quot;C3&quot;</span>) <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Enoxaparin&quot;</span> <span class="sc">&amp;</span> BAS_Weight <span class="sc">&lt;</span> <span class="dv">50</span> <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Once&quot;</span> <span class="sc">~</span> <span class="dv">20</span>,</span>
+<span id="cb11-6"><a href="#cb11-6" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;C1&quot;</span>, <span class="st">&quot;C3&quot;</span>) <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Enoxaparin&quot;</span> <span class="sc">&amp;</span> (BAS_Weight <span class="sc">&gt;=</span> <span class="dv">50</span> <span class="sc">&amp;</span> BAS_Weight <span class="sc">&lt;</span> <span class="dv">120</span>) <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Once&quot;</span> <span class="sc">~</span> <span class="dv">40</span>,</span>
+<span id="cb11-7"><a href="#cb11-7" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;C1&quot;</span>, <span class="st">&quot;C3&quot;</span>) <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Enoxaparin&quot;</span> <span class="sc">&amp;</span> BAS_Weight <span class="sc">&gt;</span> <span class="dv">120</span> <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Once&quot;</span> <span class="sc">~</span> <span class="dv">60</span>,</span>
+<span id="cb11-8"><a href="#cb11-8" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;C1&quot;</span>, <span class="st">&quot;C3&quot;</span>) <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Tinzaparin&quot;</span> <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Once&quot;</span> <span class="sc">~</span> <span class="dv">75</span> <span class="sc">*</span> BAS_Weight,</span>
+<span id="cb11-9"><a href="#cb11-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-10"><a href="#cb11-10" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Invalid dosing as no &quot;Twice per day&quot; option specified in protocol</span></span>
+<span id="cb11-11"><a href="#cb11-11" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;C1&quot;</span>, <span class="st">&quot;C3&quot;</span>) <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Enoxaparin&quot;</span> <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Twice&quot;</span> <span class="sc">~</span> <span class="sc">-</span><span class="dv">9999</span>,</span>
+<span id="cb11-12"><a href="#cb11-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-13"><a href="#cb11-13" aria-hidden="true" tabindex="-1"></a>        <span class="co"># C2 per-protocol dosing check</span></span>
+<span id="cb11-14"><a href="#cb11-14" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">==</span> <span class="st">&quot;C2&quot;</span> <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Enoxaparin&quot;</span> <span class="sc">&amp;</span> BAS_Weight <span class="sc">&lt;</span> <span class="dv">50</span> <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Once&quot;</span> <span class="sc">~</span> <span class="dv">40</span>,</span>
+<span id="cb11-15"><a href="#cb11-15" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">==</span> <span class="st">&quot;C2&quot;</span> <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Enoxaparin&quot;</span> <span class="sc">&amp;</span> (BAS_Weight <span class="sc">&gt;=</span> <span class="dv">50</span> <span class="sc">&amp;</span> BAS_Weight <span class="sc">&lt;</span> <span class="dv">120</span>) <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Once&quot;</span> <span class="sc">~</span> <span class="dv">80</span>,</span>
+<span id="cb11-16"><a href="#cb11-16" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">==</span> <span class="st">&quot;C2&quot;</span> <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Enoxaparin&quot;</span> <span class="sc">&amp;</span> (BAS_Weight <span class="sc">&gt;=</span> <span class="dv">50</span> <span class="sc">&amp;</span> BAS_Weight <span class="sc">&lt;</span> <span class="dv">120</span>) <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Twice&quot;</span> <span class="sc">~</span> <span class="dv">40</span>,</span>
+<span id="cb11-17"><a href="#cb11-17" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">==</span> <span class="st">&quot;C2&quot;</span> <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Enoxaparin&quot;</span> <span class="sc">&amp;</span> BAS_Weight <span class="sc">&gt;</span> <span class="dv">120</span> <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Once&quot;</span> <span class="sc">~</span> <span class="dv">120</span>,</span>
+<span id="cb11-18"><a href="#cb11-18" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">==</span> <span class="st">&quot;C2&quot;</span> <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Enoxaparin&quot;</span> <span class="sc">&amp;</span> BAS_Weight <span class="sc">&gt;</span> <span class="dv">120</span> <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Twice&quot;</span> <span class="sc">~</span> <span class="dv">60</span>,</span>
+<span id="cb11-19"><a href="#cb11-19" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">==</span> <span class="st">&quot;C2&quot;</span> <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Tinzaparin&quot;</span> <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Once&quot;</span> <span class="sc">~</span> <span class="dv">125</span> <span class="sc">*</span> BAS_Weight,</span>
+<span id="cb11-20"><a href="#cb11-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-21"><a href="#cb11-21" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Invalid dosing as no &quot;Twice per day&quot; option specified in protocol</span></span>
+<span id="cb11-22"><a href="#cb11-22" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">==</span> <span class="st">&quot;C2&quot;</span> <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Enoxaparin&quot;</span> <span class="sc">&amp;</span> BAS_Weight <span class="sc">&lt;</span> <span class="dv">50</span> <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Twice&quot;</span> <span class="sc">~</span> <span class="sc">-</span><span class="dv">9999</span>,</span>
+<span id="cb11-23"><a href="#cb11-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-24"><a href="#cb11-24" aria-hidden="true" tabindex="-1"></a>        <span class="co"># C4 per-protocol dosing check</span></span>
+<span id="cb11-25"><a href="#cb11-25" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">==</span> <span class="st">&quot;C4&quot;</span> <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Enoxaparin&quot;</span> <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Once&quot;</span> <span class="sc">~</span> <span class="fl">1.5</span> <span class="sc">*</span> BAS_Weight,</span>
+<span id="cb11-26"><a href="#cb11-26" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">==</span> <span class="st">&quot;C4&quot;</span> <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Enoxaparin&quot;</span> <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Twice&quot;</span> <span class="sc">~</span> BAS_Weight,</span>
+<span id="cb11-27"><a href="#cb11-27" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">==</span> <span class="st">&quot;C4&quot;</span> <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Tinzaparin&quot;</span> <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Once&quot;</span> <span class="sc">~</span> <span class="dv">175</span> <span class="sc">*</span> BAS_Weight,</span>
+<span id="cb11-28"><a href="#cb11-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-29"><a href="#cb11-29" aria-hidden="true" tabindex="-1"></a>        <span class="fu">is.na</span>(CAssignment) <span class="sc">|</span> <span class="fu">is.na</span>(DD_TypeLMWH) <span class="sc">|</span> <span class="fu">is.na</span>(DD_LMWHAdministeredToday) <span class="sc">|</span> <span class="fu">is.na</span>(DD_DoseLMWH) <span class="sc">|</span> <span class="fu">is.na</span>(BAS_Weight) <span class="sc">~</span> <span class="cn">NA_real_</span>,</span>
+<span id="cb11-30"><a href="#cb11-30" aria-hidden="true" tabindex="-1"></a>        <span class="cn">TRUE</span> <span class="sc">~</span> <span class="cn">NA_real_</span></span>
+<span id="cb11-31"><a href="#cb11-31" aria-hidden="true" tabindex="-1"></a>      ),</span>
+<span id="cb11-32"><a href="#cb11-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-33"><a href="#cb11-33" aria-hidden="true" tabindex="-1"></a>      <span class="co"># actual_dose = if_else((CAssignment == &quot;C0&quot; &amp; is.na(DD_LMWHAdministeredToday)), 0, DD_DoseLMWH)),</span></span>
+<span id="cb11-34"><a href="#cb11-34" aria-hidden="true" tabindex="-1"></a>      <span class="at">dose_given =</span> DD_LMWHAdministered,</span>
+<span id="cb11-35"><a href="#cb11-35" aria-hidden="true" tabindex="-1"></a>      <span class="at">dose_equal_expected =</span> expected_dose <span class="sc">==</span> DD_DoseLMWH,</span>
+<span id="cb11-36"><a href="#cb11-36" aria-hidden="true" tabindex="-1"></a>      <span class="at">dose_close_expected =</span> <span class="fu">abs</span>(expected_dose <span class="sc">-</span> DD_DoseLMWH) <span class="sc">&lt;</span> <span class="dv">10</span></span>
+<span id="cb11-37"><a href="#cb11-37" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb11-38"><a href="#cb11-38" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb11-39"><a href="#cb11-39" aria-hidden="true" tabindex="-1"></a>lmwh <span class="ot">&lt;-</span> <span class="fu">check_lmwh_dose</span>(all_dat_daily <span class="sc">%&gt;%</span> <span class="fu">filter_acs_itt</span>())</span>
+<span id="cb11-40"><a href="#cb11-40" aria-hidden="true" tabindex="-1"></a><span class="co"># show counts in console</span></span>
+<span id="cb11-41"><a href="#cb11-41" aria-hidden="true" tabindex="-1"></a>lmwh <span class="sc">%&gt;%</span> dplyr<span class="sc">::</span><span class="fu">count</span>(dose_equal_expected, dose_close_expected)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 4 × 3
+  dose_equal_expected dose_close_expected     n
+  &lt;lgl&gt;               &lt;lgl&gt;               &lt;int&gt;
+1 FALSE               FALSE                 790
+2 FALSE               TRUE                  198
+3 TRUE                TRUE                 8391
+4 NA                  NA                    255</code></pre>
+</div>
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Apply creatinine clearance rate for records of interest----</span></span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>anticoag_all <span class="ot">&lt;-</span> lmwh <span class="sc">%&gt;%</span></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Omit patients not in Anticoag domain</span></span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">grepl</span>(<span class="st">&quot;[1-4]&quot;</span>, CAssignment)) <span class="sc">%&gt;%</span></span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Note, checking function ignores discharge day but keeps Day 1</span></span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(StudyPatientID, PT_CountryName, PT_LocationName, AgeAtEntry, Sex, BAS_Weight, EL_SerumCreatinineBlood,</span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>         EL_SerumCreatinineUnits, EL_SerumCreatinine_umolL, DD_Date,  DD_StudyDay, DIS_DateOfDischarge,</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>         DD_TypeLMWH, DD_LMWHAdministeredToday, DD_DoseLMWH, expected_dose,</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>         dose_equal_expected, dose_close_expected) <span class="sc">%&gt;%</span></span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>  <span class="co"># serum creatinine clearance by Cockcroft-Gault formula</span></span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>  <span class="co"># https://www.eviq.org.au/clinical-resources/eviq-calculators/3200-creatinine-clearance-calculator</span></span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">creat_clearance =</span> <span class="fu">creatinine_clearance</span>(Sex, AgeAtEntry, BAS_Weight, EL_SerumCreatinine_umolL)</span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a><span class="co"># List patients with dose_equal_expected != TRUE and keep nulls</span></span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>anticoag_neq <span class="ot">&lt;-</span>  anticoag_all <span class="sc">%&gt;%</span></span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_StudyDay <span class="sc">&gt;</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span> <span class="co"># Ignore day 1</span></span>
+<span id="cb13-18"><a href="#cb13-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_Date <span class="sc">&lt;</span> DIS_DateOfDischarge) <span class="sc">%&gt;%</span> <span class="co"># Ignore discharge day</span></span>
+<span id="cb13-19"><a href="#cb13-19" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(dose_equal_expected <span class="sc">==</span> <span class="cn">FALSE</span> <span class="sc">|</span> <span class="fu">is.na</span>(dose_equal_expected))</span>
+<span id="cb13-20"><a href="#cb13-20" aria-hidden="true" tabindex="-1"></a>anticoag_neq <span class="sc">%&gt;%</span> dplyr<span class="sc">::</span><span class="fu">count</span>(dose_equal_expected, dose_close_expected)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code># A tibble: 3 × 3
+  dose_equal_expected dose_close_expected     n
+  &lt;lgl&gt;               &lt;lgl&gt;               &lt;int&gt;
+1 FALSE               FALSE                 399
+2 FALSE               TRUE                  154
+3 NA                  NA                    123</code></pre>
+</div>
+</div>
 
 
 <!-- -->
 
+</section>
 </section>
 
 </main> <!-- /main -->
@@ -4338,105 +4977,262 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
   }
 });
 </script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class>
-<div class="sourceCode" id="cb10" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> &quot;Adherence check and summary&quot;</span></span>
-<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="an">description:</span><span class="co"> |</span></span>
-<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a><span class="co">  Summarise anticoagulation domain adherence</span></span>
-<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a><span class="an">author:</span><span class="co"> </span></span>
-<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a><span class="co">  - name: James Totterdell</span></span>
-<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a><span class="co">    affiliation: University of Sydney</span></span>
-<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a><span class="co">  - name: Rob Mahar</span></span>
-<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a><span class="co">    affiliation: University of Melbourne</span></span>
-<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> today</span></span>
-<span id="cb10-11"><a href="#cb10-11" aria-hidden="true" tabindex="-1"></a><span class="co">---</span> </span>
-<span id="cb10-12"><a href="#cb10-12" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-13"><a href="#cb10-13" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-16"><a href="#cb10-16" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb10-17"><a href="#cb10-17" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: pkgs</span></span>
-<span id="cb10-18"><a href="#cb10-18" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-summary: Load packages</span></span>
-<span id="cb10-19"><a href="#cb10-19" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
-<span id="cb10-20"><a href="#cb10-20" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(labelled)</span>
-<span id="cb10-21"><a href="#cb10-21" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(kableExtra)</span>
-<span id="cb10-22"><a href="#cb10-22" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(cmdstanr)</span>
-<span id="cb10-23"><a href="#cb10-23" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(posterior)</span>
-<span id="cb10-24"><a href="#cb10-24" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(bayestestR)</span>
-<span id="cb10-25"><a href="#cb10-25" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(bayesplot)</span>
-<span id="cb10-26"><a href="#cb10-26" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(matrixStats)</span>
-<span id="cb10-27"><a href="#cb10-27" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggdist)</span>
-<span id="cb10-28"><a href="#cb10-28" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb10-29"><a href="#cb10-29" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-32"><a href="#cb10-32" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb10-33"><a href="#cb10-33" aria-hidden="true" tabindex="-1"></a>devtools<span class="sc">::</span><span class="fu">load_all</span>()</span>
-<span id="cb10-34"><a href="#cb10-34" aria-hidden="true" tabindex="-1"></a>all_dat <span class="ot">&lt;-</span> <span class="fu">read_all_no_daily</span>()</span>
-<span id="cb10-35"><a href="#cb10-35" aria-hidden="true" tabindex="-1"></a>all_dat_daily <span class="ot">&lt;-</span> <span class="fu">read_all_daily</span>()</span>
-<span id="cb10-36"><a href="#cb10-36" aria-hidden="true" tabindex="-1"></a>saes <span class="ot">&lt;-</span> <span class="fu">read_sae_file</span>()</span>
-<span id="cb10-37"><a href="#cb10-37" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-38"><a href="#cb10-38" aria-hidden="true" tabindex="-1"></a>site_list <span class="ot">&lt;-</span> all_dat_daily <span class="sc">%&gt;%</span></span>
-<span id="cb10-39"><a href="#cb10-39" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(PT_CountryName, PT_LocationName) <span class="sc">%&gt;%</span></span>
-<span id="cb10-40"><a href="#cb10-40" aria-hidden="true" tabindex="-1"></a>  <span class="fu">distinct</span>(PT_LocationName, <span class="at">.keep_all =</span> <span class="cn">TRUE</span>)</span>
-<span id="cb10-41"><a href="#cb10-41" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb10-42"><a href="#cb10-42" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-45"><a href="#cb10-45" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb10-46"><a href="#cb10-46" aria-hidden="true" tabindex="-1"></a><span class="co"># Patient attributes</span></span>
-<span id="cb10-47"><a href="#cb10-47" aria-hidden="true" tabindex="-1"></a>pt_vars <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;StudyPatientID&quot;</span>, <span class="st">&quot;EL_ProtocolVersion&quot;</span>)</span>
-<span id="cb10-48"><a href="#cb10-48" aria-hidden="true" tabindex="-1"></a>rand_vars <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;AAssignment&quot;</span>, <span class="st">&quot;BAssignment&quot;</span>, <span class="st">&quot;CAssignment&quot;</span>)</span>
-<span id="cb10-49"><a href="#cb10-49" aria-hidden="true" tabindex="-1"></a>day_vars <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;RandDate&quot;</span>, <span class="st">&quot;DD_Date&quot;</span>, <span class="st">&quot;DD_StudyDay&quot;</span>)</span>
-<span id="cb10-50"><a href="#cb10-50" aria-hidden="true" tabindex="-1"></a>date_vars <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;DIS_DateOfDischarge&quot;</span>, <span class="st">&quot;D28_DateOfFollowUp&quot;</span>)</span>
-<span id="cb10-51"><a href="#cb10-51" aria-hidden="true" tabindex="-1"></a>flag_vars <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;DD_n&quot;</span>, <span class="st">&quot;DD_rec&quot;</span>)</span>
-<span id="cb10-52"><a href="#cb10-52" aria-hidden="true" tabindex="-1"></a>site_vars <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;PT_CountryName&quot;</span>, <span class="st">&quot;PT_LocationName&quot;</span>)</span>
-<span id="cb10-53"><a href="#cb10-53" aria-hidden="true" tabindex="-1"></a>aspirin_vars <span class="ot">&lt;-</span> <span class="fu">colnames</span>(all_dat_daily)[<span class="fu">grepl</span>(<span class="st">&quot;Aspirin&quot;</span>, <span class="fu">colnames</span>(all_dat_daily))]</span>
-<span id="cb10-54"><a href="#cb10-54" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb10-55"><a href="#cb10-55" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-56"><a href="#cb10-56" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-57"><a href="#cb10-57" aria-hidden="true" tabindex="-1"></a><span class="fu">## Aspirin</span></span>
-<span id="cb10-58"><a href="#cb10-58" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-61"><a href="#cb10-61" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
-<span id="cb10-62"><a href="#cb10-62" aria-hidden="true" tabindex="-1"></a>aspirin_dat <span class="ot">&lt;-</span> all_dat_daily <span class="sc">%&gt;%</span></span>
-<span id="cb10-63"><a href="#cb10-63" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(ENR_rec <span class="sc">==</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb10-64"><a href="#cb10-64" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="fu">all_of</span>(site_vars),</span>
-<span id="cb10-65"><a href="#cb10-65" aria-hidden="true" tabindex="-1"></a>         <span class="fu">all_of</span>(pt_vars),</span>
-<span id="cb10-66"><a href="#cb10-66" aria-hidden="true" tabindex="-1"></a>         <span class="fu">all_of</span>(rand_vars),</span>
-<span id="cb10-67"><a href="#cb10-67" aria-hidden="true" tabindex="-1"></a>         <span class="fu">all_of</span>(day_vars),</span>
-<span id="cb10-68"><a href="#cb10-68" aria-hidden="true" tabindex="-1"></a>         <span class="fu">all_of</span>(aspirin_vars),</span>
-<span id="cb10-69"><a href="#cb10-69" aria-hidden="true" tabindex="-1"></a>         <span class="fu">all_of</span>(date_vars),</span>
-<span id="cb10-70"><a href="#cb10-70" aria-hidden="true" tabindex="-1"></a>         <span class="fu">all_of</span>(flag_vars)</span>
-<span id="cb10-71"><a href="#cb10-71" aria-hidden="true" tabindex="-1"></a>  )</span>
-<span id="cb10-72"><a href="#cb10-72" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-73"><a href="#cb10-73" aria-hidden="true" tabindex="-1"></a><span class="co"># Who didn&#39;t get aspirin on day 1 AND was allocated to receive aspirin? Consider</span></span>
-<span id="cb10-74"><a href="#cb10-74" aria-hidden="true" tabindex="-1"></a><span class="co"># this case to be per-protocol (e.g. randomisation timing may have prevented</span></span>
-<span id="cb10-75"><a href="#cb10-75" aria-hidden="true" tabindex="-1"></a><span class="co"># drug administration).</span></span>
-<span id="cb10-76"><a href="#cb10-76" aria-hidden="true" tabindex="-1"></a>asp_missing_on_d1 <span class="ot">&lt;-</span> aspirin_dat <span class="sc">%&gt;%</span></span>
-<span id="cb10-77"><a href="#cb10-77" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(CAssignment <span class="sc">==</span> <span class="st">&quot;C3&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb10-78"><a href="#cb10-78" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_StudyDay <span class="sc">==</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb10-79"><a href="#cb10-79" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_AspirinAdministered <span class="sc">==</span> <span class="st">&quot;No&quot;</span> <span class="sc">|</span> <span class="fu">is.na</span>(DD_AspirinAdministered)) <span class="sc">%&gt;%</span></span>
-<span id="cb10-80"><a href="#cb10-80" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span><span class="fu">all_of</span>(rand_vars))</span>
-<span id="cb10-81"><a href="#cb10-81" aria-hidden="true" tabindex="-1"></a>asp_missing_on_d1 <span class="sc">%&gt;%</span> <span class="fu">distinct</span>(StudyPatientID)</span>
-<span id="cb10-82"><a href="#cb10-82" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-83"><a href="#cb10-83" aria-hidden="true" tabindex="-1"></a><span class="co"># Which Dailies are missing an expected aspirin</span></span>
-<span id="cb10-84"><a href="#cb10-84" aria-hidden="true" tabindex="-1"></a><span class="co"># administration after Day 1 excluding the date of discharge?</span></span>
-<span id="cb10-85"><a href="#cb10-85" aria-hidden="true" tabindex="-1"></a>asp_missing_after_d1 <span class="ot">&lt;-</span>  aspirin_dat <span class="sc">%&gt;%</span></span>
-<span id="cb10-86"><a href="#cb10-86" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(CAssignment <span class="sc">==</span> <span class="st">&quot;C3&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb10-87"><a href="#cb10-87" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_StudyDay <span class="sc">&gt;</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb10-88"><a href="#cb10-88" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_Date <span class="sc">&lt;</span> DIS_DateOfDischarge) <span class="sc">%&gt;%</span></span>
-<span id="cb10-89"><a href="#cb10-89" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_AspirinAdministered <span class="sc">==</span> <span class="st">&quot;No&quot;</span> <span class="sc">|</span> <span class="fu">is.na</span>(DD_AspirinAdministered)) <span class="sc">%&gt;%</span></span>
-<span id="cb10-90"><a href="#cb10-90" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span><span class="fu">all_of</span>(rand_vars))</span>
-<span id="cb10-91"><a href="#cb10-91" aria-hidden="true" tabindex="-1"></a>asp_missing_after_d1 <span class="sc">%&gt;%</span> <span class="fu">distinct</span>(StudyPatientID)</span>
-<span id="cb10-92"><a href="#cb10-92" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-93"><a href="#cb10-93" aria-hidden="true" tabindex="-1"></a>asp_wd <span class="ot">&lt;-</span> all_dat_daily <span class="sc">%&gt;%</span> <span class="fu">select</span>(StudyPatientID, CON_WithdrawnDate)</span>
-<span id="cb10-94"><a href="#cb10-94" aria-hidden="true" tabindex="-1"></a>asp_sae <span class="ot">&lt;-</span> saes <span class="sc">%&gt;%</span> <span class="fu">select</span>(StudyPatientID, DateofSAEOnset)</span>
-<span id="cb10-95"><a href="#cb10-95" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-96"><a href="#cb10-96" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb10-97"><a href="#cb10-97" aria-hidden="true" tabindex="-1"></a><span class="co"># Patients not on aspirin at baseline + not randomised to aspirin but received</span></span>
-<span id="cb10-98"><a href="#cb10-98" aria-hidden="true" tabindex="-1"></a><span class="co"># aspirin during hospitalisaion. Used to query sites if clarification needed.</span></span>
-<span id="cb10-99"><a href="#cb10-99" aria-hidden="true" tabindex="-1"></a>asp_given_unexpected <span class="ot">&lt;-</span> aspirin_dat <span class="sc">%&gt;%</span></span>
-<span id="cb10-100"><a href="#cb10-100" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(CAssignment <span class="sc">==</span> <span class="st">&quot;C1&quot;</span> <span class="sc">|</span> CAssignment <span class="sc">==</span> <span class="st">&quot;C2&quot;</span> <span class="sc">|</span> CAssignment <span class="sc">==</span> <span class="st">&quot;C4&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb10-101"><a href="#cb10-101" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_StudyDay <span class="sc">&gt;</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb10-102"><a href="#cb10-102" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(BAS_PatientTakingAspirin <span class="sc">==</span> <span class="st">&quot;No&quot;</span>) <span class="sc">%&gt;%</span> <span class="co"># filter added 06.06.2022</span></span>
-<span id="cb10-103"><a href="#cb10-103" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_Date <span class="sc">&lt;</span> DIS_DateOfDischarge) <span class="sc">%&gt;%</span></span>
-<span id="cb10-104"><a href="#cb10-104" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_AspirinAdministered <span class="sc">==</span> <span class="st">&quot;Yes&quot;</span>) <span class="sc">%&gt;%</span></span>
-<span id="cb10-105"><a href="#cb10-105" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span>AAssignment, <span class="sc">-</span>BAssignment)</span>
-<span id="cb10-106"><a href="#cb10-106" aria-hidden="true" tabindex="-1"></a>asp_given_unexpected <span class="sc">%&gt;%</span>  <span class="fu">distinct</span>(StudyPatientID)</span>
-<span id="cb10-107"><a href="#cb10-107" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<div class="sourceCode" id="cb15" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> &quot;Adherence check and summary&quot;</span></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="an">description:</span><span class="co"> |</span></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a><span class="co">  Summarise anticoagulation domain adherence</span></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a><span class="an">author:</span><span class="co"> </span></span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a><span class="co">  - name: James Totterdell</span></span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a><span class="co">    affiliation: University of Sydney</span></span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a><span class="co">  - name: Rob Mahar</span></span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a><span class="co">    affiliation: University of Melbourne</span></span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a><span class="an">date:</span><span class="co"> today</span></span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a><span class="co">---</span> </span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a><span class="co">#| label: pkgs</span></span>
+<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a><span class="co">#| code-summary: Load packages</span></span>
+<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(labelled)</span>
+<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(kableExtra)</span>
+<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(cmdstanr)</span>
+<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(posterior)</span>
+<span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(bayestestR)</span>
+<span id="cb15-25"><a href="#cb15-25" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(bayesplot)</span>
+<span id="cb15-26"><a href="#cb15-26" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(matrixStats)</span>
+<span id="cb15-27"><a href="#cb15-27" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggdist)</span>
+<span id="cb15-28"><a href="#cb15-28" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb15-29"><a href="#cb15-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-32"><a href="#cb15-32" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb15-33"><a href="#cb15-33" aria-hidden="true" tabindex="-1"></a>devtools<span class="sc">::</span><span class="fu">load_all</span>()</span>
+<span id="cb15-34"><a href="#cb15-34" aria-hidden="true" tabindex="-1"></a>all_dat <span class="ot">&lt;-</span> <span class="fu">read_all_no_daily</span>()</span>
+<span id="cb15-35"><a href="#cb15-35" aria-hidden="true" tabindex="-1"></a>all_dat_daily <span class="ot">&lt;-</span> <span class="fu">read_all_daily</span>()</span>
+<span id="cb15-36"><a href="#cb15-36" aria-hidden="true" tabindex="-1"></a>saes <span class="ot">&lt;-</span> <span class="fu">read_sae_file</span>()</span>
+<span id="cb15-37"><a href="#cb15-37" aria-hidden="true" tabindex="-1"></a>pp <span class="ot">&lt;-</span> <span class="fu">read_per_protocol_list</span>()</span>
+<span id="cb15-38"><a href="#cb15-38" aria-hidden="true" tabindex="-1"></a>dev <span class="ot">&lt;-</span> <span class="fu">read_protocol_deviations</span>()</span>
+<span id="cb15-39"><a href="#cb15-39" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-40"><a href="#cb15-40" aria-hidden="true" tabindex="-1"></a>site_list <span class="ot">&lt;-</span> all_dat_daily <span class="sc">%&gt;%</span></span>
+<span id="cb15-41"><a href="#cb15-41" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(PT_CountryName, PT_LocationName) <span class="sc">%&gt;%</span></span>
+<span id="cb15-42"><a href="#cb15-42" aria-hidden="true" tabindex="-1"></a>  <span class="fu">distinct</span>(PT_LocationName, <span class="at">.keep_all =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb15-43"><a href="#cb15-43" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb15-44"><a href="#cb15-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-47"><a href="#cb15-47" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb15-48"><a href="#cb15-48" aria-hidden="true" tabindex="-1"></a><span class="co"># Patient attributes</span></span>
+<span id="cb15-49"><a href="#cb15-49" aria-hidden="true" tabindex="-1"></a>pt_vars <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;StudyPatientID&quot;</span>, <span class="st">&quot;EL_ProtocolVersion&quot;</span>, <span class="st">&quot;WTH_FU&quot;</span>)</span>
+<span id="cb15-50"><a href="#cb15-50" aria-hidden="true" tabindex="-1"></a>rand_vars <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;AAssignment&quot;</span>, <span class="st">&quot;BAssignment&quot;</span>, <span class="st">&quot;CAssignment&quot;</span>)</span>
+<span id="cb15-51"><a href="#cb15-51" aria-hidden="true" tabindex="-1"></a>day_vars <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;RandDate&quot;</span>, <span class="st">&quot;DD_Date&quot;</span>, <span class="st">&quot;DD_StudyDay&quot;</span>)</span>
+<span id="cb15-52"><a href="#cb15-52" aria-hidden="true" tabindex="-1"></a>date_vars <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;DIS_DateOfDischarge&quot;</span>, <span class="st">&quot;D28_DateOfFollowUp&quot;</span>)</span>
+<span id="cb15-53"><a href="#cb15-53" aria-hidden="true" tabindex="-1"></a>flag_vars <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;DD_n&quot;</span>, <span class="st">&quot;DD_rec&quot;</span>)</span>
+<span id="cb15-54"><a href="#cb15-54" aria-hidden="true" tabindex="-1"></a>site_vars <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="st">&quot;PT_CountryName&quot;</span>, <span class="st">&quot;PT_LocationName&quot;</span>)</span>
+<span id="cb15-55"><a href="#cb15-55" aria-hidden="true" tabindex="-1"></a>aspirin_vars <span class="ot">&lt;-</span> <span class="fu">colnames</span>(all_dat_daily)[<span class="fu">grepl</span>(<span class="st">&quot;Aspirin&quot;</span>, <span class="fu">colnames</span>(all_dat_daily))]</span>
+<span id="cb15-56"><a href="#cb15-56" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb15-57"><a href="#cb15-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-58"><a href="#cb15-58" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-59"><a href="#cb15-59" aria-hidden="true" tabindex="-1"></a><span class="fu">## Aspirin</span></span>
+<span id="cb15-60"><a href="#cb15-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-61"><a href="#cb15-61" aria-hidden="true" tabindex="-1"></a>The treatment protocol for participants assigned to receive aspirin was one dose daily until discharge. Exceptions were allowed for day 1 (time of randomisation may have prohibited receipt of aspirin), day of discharge (again, may have prohibited treatment), and SAE&#39;s.</span>
+<span id="cb15-62"><a href="#cb15-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-65"><a href="#cb15-65" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb15-66"><a href="#cb15-66" aria-hidden="true" tabindex="-1"></a>aspirin_dat <span class="ot">&lt;-</span> all_dat_daily <span class="sc">%&gt;%</span></span>
+<span id="cb15-67"><a href="#cb15-67" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(ENR_rec <span class="sc">==</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb15-68"><a href="#cb15-68" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="fu">all_of</span>(site_vars),</span>
+<span id="cb15-69"><a href="#cb15-69" aria-hidden="true" tabindex="-1"></a>         <span class="fu">all_of</span>(pt_vars),</span>
+<span id="cb15-70"><a href="#cb15-70" aria-hidden="true" tabindex="-1"></a>         <span class="fu">all_of</span>(rand_vars),</span>
+<span id="cb15-71"><a href="#cb15-71" aria-hidden="true" tabindex="-1"></a>         <span class="fu">all_of</span>(day_vars),</span>
+<span id="cb15-72"><a href="#cb15-72" aria-hidden="true" tabindex="-1"></a>         <span class="fu">all_of</span>(aspirin_vars),</span>
+<span id="cb15-73"><a href="#cb15-73" aria-hidden="true" tabindex="-1"></a>         <span class="fu">all_of</span>(date_vars),</span>
+<span id="cb15-74"><a href="#cb15-74" aria-hidden="true" tabindex="-1"></a>         <span class="fu">all_of</span>(flag_vars)</span>
+<span id="cb15-75"><a href="#cb15-75" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb15-76"><a href="#cb15-76" aria-hidden="true" tabindex="-1"></a>  <span class="fu">left_join</span>(pp, <span class="at">by =</span> <span class="st">&quot;StudyPatientID&quot;</span>)</span>
+<span id="cb15-77"><a href="#cb15-77" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-78"><a href="#cb15-78" aria-hidden="true" tabindex="-1"></a><span class="co"># Who didn&#39;t get aspirin on day 1 AND was allocated to receive aspirin? Consider</span></span>
+<span id="cb15-79"><a href="#cb15-79" aria-hidden="true" tabindex="-1"></a><span class="co"># this case to be per-protocol (e.g. randomisation timing may have prevented</span></span>
+<span id="cb15-80"><a href="#cb15-80" aria-hidden="true" tabindex="-1"></a><span class="co"># drug administration).</span></span>
+<span id="cb15-81"><a href="#cb15-81" aria-hidden="true" tabindex="-1"></a>asp_missing_on_d1 <span class="ot">&lt;-</span> aspirin_dat <span class="sc">%&gt;%</span></span>
+<span id="cb15-82"><a href="#cb15-82" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(CAssignment <span class="sc">==</span> <span class="st">&quot;C3&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb15-83"><a href="#cb15-83" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_StudyDay <span class="sc">==</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb15-84"><a href="#cb15-84" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_AspirinAdministered <span class="sc">==</span> <span class="st">&quot;No&quot;</span> <span class="sc">|</span> <span class="fu">is.na</span>(DD_AspirinAdministered)) <span class="sc">%&gt;%</span></span>
+<span id="cb15-85"><a href="#cb15-85" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span><span class="fu">all_of</span>(rand_vars))</span>
+<span id="cb15-86"><a href="#cb15-86" aria-hidden="true" tabindex="-1"></a><span class="co"># asp_missing_on_d1 %&gt;% distinct(StudyPatientID, Reason)</span></span>
+<span id="cb15-87"><a href="#cb15-87" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-88"><a href="#cb15-88" aria-hidden="true" tabindex="-1"></a><span class="co"># Which Dailies are missing an expected aspirin</span></span>
+<span id="cb15-89"><a href="#cb15-89" aria-hidden="true" tabindex="-1"></a><span class="co"># administration after Day 1 excluding the date of discharge?</span></span>
+<span id="cb15-90"><a href="#cb15-90" aria-hidden="true" tabindex="-1"></a>asp_missing_after_d1 <span class="ot">&lt;-</span>  aspirin_dat <span class="sc">%&gt;%</span></span>
+<span id="cb15-91"><a href="#cb15-91" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(CAssignment <span class="sc">==</span> <span class="st">&quot;C3&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb15-92"><a href="#cb15-92" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_StudyDay <span class="sc">&gt;</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb15-93"><a href="#cb15-93" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_Date <span class="sc">&lt;</span> DIS_DateOfDischarge) <span class="sc">%&gt;%</span></span>
+<span id="cb15-94"><a href="#cb15-94" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_AspirinAdministered <span class="sc">==</span> <span class="st">&quot;No&quot;</span> <span class="sc">|</span> <span class="fu">is.na</span>(DD_AspirinAdministered)) <span class="sc">%&gt;%</span></span>
+<span id="cb15-95"><a href="#cb15-95" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span><span class="fu">all_of</span>(rand_vars))</span>
+<span id="cb15-96"><a href="#cb15-96" aria-hidden="true" tabindex="-1"></a>asp_missing_after_d1 <span class="sc">%&gt;%</span> </span>
+<span id="cb15-97"><a href="#cb15-97" aria-hidden="true" tabindex="-1"></a>  <span class="fu">distinct</span>(StudyPatientID, Reason)</span>
+<span id="cb15-98"><a href="#cb15-98" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-99"><a href="#cb15-99" aria-hidden="true" tabindex="-1"></a><span class="co"># Why were three not deviations?</span></span>
+<span id="cb15-100"><a href="#cb15-100" aria-hidden="true" tabindex="-1"></a><span class="co"># - Two participants had SAEs, not sure why 3rd wasn&#39;t considered a deviation</span></span>
+<span id="cb15-101"><a href="#cb15-101" aria-hidden="true" tabindex="-1"></a>asp_sae <span class="ot">&lt;-</span> saes <span class="sc">%&gt;%</span> </span>
+<span id="cb15-102"><a href="#cb15-102" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(StudyPatientID <span class="sc">%in%</span> (asp_missing_after_d1 <span class="sc">%&gt;%</span> <span class="fu">pull</span>(StudyPatientID) <span class="sc">%&gt;%</span> <span class="fu">unique</span>()))</span>
+<span id="cb15-103"><a href="#cb15-103" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-104"><a href="#cb15-104" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-105"><a href="#cb15-105" aria-hidden="true" tabindex="-1"></a><span class="co"># Patients not on aspirin at baseline + not randomised to aspirin but received</span></span>
+<span id="cb15-106"><a href="#cb15-106" aria-hidden="true" tabindex="-1"></a><span class="co"># aspirin during hospitalisaion. Used to query sites if clarification needed.</span></span>
+<span id="cb15-107"><a href="#cb15-107" aria-hidden="true" tabindex="-1"></a>asp_given_unexpected <span class="ot">&lt;-</span> aspirin_dat <span class="sc">%&gt;%</span></span>
+<span id="cb15-108"><a href="#cb15-108" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(CAssignment <span class="sc">==</span> <span class="st">&quot;C1&quot;</span> <span class="sc">|</span> CAssignment <span class="sc">==</span> <span class="st">&quot;C2&quot;</span> <span class="sc">|</span> CAssignment <span class="sc">==</span> <span class="st">&quot;C4&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb15-109"><a href="#cb15-109" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_StudyDay <span class="sc">&gt;</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb15-110"><a href="#cb15-110" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(BAS_PatientTakingAspirin <span class="sc">==</span> <span class="st">&quot;No&quot;</span>) <span class="sc">%&gt;%</span> <span class="co"># filter added 06.06.2022</span></span>
+<span id="cb15-111"><a href="#cb15-111" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_Date <span class="sc">&lt;</span> DIS_DateOfDischarge) <span class="sc">%&gt;%</span></span>
+<span id="cb15-112"><a href="#cb15-112" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_AspirinAdministered <span class="sc">==</span> <span class="st">&quot;Yes&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb15-113"><a href="#cb15-113" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="sc">-</span>AAssignment, <span class="sc">-</span>BAssignment)</span>
+<span id="cb15-114"><a href="#cb15-114" aria-hidden="true" tabindex="-1"></a>asp_given_unexpected <span class="sc">%&gt;%</span>  <span class="fu">distinct</span>(StudyPatientID)</span>
+<span id="cb15-115"><a href="#cb15-115" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb15-116"><a href="#cb15-116" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-117"><a href="#cb15-117" aria-hidden="true" tabindex="-1"></a><span class="fu">### Dosing</span></span>
+<span id="cb15-118"><a href="#cb15-118" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-121"><a href="#cb15-121" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb15-122"><a href="#cb15-122" aria-hidden="true" tabindex="-1"></a>all_dat <span class="sc">%&gt;%</span></span>
+<span id="cb15-123"><a href="#cb15-123" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter_acs_itt</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb15-124"><a href="#cb15-124" aria-hidden="true" tabindex="-1"></a>  <span class="fu">group_by</span>(<span class="at">CAssignment =</span> <span class="fu">factor</span>(CAssignment, <span class="at">labels =</span> <span class="fu">intervention_labels2</span>()<span class="sc">$</span>CAssignment[<span class="sc">-</span><span class="dv">1</span>])) <span class="sc">%&gt;%</span></span>
+<span id="cb15-125"><a href="#cb15-125" aria-hidden="true" tabindex="-1"></a>  <span class="fu">summarise</span>(</span>
+<span id="cb15-126"><a href="#cb15-126" aria-hidden="true" tabindex="-1"></a>    <span class="at">n =</span> <span class="fu">n</span>(),</span>
+<span id="cb15-127"><a href="#cb15-127" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Any aspirin received</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">sum</span>(DD_any_aspirin, <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb15-128"><a href="#cb15-128" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Days hospitalised</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">sum</span>(<span class="fu">pmin</span>(DIS_day, <span class="dv">28</span>), <span class="at">na.rm =</span> <span class="cn">TRUE</span>),</span>
+<span id="cb15-129"><a href="#cb15-129" aria-hidden="true" tabindex="-1"></a>    <span class="st">`</span><span class="at">Days received aspirin</span><span class="st">`</span> <span class="ot">=</span> <span class="fu">sum</span>(DD_n_aspirin, <span class="at">na.rm =</span> T)</span>
+<span id="cb15-130"><a href="#cb15-130" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb15-131"><a href="#cb15-131" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb15-132"><a href="#cb15-132" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-133"><a href="#cb15-133" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-134"><a href="#cb15-134" aria-hidden="true" tabindex="-1"></a><span class="fu">## LMWH</span></span>
+<span id="cb15-135"><a href="#cb15-135" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-136"><a href="#cb15-136" aria-hidden="true" tabindex="-1"></a>The treatment protocol was LWMH was conditional on the patients assigned intervention, baseline weight, and their creatinine clearance.</span>
+<span id="cb15-137"><a href="#cb15-137" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-138"><a href="#cb15-138" aria-hidden="true" tabindex="-1"></a><span class="fu">### Dosing</span></span>
+<span id="cb15-139"><a href="#cb15-139" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-142"><a href="#cb15-142" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb15-143"><a href="#cb15-143" aria-hidden="true" tabindex="-1"></a>generate_lmwh_dosing_table <span class="ot">&lt;-</span> <span class="cf">function</span>(ddat) {</span>
+<span id="cb15-144"><a href="#cb15-144" aria-hidden="true" tabindex="-1"></a>  lwmhdat <span class="ot">&lt;-</span> ddat <span class="sc">%&gt;%</span></span>
+<span id="cb15-145"><a href="#cb15-145" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(<span class="fu">grepl</span>(<span class="st">&quot;[1-4]&quot;</span>, CAssignment)) <span class="sc">%&gt;%</span> <span class="co"># omits anyone not in Domain C</span></span>
+<span id="cb15-146"><a href="#cb15-146" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(</span>
+<span id="cb15-147"><a href="#cb15-147" aria-hidden="true" tabindex="-1"></a>      StudyPatientID,</span>
+<span id="cb15-148"><a href="#cb15-148" aria-hidden="true" tabindex="-1"></a>      CAssignment,</span>
+<span id="cb15-149"><a href="#cb15-149" aria-hidden="true" tabindex="-1"></a>      BAS_Weight,</span>
+<span id="cb15-150"><a href="#cb15-150" aria-hidden="true" tabindex="-1"></a>      DD_StudyDay,</span>
+<span id="cb15-151"><a href="#cb15-151" aria-hidden="true" tabindex="-1"></a>      DD_Date,</span>
+<span id="cb15-152"><a href="#cb15-152" aria-hidden="true" tabindex="-1"></a>      DIS_DateOfDischarge,</span>
+<span id="cb15-153"><a href="#cb15-153" aria-hidden="true" tabindex="-1"></a>      DD_LMWHAdministered,</span>
+<span id="cb15-154"><a href="#cb15-154" aria-hidden="true" tabindex="-1"></a>      DD_TypeLMWH,</span>
+<span id="cb15-155"><a href="#cb15-155" aria-hidden="true" tabindex="-1"></a>      DD_DoseLMWH,</span>
+<span id="cb15-156"><a href="#cb15-156" aria-hidden="true" tabindex="-1"></a>      DD_LMWHAdministeredToday,</span>
+<span id="cb15-157"><a href="#cb15-157" aria-hidden="true" tabindex="-1"></a>      DD_AspirinAdministered</span>
+<span id="cb15-158"><a href="#cb15-158" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb15-159"><a href="#cb15-159" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">DD_DoseLMWH =</span> <span class="fu">as.numeric</span>(DD_DoseLMWH)) <span class="sc">%&gt;%</span></span>
+<span id="cb15-160"><a href="#cb15-160" aria-hidden="true" tabindex="-1"></a>    <span class="fu">arrange</span>(StudyPatientID, DD_StudyDay) <span class="sc">%&gt;%</span></span>
+<span id="cb15-161"><a href="#cb15-161" aria-hidden="true" tabindex="-1"></a>    <span class="co"># May not dose on day of discharge</span></span>
+<span id="cb15-162"><a href="#cb15-162" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(DD_Date <span class="sc">&lt;</span> DIS_DateOfDischarge) <span class="sc">%&gt;%</span></span>
+<span id="cb15-163"><a href="#cb15-163" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Disregard dosing on day 1</span></span>
+<span id="cb15-164"><a href="#cb15-164" aria-hidden="true" tabindex="-1"></a>    <span class="fu">filter</span>(DD_StudyDay <span class="sc">&gt;</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb15-165"><a href="#cb15-165" aria-hidden="true" tabindex="-1"></a>    <span class="co"># The one occasion reported in IU rather than IU/kg, convert</span></span>
+<span id="cb15-166"><a href="#cb15-166" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">DD_DoseLMWH =</span> <span class="fu">if_else</span>(DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Tinzaparin&quot;</span>, DD_DoseLMWH <span class="sc">/</span> BAS_Weight, DD_DoseLMWH))</span>
+<span id="cb15-167"><a href="#cb15-167" aria-hidden="true" tabindex="-1"></a>  n_by_CAssignment <span class="ot">&lt;-</span> lwmhdat <span class="sc">%&gt;%</span></span>
+<span id="cb15-168"><a href="#cb15-168" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(CAssignment, DD_LMWHAdministered, DD_TypeLMWH, DD_LMWHAdministeredToday, DD_DoseLMWH) <span class="sc">%&gt;%</span></span>
+<span id="cb15-169"><a href="#cb15-169" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarise</span>(<span class="at">n =</span> <span class="fu">n</span>(), <span class="at">.groups =</span> <span class="st">&quot;drop&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb15-170"><a href="#cb15-170" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(CAssignment) <span class="sc">%&gt;%</span></span>
+<span id="cb15-171"><a href="#cb15-171" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">value =</span> <span class="fu">sprintf</span>(<span class="st">&quot;%s (%3.1f)&quot;</span>, <span class="fu">formatC</span>(n, <span class="at">big.mark =</span> <span class="st">&quot;,&quot;</span>), <span class="dv">100</span> <span class="sc">*</span> n <span class="sc">/</span> <span class="fu">sum</span>(n))) <span class="sc">%&gt;%</span></span>
+<span id="cb15-172"><a href="#cb15-172" aria-hidden="true" tabindex="-1"></a>    <span class="fu">ungroup</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb15-173"><a href="#cb15-173" aria-hidden="true" tabindex="-1"></a>    <span class="fu">select</span>(<span class="sc">-</span>n) <span class="sc">%&gt;%</span></span>
+<span id="cb15-174"><a href="#cb15-174" aria-hidden="true" tabindex="-1"></a>    <span class="fu">spread</span>(CAssignment, value, <span class="at">fill =</span> <span class="st">&quot;0 (0.0)&quot;</span>)</span>
+<span id="cb15-175"><a href="#cb15-175" aria-hidden="true" tabindex="-1"></a>  n_total <span class="ot">&lt;-</span> lwmhdat <span class="sc">%&gt;%</span></span>
+<span id="cb15-176"><a href="#cb15-176" aria-hidden="true" tabindex="-1"></a>    <span class="fu">group_by</span>(<span class="at">DD_LMWHAdministered =</span> <span class="st">&quot;Total days&quot;</span>, CAssignment) <span class="sc">%&gt;%</span></span>
+<span id="cb15-177"><a href="#cb15-177" aria-hidden="true" tabindex="-1"></a>    <span class="fu">summarise</span>(<span class="at">value =</span> <span class="fu">formatC</span>(<span class="fu">n</span>(), <span class="at">big.mark =</span> <span class="st">&quot;,&quot;</span>), <span class="at">.groups =</span> <span class="st">&quot;drop&quot;</span>)</span>
+<span id="cb15-178"><a href="#cb15-178" aria-hidden="true" tabindex="-1"></a>  tabdat <span class="ot">&lt;-</span> n_by_CAssignment <span class="sc">%&gt;%</span></span>
+<span id="cb15-179"><a href="#cb15-179" aria-hidden="true" tabindex="-1"></a>    <span class="fu">rename</span>(</span>
+<span id="cb15-180"><a href="#cb15-180" aria-hidden="true" tabindex="-1"></a>      <span class="at">Administered =</span> DD_LMWHAdministered,</span>
+<span id="cb15-181"><a href="#cb15-181" aria-hidden="true" tabindex="-1"></a>      <span class="at">Type =</span> DD_TypeLMWH,</span>
+<span id="cb15-182"><a href="#cb15-182" aria-hidden="true" tabindex="-1"></a>      <span class="at">Occasions =</span> DD_LMWHAdministeredToday,</span>
+<span id="cb15-183"><a href="#cb15-183" aria-hidden="true" tabindex="-1"></a>      <span class="at">Dose =</span> DD_DoseLMWH</span>
+<span id="cb15-184"><a href="#cb15-184" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb15-185"><a href="#cb15-185" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">Administered =</span> <span class="fu">factor</span>(Administered, <span class="at">levels =</span> <span class="fu">c</span>(<span class="st">&quot;Yes&quot;</span>, <span class="st">&quot;No&quot;</span>))) <span class="sc">%&gt;%</span></span>
+<span id="cb15-186"><a href="#cb15-186" aria-hidden="true" tabindex="-1"></a>    <span class="fu">arrange</span>(Administered)</span>
+<span id="cb15-187"><a href="#cb15-187" aria-hidden="true" tabindex="-1"></a>  <span class="fu">colnames</span>(tabdat)[<span class="sc">-</span>(<span class="dv">1</span><span class="sc">:</span><span class="dv">4</span>)] <span class="ot">&lt;-</span> n_total <span class="sc">%&gt;%</span></span>
+<span id="cb15-188"><a href="#cb15-188" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(<span class="at">lab =</span> <span class="fu">linebreak</span>(<span class="fu">paste0</span>(CAssignment, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">(Days = &quot;</span>, value, <span class="st">&quot;)&quot;</span>), <span class="at">align =</span> <span class="st">&quot;c&quot;</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb15-189"><a href="#cb15-189" aria-hidden="true" tabindex="-1"></a>    <span class="fu">pull</span>(lab)</span>
+<span id="cb15-190"><a href="#cb15-190" aria-hidden="true" tabindex="-1"></a>  tab <span class="ot">&lt;-</span> <span class="fu">kable</span>(tabdat,</span>
+<span id="cb15-191"><a href="#cb15-191" aria-hidden="true" tabindex="-1"></a>               <span class="at">booktabs =</span> T, <span class="at">linesep =</span> <span class="st">&quot;&quot;</span>,</span>
+<span id="cb15-192"><a href="#cb15-192" aria-hidden="true" tabindex="-1"></a>               <span class="at">caption =</span> <span class="st">&quot;Daily dosing of low molecular weight heparin participants randomised to domain C.&quot;</span>,</span>
+<span id="cb15-193"><a href="#cb15-193" aria-hidden="true" tabindex="-1"></a>               <span class="at">align =</span> <span class="st">&quot;lrrrrrrrr&quot;</span>, <span class="at">escape =</span> F, <span class="at">longtable =</span> T</span>
+<span id="cb15-194"><a href="#cb15-194" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">%&gt;%</span></span>
+<span id="cb15-195"><a href="#cb15-195" aria-hidden="true" tabindex="-1"></a>    <span class="fu">kable_styling</span>(<span class="at">font_size =</span> <span class="dv">9</span>, <span class="at">latex_options =</span> <span class="st">&quot;HOLD_position&quot;</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb15-196"><a href="#cb15-196" aria-hidden="true" tabindex="-1"></a>    <span class="fu">collapse_rows</span>(<span class="dv">2</span><span class="sc">:</span><span class="dv">3</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb15-197"><a href="#cb15-197" aria-hidden="true" tabindex="-1"></a>    <span class="fu">add_header_above</span>(<span class="fu">c</span>(<span class="st">&quot; &quot;</span> <span class="ot">=</span> <span class="dv">4</span>, <span class="st">&quot;Anticoagulation&quot;</span> <span class="ot">=</span> <span class="dv">4</span>))</span>
+<span id="cb15-198"><a href="#cb15-198" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(tab)</span>
+<span id="cb15-199"><a href="#cb15-199" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb15-200"><a href="#cb15-200" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-201"><a href="#cb15-201" aria-hidden="true" tabindex="-1"></a><span class="fu">generate_lmwh_dosing_table</span>(all_dat_daily)</span>
+<span id="cb15-202"><a href="#cb15-202" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb15-203"><a href="#cb15-203" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-204"><a href="#cb15-204" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-207"><a href="#cb15-207" aria-hidden="true" tabindex="-1"></a><span class="in">```{r}</span></span>
+<span id="cb15-208"><a href="#cb15-208" aria-hidden="true" tabindex="-1"></a>check_lmwh_dose <span class="ot">&lt;-</span> <span class="cf">function</span>(ddat) {</span>
+<span id="cb15-209"><a href="#cb15-209" aria-hidden="true" tabindex="-1"></a>  ddat <span class="sc">%&gt;%</span></span>
+<span id="cb15-210"><a href="#cb15-210" aria-hidden="true" tabindex="-1"></a>    <span class="fu">mutate</span>(</span>
+<span id="cb15-211"><a href="#cb15-211" aria-hidden="true" tabindex="-1"></a>      <span class="at">expected_dose =</span> <span class="fu">case_when</span>(</span>
+<span id="cb15-212"><a href="#cb15-212" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;C1&quot;</span>, <span class="st">&quot;C3&quot;</span>) <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Enoxaparin&quot;</span> <span class="sc">&amp;</span> BAS_Weight <span class="sc">&lt;</span> <span class="dv">50</span> <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Once&quot;</span> <span class="sc">~</span> <span class="dv">20</span>,</span>
+<span id="cb15-213"><a href="#cb15-213" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;C1&quot;</span>, <span class="st">&quot;C3&quot;</span>) <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Enoxaparin&quot;</span> <span class="sc">&amp;</span> (BAS_Weight <span class="sc">&gt;=</span> <span class="dv">50</span> <span class="sc">&amp;</span> BAS_Weight <span class="sc">&lt;</span> <span class="dv">120</span>) <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Once&quot;</span> <span class="sc">~</span> <span class="dv">40</span>,</span>
+<span id="cb15-214"><a href="#cb15-214" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;C1&quot;</span>, <span class="st">&quot;C3&quot;</span>) <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Enoxaparin&quot;</span> <span class="sc">&amp;</span> BAS_Weight <span class="sc">&gt;</span> <span class="dv">120</span> <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Once&quot;</span> <span class="sc">~</span> <span class="dv">60</span>,</span>
+<span id="cb15-215"><a href="#cb15-215" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;C1&quot;</span>, <span class="st">&quot;C3&quot;</span>) <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Tinzaparin&quot;</span> <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Once&quot;</span> <span class="sc">~</span> <span class="dv">75</span> <span class="sc">*</span> BAS_Weight,</span>
+<span id="cb15-216"><a href="#cb15-216" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-217"><a href="#cb15-217" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Invalid dosing as no &quot;Twice per day&quot; option specified in protocol</span></span>
+<span id="cb15-218"><a href="#cb15-218" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">%in%</span> <span class="fu">c</span>(<span class="st">&quot;C1&quot;</span>, <span class="st">&quot;C3&quot;</span>) <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Enoxaparin&quot;</span> <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Twice&quot;</span> <span class="sc">~</span> <span class="sc">-</span><span class="dv">9999</span>,</span>
+<span id="cb15-219"><a href="#cb15-219" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-220"><a href="#cb15-220" aria-hidden="true" tabindex="-1"></a>        <span class="co"># C2 per-protocol dosing check</span></span>
+<span id="cb15-221"><a href="#cb15-221" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">==</span> <span class="st">&quot;C2&quot;</span> <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Enoxaparin&quot;</span> <span class="sc">&amp;</span> BAS_Weight <span class="sc">&lt;</span> <span class="dv">50</span> <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Once&quot;</span> <span class="sc">~</span> <span class="dv">40</span>,</span>
+<span id="cb15-222"><a href="#cb15-222" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">==</span> <span class="st">&quot;C2&quot;</span> <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Enoxaparin&quot;</span> <span class="sc">&amp;</span> (BAS_Weight <span class="sc">&gt;=</span> <span class="dv">50</span> <span class="sc">&amp;</span> BAS_Weight <span class="sc">&lt;</span> <span class="dv">120</span>) <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Once&quot;</span> <span class="sc">~</span> <span class="dv">80</span>,</span>
+<span id="cb15-223"><a href="#cb15-223" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">==</span> <span class="st">&quot;C2&quot;</span> <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Enoxaparin&quot;</span> <span class="sc">&amp;</span> (BAS_Weight <span class="sc">&gt;=</span> <span class="dv">50</span> <span class="sc">&amp;</span> BAS_Weight <span class="sc">&lt;</span> <span class="dv">120</span>) <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Twice&quot;</span> <span class="sc">~</span> <span class="dv">40</span>,</span>
+<span id="cb15-224"><a href="#cb15-224" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">==</span> <span class="st">&quot;C2&quot;</span> <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Enoxaparin&quot;</span> <span class="sc">&amp;</span> BAS_Weight <span class="sc">&gt;</span> <span class="dv">120</span> <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Once&quot;</span> <span class="sc">~</span> <span class="dv">120</span>,</span>
+<span id="cb15-225"><a href="#cb15-225" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">==</span> <span class="st">&quot;C2&quot;</span> <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Enoxaparin&quot;</span> <span class="sc">&amp;</span> BAS_Weight <span class="sc">&gt;</span> <span class="dv">120</span> <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Twice&quot;</span> <span class="sc">~</span> <span class="dv">60</span>,</span>
+<span id="cb15-226"><a href="#cb15-226" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">==</span> <span class="st">&quot;C2&quot;</span> <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Tinzaparin&quot;</span> <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Once&quot;</span> <span class="sc">~</span> <span class="dv">125</span> <span class="sc">*</span> BAS_Weight,</span>
+<span id="cb15-227"><a href="#cb15-227" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-228"><a href="#cb15-228" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Invalid dosing as no &quot;Twice per day&quot; option specified in protocol</span></span>
+<span id="cb15-229"><a href="#cb15-229" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">==</span> <span class="st">&quot;C2&quot;</span> <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Enoxaparin&quot;</span> <span class="sc">&amp;</span> BAS_Weight <span class="sc">&lt;</span> <span class="dv">50</span> <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Twice&quot;</span> <span class="sc">~</span> <span class="sc">-</span><span class="dv">9999</span>,</span>
+<span id="cb15-230"><a href="#cb15-230" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-231"><a href="#cb15-231" aria-hidden="true" tabindex="-1"></a>        <span class="co"># C4 per-protocol dosing check</span></span>
+<span id="cb15-232"><a href="#cb15-232" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">==</span> <span class="st">&quot;C4&quot;</span> <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Enoxaparin&quot;</span> <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Once&quot;</span> <span class="sc">~</span> <span class="fl">1.5</span> <span class="sc">*</span> BAS_Weight,</span>
+<span id="cb15-233"><a href="#cb15-233" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">==</span> <span class="st">&quot;C4&quot;</span> <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Enoxaparin&quot;</span> <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Twice&quot;</span> <span class="sc">~</span> BAS_Weight,</span>
+<span id="cb15-234"><a href="#cb15-234" aria-hidden="true" tabindex="-1"></a>        CAssignment <span class="sc">==</span> <span class="st">&quot;C4&quot;</span> <span class="sc">&amp;</span> DD_TypeLMWH <span class="sc">==</span> <span class="st">&quot;Tinzaparin&quot;</span> <span class="sc">&amp;</span> DD_LMWHAdministeredToday <span class="sc">==</span> <span class="st">&quot;Once&quot;</span> <span class="sc">~</span> <span class="dv">175</span> <span class="sc">*</span> BAS_Weight,</span>
+<span id="cb15-235"><a href="#cb15-235" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-236"><a href="#cb15-236" aria-hidden="true" tabindex="-1"></a>        <span class="fu">is.na</span>(CAssignment) <span class="sc">|</span> <span class="fu">is.na</span>(DD_TypeLMWH) <span class="sc">|</span> <span class="fu">is.na</span>(DD_LMWHAdministeredToday) <span class="sc">|</span> <span class="fu">is.na</span>(DD_DoseLMWH) <span class="sc">|</span> <span class="fu">is.na</span>(BAS_Weight) <span class="sc">~</span> <span class="cn">NA_real_</span>,</span>
+<span id="cb15-237"><a href="#cb15-237" aria-hidden="true" tabindex="-1"></a>        <span class="cn">TRUE</span> <span class="sc">~</span> <span class="cn">NA_real_</span></span>
+<span id="cb15-238"><a href="#cb15-238" aria-hidden="true" tabindex="-1"></a>      ),</span>
+<span id="cb15-239"><a href="#cb15-239" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-240"><a href="#cb15-240" aria-hidden="true" tabindex="-1"></a>      <span class="co"># actual_dose = if_else((CAssignment == &quot;C0&quot; &amp; is.na(DD_LMWHAdministeredToday)), 0, DD_DoseLMWH)),</span></span>
+<span id="cb15-241"><a href="#cb15-241" aria-hidden="true" tabindex="-1"></a>      <span class="at">dose_given =</span> DD_LMWHAdministered,</span>
+<span id="cb15-242"><a href="#cb15-242" aria-hidden="true" tabindex="-1"></a>      <span class="at">dose_equal_expected =</span> expected_dose <span class="sc">==</span> DD_DoseLMWH,</span>
+<span id="cb15-243"><a href="#cb15-243" aria-hidden="true" tabindex="-1"></a>      <span class="at">dose_close_expected =</span> <span class="fu">abs</span>(expected_dose <span class="sc">-</span> DD_DoseLMWH) <span class="sc">&lt;</span> <span class="dv">10</span></span>
+<span id="cb15-244"><a href="#cb15-244" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb15-245"><a href="#cb15-245" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb15-246"><a href="#cb15-246" aria-hidden="true" tabindex="-1"></a>lmwh <span class="ot">&lt;-</span> <span class="fu">check_lmwh_dose</span>(all_dat_daily <span class="sc">%&gt;%</span> <span class="fu">filter_acs_itt</span>())</span>
+<span id="cb15-247"><a href="#cb15-247" aria-hidden="true" tabindex="-1"></a><span class="co"># show counts in console</span></span>
+<span id="cb15-248"><a href="#cb15-248" aria-hidden="true" tabindex="-1"></a>lmwh <span class="sc">%&gt;%</span> dplyr<span class="sc">::</span><span class="fu">count</span>(dose_equal_expected, dose_close_expected)</span>
+<span id="cb15-249"><a href="#cb15-249" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-250"><a href="#cb15-250" aria-hidden="true" tabindex="-1"></a><span class="co"># Apply creatinine clearance rate for records of interest----</span></span>
+<span id="cb15-251"><a href="#cb15-251" aria-hidden="true" tabindex="-1"></a>anticoag_all <span class="ot">&lt;-</span> lmwh <span class="sc">%&gt;%</span></span>
+<span id="cb15-252"><a href="#cb15-252" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Omit patients not in Anticoag domain</span></span>
+<span id="cb15-253"><a href="#cb15-253" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">grepl</span>(<span class="st">&quot;[1-4]&quot;</span>, CAssignment)) <span class="sc">%&gt;%</span></span>
+<span id="cb15-254"><a href="#cb15-254" aria-hidden="true" tabindex="-1"></a>  <span class="co"># Note, checking function ignores discharge day but keeps Day 1</span></span>
+<span id="cb15-255"><a href="#cb15-255" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(StudyPatientID, PT_CountryName, PT_LocationName, AgeAtEntry, Sex, BAS_Weight, EL_SerumCreatinineBlood,</span>
+<span id="cb15-256"><a href="#cb15-256" aria-hidden="true" tabindex="-1"></a>         EL_SerumCreatinineUnits, EL_SerumCreatinine_umolL, DD_Date,  DD_StudyDay, DIS_DateOfDischarge,</span>
+<span id="cb15-257"><a href="#cb15-257" aria-hidden="true" tabindex="-1"></a>         DD_TypeLMWH, DD_LMWHAdministeredToday, DD_DoseLMWH, expected_dose,</span>
+<span id="cb15-258"><a href="#cb15-258" aria-hidden="true" tabindex="-1"></a>         dose_equal_expected, dose_close_expected) <span class="sc">%&gt;%</span></span>
+<span id="cb15-259"><a href="#cb15-259" aria-hidden="true" tabindex="-1"></a>  <span class="co"># serum creatinine clearance by Cockcroft-Gault formula</span></span>
+<span id="cb15-260"><a href="#cb15-260" aria-hidden="true" tabindex="-1"></a>  <span class="co"># https://www.eviq.org.au/clinical-resources/eviq-calculators/3200-creatinine-clearance-calculator</span></span>
+<span id="cb15-261"><a href="#cb15-261" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(</span>
+<span id="cb15-262"><a href="#cb15-262" aria-hidden="true" tabindex="-1"></a>    <span class="at">creat_clearance =</span> <span class="fu">creatinine_clearance</span>(Sex, AgeAtEntry, BAS_Weight, EL_SerumCreatinine_umolL)</span>
+<span id="cb15-263"><a href="#cb15-263" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb15-264"><a href="#cb15-264" aria-hidden="true" tabindex="-1"></a><span class="co"># List patients with dose_equal_expected != TRUE and keep nulls</span></span>
+<span id="cb15-265"><a href="#cb15-265" aria-hidden="true" tabindex="-1"></a>anticoag_neq <span class="ot">&lt;-</span>  anticoag_all <span class="sc">%&gt;%</span></span>
+<span id="cb15-266"><a href="#cb15-266" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_StudyDay <span class="sc">&gt;</span> <span class="dv">1</span>) <span class="sc">%&gt;%</span> <span class="co"># Ignore day 1</span></span>
+<span id="cb15-267"><a href="#cb15-267" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(DD_Date <span class="sc">&lt;</span> DIS_DateOfDischarge) <span class="sc">%&gt;%</span> <span class="co"># Ignore discharge day</span></span>
+<span id="cb15-268"><a href="#cb15-268" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(dose_equal_expected <span class="sc">==</span> <span class="cn">FALSE</span> <span class="sc">|</span> <span class="fu">is.na</span>(dose_equal_expected))</span>
+<span id="cb15-269"><a href="#cb15-269" aria-hidden="true" tabindex="-1"></a>anticoag_neq <span class="sc">%&gt;%</span> dplyr<span class="sc">::</span><span class="fu">count</span>(dose_equal_expected, dose_close_expected)</span>
+<span id="cb15-270"><a href="#cb15-270" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 </code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
