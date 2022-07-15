@@ -49,6 +49,8 @@ acs_itt_dat <- all_dat %>%
     all_dat %>% select(StudyPatientID, starts_with("D28_EQ")),
     by = "StudyPatientID")
 
+eq5d_india <- read_csv(file.path(ANTICOAG_DATA, "eq5d5l", "eq5d5l_india.csv"), col_names = c("state", "value")) %>%
+  mutate(state = as.character(state))
 ```
 
 ## Descriptive
@@ -277,7 +279,7 @@ make_table <- function(format = "html", fn = NULL)
     align = "rrrr", format = format, digits = 2, booktabs = TRUE, linesep = "", longtable = TRUE) %>%  
     kable_styling(latex_options = "HOLD_position", font_size = 11) %>%
     collapse_rows(1, valign = "top", latex_hline = 'custom', custom_latex_hline = 1) %>%
-       add_footnote("Note: UK crosswalk value set used.", notation = "none", escape = TRUE)
+       footnote(number = "Note: UK crosswalk value set used.", escape = TRUE)
 
     if (!is.null(fn) & format == "latex") {
       out
@@ -292,7 +294,46 @@ make_table(format = "latex", fn = "outcomes/secondary/7-8_eq5d_utility")
 
 ```
 
+Use the India value set provided
 
+```{r}
+#| label: utility-india
+#| code-summary: Derive utility for India valueset
 
+value <- eq5d %>% 
+  left_join(eq5d_india, by = "state") %>%
+  select(CAssignment, state, value) %>%
+  group_by(CAssignment) %>%
+  summarise(n       = n(),
+            Mean    = round(mean(value, na.rm = T), 4),
+            SD      = round(sd(value, na.rm = T), 4),
+            Median  = median(value, na.rm = T),
+            Mode    = getmode(value),
+            Min     = min(value, na.rm = T),
+            Max     = max(value, na.rm = T),
+            `Missing, n (%)` = paste0(sum(is.na(value)), " (", round(sum(is.na(value))/n(),4)*100,")")) %>% t %>% as.data.frame()
+names(value) <- c("Standard", "Intermediate", "Standard plus aspirin", "Therapeutic")
+value <- value[-1,]
 
-# End of script.
+make_table <- function(format = "html", fn = NULL)
+{  
+ out <- value %>% kable(
+    caption = "Descriptive summary of EQ-5D-5L utilities (day 28).",
+    align = "rrrr", format = format, digits = 2, booktabs = TRUE, linesep = "", longtable = TRUE) %>%  
+    kable_styling(latex_options = "HOLD_position", font_size = 11) %>%
+    collapse_rows(1, valign = "top", latex_hline = 'custom', custom_latex_hline = 1) %>%
+       footnote(number = "Note: India EQ-5D-5L value set used.", escape = TRUE)
+
+    if (!is.null(fn) & format == "latex") {
+      out
+      save_tex_table(out, fn)
+    } else {
+      return(out)
+    }
+}
+
+make_table()  %>% kable_styling()
+make_table(format = "latex", fn = "outcomes/secondary/7-8_eq5d_utility_india")
+
+```
+
