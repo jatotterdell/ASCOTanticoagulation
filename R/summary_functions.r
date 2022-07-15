@@ -433,7 +433,7 @@ generate_baseline_comorbidities <- function(dat) {
       BAS_HIVInfection,
       BAS_IatrogenicImmuno)
   ovr_missing <- basdat %>%
-    summarise(name = "Missing, n (\\%)", value = sprintf("%i (%3.1f)", sum(BAS_rec == 0), 100 * sum(BAS_rec == 0) / n()))
+    summarise(name = "Missing, n (\\%)", value = sprintf("%i (%3.0f)", sum(BAS_rec == 0), 100 * sum(BAS_rec == 0) / n()))
   overall <- basdat %>%
     select(-BAS_rec) %>%
     summarise_all(., list(`.n` = ~ sum(.x == "Yes", na.rm = T), `.p` = ~ sum(.x == "Yes", na.rm = T) / n())) %>%

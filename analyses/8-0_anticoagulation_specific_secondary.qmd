@@ -183,19 +183,40 @@ gtab <- acs_itt_dat %>%
     `Thrombotic events_Unknown` = 
         sprintf("%i (%.0f)", sum(is.na(out_dvt)), 100 * mean(is.na(out_dvt))),
     `Thrombotic events_Deep vein thrombosis` = 
-      sprintf("%i (%.0f)", sum(out_dvt, na.rm = TRUE), 100 * mean(out_dvt, na.rm = TRUE)),
+      sprintf("%i/%i (%.0f)", 
+              sum(out_dvt, na.rm = TRUE), 
+              sum(!is.na(out_dvt)),
+              100 * mean(out_dvt, na.rm = TRUE)),
     `Thrombotic events_Pulmonary embolus` = 
-      sprintf("%i (%.0f)", sum(out_pe, na.rm = TRUE), 100 * mean(out_pe, na.rm = TRUE)),
+      sprintf("%i/%i (%.0f)", 
+              sum(out_pe, na.rm = TRUE), 
+              sum(!is.na(out_pe)),
+              100 * mean(out_pe, na.rm = TRUE)),
     `Thrombotic events_Acute myocardial infarction` = 
-      sprintf("%i (%.0f)", sum(out_ami, na.rm = TRUE), 100 * mean(out_ami, na.rm = TRUE)),
+      sprintf("%i/%i (%.0f)", 
+              sum(out_ami, na.rm = TRUE), 
+              sum(!is.na(out_ami)),
+              100 * mean(out_ami, na.rm = TRUE)),
     `Thrombotic events_Ischemic cerebrovascular event` = 
-      sprintf("%i (%.0f)", sum(out_ice, na.rm = TRUE), 100 * mean(out_ice, na.rm = TRUE)),
+      sprintf("%i/%i (%.0f)", 
+              sum(out_ice, na.rm = TRUE), 
+              sum(!is.na(out_ice)),
+              100 * mean(out_ice, na.rm = TRUE)),
     `Thrombotic events_Other confirmed thrombotic event` = 
-      sprintf("%i (%.0f)", sum(out_ote, na.rm = TRUE), 100 * mean(out_ote, na.rm = TRUE)),
+      sprintf("%i/%i (%.0f)", 
+              sum(out_ote, na.rm = TRUE),
+              sum(!is.na(out_ote)),
+              100 * mean(out_ote, na.rm = TRUE)),
     `Thrombotic events_Any thrombotic event` = 
-      sprintf("%i (%.0f)", sum(out_ate, na.rm = TRUE), 100 * mean(out_ate, na.rm = TRUE)),
+      sprintf("%i/%i (%.0f)", 
+              sum(out_ate, na.rm = TRUE), 
+              sum(!is.na(out_ate)),
+              100 * mean(out_ate, na.rm = TRUE)),
     `Thrombotic events_Any thrombotic event or death` = 
-      sprintf("%i (%.0f)", sum(out_ated, na.rm = TRUE), 100 * mean(out_ated, na.rm = TRUE)),
+      sprintf("%i/%i (%.0f)", 
+              sum(out_ated, na.rm = TRUE), 
+              sum(!is.na(out_ated)),
+              100 * mean(out_ated, na.rm = TRUE)),
     `Bleeding_Unknown` = 
       sprintf("%i (%.0f)", sum(is.na(out_crb)), 100 * mean(is.na(out_crb))),
     `Bleeding_Major bleeding (as defined by ISTH)` = 
@@ -225,19 +246,40 @@ otab <- acs_itt_dat %>%
     `Thrombotic events_Unknown` = 
         sprintf("%i (%.0f)", sum(is.na(out_dvt)), 100 * mean(is.na(out_dvt))),
     `Thrombotic events_Deep vein thrombosis` = 
-      sprintf("%i (%.0f)", sum(out_dvt, na.rm = TRUE), 100 * mean(out_dvt, na.rm = TRUE)),
+      sprintf("%i/%i (%.0f)", 
+              sum(out_dvt, na.rm = TRUE), 
+              sum(!is.na(out_dvt)),
+              100 * mean(out_dvt, na.rm = TRUE)),
     `Thrombotic events_Pulmonary embolus` = 
-      sprintf("%i (%.0f)", sum(out_pe, na.rm = TRUE), 100 * mean(out_pe, na.rm = TRUE)),
+      sprintf("%i/%i (%.0f)", 
+              sum(out_pe, na.rm = TRUE), 
+              sum(!is.na(out_pe)),
+              100 * mean(out_pe, na.rm = TRUE)),
     `Thrombotic events_Acute myocardial infarction` = 
-      sprintf("%i (%.0f)", sum(out_ami, na.rm = TRUE), 100 * mean(out_ami, na.rm = TRUE)),
+      sprintf("%i/%i (%.0f)", 
+              sum(out_ami, na.rm = TRUE), 
+              sum(!is.na(out_ami)),
+              100 * mean(out_ami, na.rm = TRUE)),
     `Thrombotic events_Ischemic cerebrovascular event` = 
-      sprintf("%i (%.0f)", sum(out_ice, na.rm = TRUE), 100 * mean(out_ice, na.rm = TRUE)),
+      sprintf("%i/%i (%.0f)", 
+              sum(out_ice, na.rm = TRUE), 
+              sum(!is.na(out_ice)),
+              100 * mean(out_ice, na.rm = TRUE)),
     `Thrombotic events_Other confirmed thrombotic event` = 
-      sprintf("%i (%.0f)", sum(out_ote, na.rm = TRUE), 100 * mean(out_ote, na.rm = TRUE)),
+      sprintf("%i/%i (%.0f)", 
+              sum(out_ote, na.rm = TRUE),
+              sum(!is.na(out_ote)),
+              100 * mean(out_ote, na.rm = TRUE)),
     `Thrombotic events_Any thrombotic event` = 
-      sprintf("%i (%.0f)", sum(out_ate, na.rm = TRUE), 100 * mean(out_ate, na.rm = TRUE)),
+      sprintf("%i/%i (%.0f)", 
+              sum(out_ate, na.rm = TRUE), 
+              sum(!is.na(out_ate)),
+              100 * mean(out_ate, na.rm = TRUE)),
     `Thrombotic events_Any thrombotic event or death` = 
-      sprintf("%i (%.0f)", sum(out_ated, na.rm = TRUE), 100 * mean(out_ated, na.rm = TRUE)),
+      sprintf("%i/%i (%.0f)", 
+              sum(out_ated, na.rm = TRUE), 
+              sum(!is.na(out_ated)),
+              100 * mean(out_ated, na.rm = TRUE)),
     `Bleeding_Unknown` = 
       sprintf("%i (%.0f)", sum(is.na(out_crb)), 100 * mean(is.na(out_crb))),
     `Bleeding_Major bleeding (as defined by ISTH)` = 
@@ -265,7 +307,7 @@ kable(
   escape = F
 ) %>%
   kable_styling(
-    latex_options = "HOLD_position"
+    latex_options = "HOLD_position", font_size = 10
   ) %>%
   pack_rows("Mortality", 1, 2) %>%
   pack_rows("Thrombotic events", 3, 10) %>%

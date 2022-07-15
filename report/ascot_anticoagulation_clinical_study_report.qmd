@@ -30,9 +30,9 @@ execute:
 
 ## Purpose
 
-The trial steering committee (TSC) closed randomisation to the anticoagulation domain on 8 April 2022. The blinded statistical analysis working group prepared a statistical analysis plan (SAP) for reporting the results of the anticoagulation domain. The unblinded team of statisticians undertook these analysis using the relevant records as extracted from the database on 2022-06-06.
+The trial steering committee (TSC) closed randomisation to the anticoagulation domain on 8 April 2022. The blinded statistical analysis working group prepared a statistical analysis plan (SAP) for reporting the results of the anticoagulation domain. The unblinded team of statisticians undertook the analyses using the relevant records as extracted from the database on 2022-06-06.
 
-This report summarises the data and results for the anticoagulation domain. The report restricts these summaries and analyses to the interventions available in the anticoagulation domain and does not report on the interventions in the antiviral domain.
+This report summarises the data and results of the analyses for the anticoagulation domain. The report restricts these summaries and analyses to the interventions available in the anticoagulation domain and does not report on the interventions in the antiviral domain.
 
 ## Interventions
 
@@ -53,14 +53,14 @@ For details on the primary and secondary outcomes, refer to the core protocol. F
 
 ### General Considerations
 
-All binary outcomes were analysed assuming a logistic regression model, ordinal outcomes by assuming a cumulative logistic model with proportional odds, and the time to recovery outcome by a discrete-time competing-risk (death) time-to-event model (multinomial logistic regression). Weakly informative priors were specified for all models.
+All binary outcomes were analysed using a logistic regression model, ordinal outcomes by a cumulative logistic model with proportional odds, and the time to recovery outcome by a discrete-time competing-risk (death) time-to-event model (multinomial logistic regression). Weakly informative priors were specified for all models.
 
 The (pre-specified) primary model for all outcomes included fixed terms for:
 
 - anticoagulation intervention
 - antiviral intervention
 - intervention ineligibility
-- age group (< 60, $\geq$ 60)
+- age group (< 60, $\geq$ 60 years of age)
 - region of enrolment (India, Australia/New Zealand, Nepal)
 
 Hierarchical terms were also included for:
@@ -150,7 +150,7 @@ on the event-specific baseline-hazard terms.
 As per the statistical appendix to the core protocol, the following decision quantities were of interest in the anticoagulation domain for the primary outcome model:
 
 - **Superiority**: superiority was assessed using the posterior probability that the intervention has the lowest odds of the outcome amongst all interventions in the domain. If a single intervention had probability exceeding 0.99 superiority would be triggered for that intervention.
-- **Effectiveness**: effectiveness was assessed relative to the low-dose arm as the posterior probability that the intervention reduces the odds of the outcome. If any intervention had probability exceeding 0.99 than effectiveness would be triggered for that intervention.
+- **Effectiveness**: effectiveness was assessed relative to the low-dose arm as the posterior probability that the intervention reduces the odds of the outcome. If any intervention had probability exceeding 0.99 then effectiveness would be triggered for that intervention.
 - **Futility**: futility was assessed relative to the low-dose arm as the posterior probability that the intervention reduces the odds of the outcome by no more than a factor of 1/1.1. If any intervention had probability exceeding 0.95 than futility would be triggered for that intervention.
 - **Equivalence**: equivalence was assessed relative to the low-dose arm as the posterior probability that the intervention alters the odds of the outcome by a factor bounded by (1/1.1, 1.1).
 
@@ -164,13 +164,11 @@ At the time of database lock for the anticoagulation domain, 1,599 participants 
 
 ### Analysis Sets {#sec-analysis-sets}
 
-The SAP for the anticoagulation domain defines a number of analysis populations.
-
-The primary analysis population includes all participants who were randomised to the anticoagulation domain. For the intention-to-treat (ITT) analyses, all participants randomised to the anticoagulation domain were analysed according to their aside regimen irrespective of deviations or non-adherence. This set is referred to as the anticoagulation ITT set (ACS-ITT).
+The primary analysis population includes all participants who were randomised to the anticoagulation domain. For the intention-to-treat (ITT) analyses, all participants randomised to the anticoagulation domain were analysed according to their assigned regimen irrespective of deviations or non-adherence. This set is referred to as the anticoagulation ITT set (ACS-ITT).
 
 Secondary analyses expand the analysis set to include all participants randomised to the platform including those who were not randomised to the anticoagulation domain for the purpose of additional covariate information. This is referred to as the full analysis set ITT (FAS-ITT)
 
-Per-protocol (PP) analyses restrict both of the analysis sets to only those participants who sufficiently adhered to the protocol as determined by blinded review. Participants who were not PP had their outcomes set to missing, (ACS-PP and FAS-PP).
+Per-protocol (PP) analyses restrict both of the analysis sets to only those participants who sufficiently adhered to the protocol as determined by blinded review. Participants who were not PP were excluded from these analyses, (ACS-PP and FAS-PP).
 
 Additional analysis sets are defined for the purpose of comparing the interventions restricted to the timing of concurrent randomisation. For this purpose, the following additional analysis sets are specified:
 
@@ -254,7 +252,7 @@ Platform and domain specific flow diagrams are included in @fig-platform-flow an
 
 ![Anticoagulation domain flowchart.](domain_anticoagulation_flowchart.tex){#fig-anticoagulation-flow}
 
-@fig-enrolments presents overall platform enrolments by calendar time with timing of intervention availabilities and interim analyses. Due to the changes to the trial which occurred independently of the within trial results, the initial allocation ratios were not changed during recruitment to the anticoagulation domain. Therefore, the only trial adaptations which occurred were the cessation of the standard dose plus aspirin intervention in the anticoagulation domain, the opening of the antiviral domain, and the introduction of the therapeutic dose intervention into the anticoagulation domain. Despite this, the timing of interim analyses are indicated on the Figures.
+@fig-enrolments presents overall platform enrolments by calendar time with timing of intervention availabilities and interim analyses. Due to an insufficient number of participants on the therapeutic anticoagulation arm, the initial allocation ratios were not changed during recruitment to the anticoagulation domain. Therefore, the only trial adaptations which occurred were the cessation of the standard dose plus aspirin intervention in the anticoagulation domain, the opening of the antiviral domain, and the introduction of the therapeutic dose intervention into the anticoagulation domain. Despite this, the timing of interim analyses are indicated on the Figures.
 
 ```{r}
 #| label: fig-enrolments
@@ -333,7 +331,16 @@ knitr::include_graphics(
 
 ### Deviations
 
-Of the 1,599 patients randomised to the platform, there were 55 patients who were not considered to be per-protocol. These were 28 patients who deviated from the intervention protocol, 26 patients who withdrew from the anticoagulation domain intervention, and 1 patient who deviated and withdrew from treatment. The reason for withdrawal from the anticoagulation domain was principally a decision of the primary treating clinician (18 of 26) with the remaining due to withdrawal of patient consent.
+The number of participants who deviated from the per-protocol treatment is summarised in @tbl-per-protocol.
+
+```{r}
+#| label: tbl-per-protocol
+#| tbl-cap: |
+#|   Number and proportion of participants who were per-protocol.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "baseline", "per-protocol.tex"))
+writeLines(tab)
+```
 
 \clearpage
 
@@ -721,7 +728,7 @@ knitr::include_graphics(
 
 A subgroup analysis by whether patient received corticosteroids (did not receive or did receive) was undertaken using the ACS-ITT set. A summary of the primary outcome by receipt of corticosteroids and intervention is reported in @tbl-descriptive-acs-itt-subgroup-steroids.
 
-It's noted that this subgroup analysis was pre-specified, however receipt of corticosteroids is reported on the discharge summary and is a post-randomisation event (any receipt during their index hospital admission). Therefore, interpretation of this subgroup is challenging (more severe patients may have been more likely to receive corticosteroids, availability may be site specific, etc.).
+It is noted that this subgroup analysis was pre-specified, however receipt of corticosteroids is reported on the discharge summary and is a post-randomisation event (any receipt during their index hospital admission). Therefore, interpretation of this subgroup is challenging (more severe patients may have been more likely to receive corticosteroids, availability may be site specific, etc.).
 
 ```{r}
 #| label: tbl-descriptive-acs-itt-subgroup-steroids
@@ -1269,7 +1276,7 @@ knitr::include_graphics(
 
 ## Secondary Outcomes
 
-For all secondary outcomes, the primary model (adjusting for interventions, age group, country, site, and epoch using the relevant outcome model) was fit to the ACS-ITT set. The only sensitivity analysis conducted was to repeat the analyses restricted to contemporaneous controls using a reduced model.
+For all secondary outcomes, the primary model (the model adjusting for interventions, age group, country, site, and epoch using the relevant outcome model) was fit to the ACS-ITT set. The only sensitivity analysis conducted was to repeat the analyses restricted to contemporaneous controls using a reduced model.
 
 ### Time to clinical recovery to day 28
 
