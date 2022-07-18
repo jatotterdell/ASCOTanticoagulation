@@ -91,7 +91,6 @@
     \node [block_assign] (int1analysis) [below = 0.5cm of int1excl] {Included in\\ primary analysis \\ \textbf{601}};
     \node [block_assign] (int2analysis) [below = 0.5cm of int2excl] {Included in\\ primary analysis \\ \textbf{279}};
     \node [block_assign] (int3analysis) [below = 0.5cm of int3excl] {Included in\\ primary analysis \\ \textbf{50}};
-    % \node [block_assign] (covadjust) [right = 0.25cm of int2analysis] {Covariate adjustment\textsuperscript{\ddag} \\ \textbf{xxx}};
     % connecting nodes with paths
     \begin{scope}[every path/.style=line]
       \path (screened)   -- (peligible);
@@ -110,8 +109,6 @@
       \path (int1excl) -- (int1analysis);
       \path (int2excl) -- (int2analysis);
       \path (int3excl) -- (int3analysis);
-      %\path (ineligible) -| (otherexclu);
-      %\path (otherexclu) -- (covadjust);
     \end{scope}
   \end{tikzpicture}
 
