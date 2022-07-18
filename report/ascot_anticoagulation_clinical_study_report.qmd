@@ -253,6 +253,8 @@ Platform and domain specific flow diagrams are included in @fig-platform-flow an
 
 ![Anticoagulation domain flowchart.](domain_anticoagulation_flowchart.tex){#fig-anticoagulation-flow}
 
+![Combined domain flowchart.](combined_anticoagulation_flowchart.tex){#fig-combined-flow}
+
 @fig-enrolments presents overall platform enrolments by calendar time with timing of intervention availabilities and interim analyses. Due to an insufficient number of participants on the therapeutic anticoagulation arm, the initial allocation ratios were not changed during recruitment to the anticoagulation domain. Therefore, the only trial adaptations which occurred were the cessation of the standard dose plus aspirin intervention in the anticoagulation domain, the opening of the antiviral domain, and the introduction of the therapeutic dose intervention into the anticoagulation domain. Despite this, the timing of interim analyses are indicated on the Figures.
 
 ```{r}
