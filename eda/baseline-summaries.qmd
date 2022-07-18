@@ -636,3 +636,179 @@ save_tex_table(
   "baseline/drugs"
 )
 ```
+
+# Concurrent Baseline Summaries
+
+## Demographics
+
+### Low-dose with aspirin
+
+```{r}
+#| label: tbl-demographics-table-aspirin
+#| code-summary: Demographics table
+#| tbl-cap: |
+#|   Baseline demographics for participants in ACS-ITT-aspirin set.
+sdat <- all_data %>%
+    filter_acs_itt() %>%
+    filter(EL_inelg_c3 == 0, RandDate < get_intervention_dates()$endate[3]) %>%
+  mutate(CAssignment = factor(CAssignment, labels = intervention_labels2()$CAssignment[-c(1,5)]))
+save_tex_table(
+  generate_baseline_demographics_table(sdat, format = "latex"),
+  "baseline/demographics-acs-itt-aspirin"
+)
+generate_baseline_demographics_table(sdat, format = "html")
+```
+
+### Therapeutic-dose
+
+```{r}
+#| label: tbl-demographics-table-therapeutic
+#| code-summary: Demographics table
+#| tbl-cap: |
+#|   Baseline demographics for participants in ACS-ITT-therapeutic
+sdat <- all_data %>%
+    filter_acs_itt() %>%
+    filter(EL_ProtocolVersion == "5.0") %>%
+  mutate(CAssignment = factor(CAssignment, labels = intervention_labels2()$CAssignment[-c(1,4)]))
+save_tex_table(
+  generate_baseline_demographics_table(sdat, format = "latex"),
+  "baseline/demographics-acs-itt-therapeutic"
+)
+generate_baseline_demographics_table(sdat, format = "html")
+```
+
+### Remainder
+
+```{r}
+#| label: tbl-demographics-table-rest
+#| code-summary: Demographics table
+#| tbl-cap: |
+#|   Baseline demographics for participants in ACS-ITT-rest
+sdat <- all_data %>%
+    filter_acs_itt() %>%
+    filter(EL_ProtocolVersion == "3.0", 
+           RandDate >= get_intervention_dates()$endate[3] | 
+             (RandDate < get_intervention_dates()$endate[3] & EL_inelg_c3 == 1)) %>%
+  mutate(CAssignment = factor(CAssignment, labels = intervention_labels2()$CAssignment[2:3]))
+save_tex_table(
+  generate_baseline_demographics_table(sdat, format = "latex"),
+  "baseline/demographics-acs-itt-rest"
+)
+generate_baseline_demographics_table(sdat, format = "html")
+```
+
+## Co-mordibidities
+
+### Low-dose with aspirin
+
+```{r}
+#| label: tbl-comorbidities-table-aspirin
+#| code-summary: Co-morbidities table
+#| tbl-cap: |
+#|   Baseline co-morbidities for participants in ACS-ITT-aspirin set.
+sdat <- all_data %>%
+    filter_acs_itt() %>%
+    filter(EL_inelg_c3 == 0, RandDate < get_intervention_dates()$endate[3]) %>%
+  mutate(CAssignment = factor(CAssignment, labels = intervention_labels2()$CAssignment[-c(1,5)]))
+save_tex_table(
+  generate_baseline_comorbidities_table(sdat, format = "latex"),
+  "baseline/comorbidities-acs-itt-aspirin"
+)
+generate_baseline_comorbidities_table(sdat, format = "html")
+```
+
+### Therapeutic-dose
+
+```{r}
+#| label: tbl-comorbidities-table-therapeutic
+#| code-summary: Co-morbidities table
+#| tbl-cap: |
+#|   Baseline co-morbidities for participants in ACS-ITT-therapeutic set.
+sdat <- all_data %>%
+    filter_acs_itt() %>%
+    filter(EL_ProtocolVersion == "5.0") %>%
+  mutate(CAssignment = factor(CAssignment, labels = intervention_labels2()$CAssignment[-c(1,4)]))
+save_tex_table(
+  generate_baseline_comorbidities_table(sdat, format = "latex"),
+  "baseline/comorbidities-acs-itt-therapeutic"
+)
+generate_baseline_comorbidities_table(sdat, format = "html")
+```
+
+### Remainder
+
+```{r}
+#| label: tbl-comorbidities-table-rest
+#| code-summary: Co-morbidities table
+#| tbl-cap: |
+#|   Baseline comorbidities for participants in ACS-ITT-rest
+sdat <- all_data %>%
+    filter_acs_itt() %>%
+    filter(EL_ProtocolVersion == "3.0", 
+           RandDate >= get_intervention_dates()$endate[3] | 
+             (RandDate < get_intervention_dates()$endate[3] & EL_inelg_c3 == 1)) %>%
+  mutate(CAssignment = factor(CAssignment, labels = intervention_labels2()$CAssignment[2:3]))
+save_tex_table(
+  generate_baseline_comorbidities_table(sdat, format = "latex"),
+  "baseline/comorbidities-acs-itt-rest"
+)
+generate_baseline_comorbidities_table(sdat, format = "html")
+```
+
+## Prognostics
+
+### Low-dose with aspirin
+
+```{r}
+#| label: tbl-prognostics-table-aspirin
+#| code-summary: Co-morbidities table
+#| tbl-cap: |
+#|   Baseline prognostics for participants in ACS-ITT-aspirin set.
+sdat <- all_data %>%
+    filter_acs_itt() %>%
+    filter(EL_inelg_c3 == 0, RandDate < get_intervention_dates()$endate[3]) %>%
+  mutate(CAssignment = factor(CAssignment, labels = intervention_labels()$CAssignment[-c(1,5)]))
+save_tex_table(
+  generate_baseline_prognostics_table(sdat, format = "latex"),
+  "baseline/prognostics-acs-itt-aspirin"
+)
+generate_baseline_prognostics_table(sdat, format = "html")
+```
+
+### Therapeutic-dose
+
+```{r}
+#| label: tbl-prognostics-table-therapeutic
+#| code-summary: Prognostics table
+#| tbl-cap: |
+#|   Baseline prognostics for participants in ACS-ITT-therapeutic set.
+sdat <- all_data %>%
+    filter_acs_itt() %>%
+    filter(EL_ProtocolVersion == "5.0") %>%
+  mutate(CAssignment = factor(CAssignment, labels = intervention_labels()$CAssignment[-c(1,4)]))
+save_tex_table(
+  generate_baseline_prognostics_table(sdat, format = "latex"),
+  "baseline/prognostics-acs-itt-therapeutic"
+)
+generate_baseline_prognostics_table(sdat, format = "html")
+```
+
+### Remainder
+
+```{r}
+#| label: tbl-prognostics-table-rest
+#| code-summary: Prognostics table
+#| tbl-cap: |
+#|   Baseline prognostics for participants in ACS-ITT-rest
+sdat <- all_data %>%
+    filter_acs_itt() %>%
+    filter(EL_ProtocolVersion == "3.0", 
+           RandDate >= get_intervention_dates()$endate[3] | 
+             (RandDate < get_intervention_dates()$endate[3] & EL_inelg_c3 == 1)) %>%
+  mutate(CAssignment = factor(CAssignment, labels = intervention_labels2()$CAssignment[2:3]))
+save_tex_table(
+  generate_baseline_prognostics_table(sdat, format = "latex"),
+  "baseline/prognostics-acs-itt-rest"
+)
+generate_baseline_prognostics_table(sdat, format = "html")
+```

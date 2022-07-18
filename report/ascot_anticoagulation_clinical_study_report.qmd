@@ -1,6 +1,7 @@
 ---
 title: "ASCOT Anticoagulation Statistical Analysis Report"
-date: '2022-07-15'
+date: today
+date-format: iso
 author:
   - name: James Totterdell
     affiliation: University of Sydney
@@ -2939,4 +2940,91 @@ knitr::include_graphics(pth)
 pth <- file.path("..", "outputs", "figures", "outcomes", "secondary",
                  "7-7-primary-model-acs-itt-ppc.pdf")
 knitr::include_graphics(pth)
+```
+
+## Baseline Characteristics for Concurrent Sets
+
+### Demographics
+
+```{r}
+#| label: tbl-baseline-demographics-acs-itt-aspirin
+#| tbl-cap: |
+#|   Baseline demographics for participants included in ACS-ITT-aspirin.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "baseline", "demographics-acs-itt-aspirin.tex"))
+writeLines(tab[-which(grepl("caption", tab))])
+```
+
+```{r}
+#| label: tbl-baseline-demographics-acs-itt-therapeutic
+#| tbl-cap: |
+#|   Baseline demographics for participants included in ACS-ITT-therapeutic
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "baseline", "demographics-acs-itt-therapeutic.tex"))
+writeLines(tab[-which(grepl("caption", tab))])
+```
+
+```{r}
+#| label: tbl-baseline-demographics-acs-itt-rest
+#| tbl-cap: |
+#|   Baseline demographics for participants who were 
+#|   not part of ACS-ITT-aspirin or ACS-ITT-therapeutic.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "baseline", "demographics-acs-itt-rest.tex"))
+writeLines(tab[-which(grepl("caption", tab))])
+```
+
+### Co-morbidities
+
+```{r}
+#| label: tbl-baseline-comorbidities-acs-itt-aspirin
+#| tbl-cap: |
+#|   Baseline comorbidities for participants included in ACS-ITT-aspirin.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "baseline", "comorbidities-acs-itt-aspirin.tex"))
+writeLines(tab[-which(grepl("caption", tab))])
+```
+
+```{r}
+#| label: tbl-baseline-comorbidities-acs-itt-therapeutic
+#| tbl-cap: |
+#|   Baseline comorbidities for participants included in ACS-ITT-therapeutic
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "baseline", "comorbidities-acs-itt-therapeutic.tex"))
+writeLines(tab[-which(grepl("caption", tab))])
+```
+
+```{r}
+#| label: tbl-baseline-comorbidities-acs-itt-rest
+#| tbl-cap: |
+#|   Baseline comorbidities for participants who were 
+#|   not part of ACS-ITT-aspirin or ACS-ITT-therapeutic.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "baseline", "comorbidities-acs-itt-rest.tex"))
+writeLines(tab[-which(grepl("caption", tab))])
+```
+
+\clearpage
+
+### Prognostics
+
+```{r}
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "baseline", "prognostics-acs-itt-aspirin.tex"))
+tab[which(grepl("caption", tab))] <- "\\caption{\\label{tbl-baseline-prognostics-acs-itt-aspirin.}Baseline prognostics for participants included in ACS-ITT-aspirin.}\\\\"
+writeLines(tab)
+```
+
+```{r}
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "baseline", "prognostics-acs-itt-therapeutic.tex"))
+tab[which(grepl("caption", tab))] <- "\\caption{\\label{tbl-baseline-prognostics-acs-itt-therapeutic}Baseline prognostics for participants included in ACS-ITT-therapeutic}\\\\"
+writeLines(tab)
+```
+
+```{r}
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "baseline", "prognostics-acs-itt-rest.tex"))
+tab[which(grepl("caption", tab))] <- "\\caption{\\label{tbl-baseline-prognostics-acs-itt-rest}Baseline prognostics for participants who were not part of ACS-ITT-aspirin or ACS-ITT-therapeutic.}\\\\"
+writeLines(tab)
 ```
