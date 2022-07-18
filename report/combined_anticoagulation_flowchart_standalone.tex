@@ -49,7 +49,7 @@
       \textbf{1} & Clinician to commence therapeutic anticoagulation \\
       \textbf{1} & eGFR$<15$ml/min/$1.73$m\textsuperscript{$2$}
     \end{tabular} \\
-    \textbf{40} Ineligible for aspirin intervention\textsuperscript{$\dagger$} \\
+    \textbf{40} Ineligible for aspirin intervention\textsuperscript{$\dagger$}: \\
     \begin{tabular}{@{\hskip 10pt}r@{\hskip 3pt}l}
       \textbf{40} & Receiving an antiplatelet agent \\
       \textbf{1} & Hypersensitivity to aspirin
@@ -92,10 +92,6 @@
     \node [block_assign] (int2analysis) [below = 0.5cm of int2excl] {Included in\\ primary analysis \\ \textbf{279}};
     \node [block_assign] (int3analysis) [below = 0.5cm of int3excl] {Included in\\ primary analysis \\ \textbf{50}};
     % \node [block_assign] (covadjust) [right = 0.25cm of int2analysis] {Covariate adjustment\textsuperscript{\ddag} \\ \textbf{xxx}};
-    % footnotes
-    \node [anchor=north west, text width=3cm, align=left] at (ineligible.south west) {
-      \textsuperscript{$\dagger$ Participants may meet more than one exclusion criteria}
-    };
     % connecting nodes with paths
     \begin{scope}[every path/.style=line]
       \path (screened)   -- (peligible);
