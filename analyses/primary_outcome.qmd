@@ -154,7 +154,8 @@ make_primary_model_data <- function(
     dat, 
     vars = c("inelgc3", "agegte60", "ctry"),
     beta_sd_var = c(10, 2.5, 1, 1),
-    ctr = contr.orthonorm) {
+    ctr = contr.orthonorm,
+    beta_sd_trt = 1) {
   
   # Domain specific intercept as in interims
   XA <- make_domA_design(dat, ctr)
@@ -194,7 +195,7 @@ make_primary_model_data <- function(
   y <- dat[["PO"]]
   N <- dim(X)[1]
   K <- dim(X)[2]
-  beta_sd <- c(2.5, rep(1, nXtrt), beta_sd_var)
+  beta_sd <- c(2.5, rep(beta_sd_trt, nXtrt), beta_sd_var)
   out <- list(
     N = N, K = K, X = X, y = y,
     M_region = M_region, region = region,
@@ -216,13 +217,15 @@ fit_primary_model <- function(
     beta_sd_var = NULL,
     ctr = contr.orthonorm,
     seed = 32915,
+    beta_sd_trt = 1,
     ...
 ) {
   mdat <- make_primary_model_data(
     dat,
     vars,
     beta_sd_var,
-    ctr
+    ctr,
+    beta_sd_trt = beta_sd_trt
   )
   snk <- capture.output(
     mfit <- model[["sample"]](
@@ -1440,6 +1443,7 @@ res <- fit_primary_model(
   primary_mod,
   vars = c("inelgc3", "agegte60", "ctry"),
   beta_sd_var = c(10, 10, 10, 10),
+  beta_sd_trt = 10,
   seed = 32915,
   adapt_delta = 0.99
 )
@@ -1448,10 +1452,15 @@ names(res$drws$OR) <- c(
   "Ineligible aspirin", "Age \u2265 60", "Australia/New Zealand", "Nepal")
 ```
 
-
 ```{r}
 #| tbl-cap: Posterior summaries for model parameters under treatment contrast priors.
 odds_ratio_summary_table(res$drws$OR)
+```
+
+```{r}
+save_tex_table(
+  odds_ratio_summary_table(res$drws$OR, "latex"),
+  "outcomes/primary/primary-model-acs-itt-other-priors-summary-table")
 ```
 
 ```{r}
@@ -1462,6 +1471,9 @@ p <- plot_epoch_site_terms(
     res$dat$region_by_site, 
     labels = c("India", "Australia\nNew Zealand", "Nepal"))
 )
+pth <- file.path("outputs", "figures", "outcomes", "primary",
+                 "primary-model-acs-itt-other-priors-epoch-site-terms.pdf")
+ggsave(pth, p, width = 6, height = 4.5)
 p
 ```
 

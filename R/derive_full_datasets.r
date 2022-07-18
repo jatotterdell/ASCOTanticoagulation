@@ -612,8 +612,17 @@ summarise_daily_data <- function(dd) {
       DD_ttr_who = as.numeric(findfirst(DD_who <= 3)),
       # Adherence
       DD_any_aspirin = any(DD_AspirinAdministered == "Yes", na.rm = TRUE),
+      DD_any_days_no_aspirin = any(DD_AspirinAdministered == "No" | is.na(DD_AspirinAdministered)),
+      DD_any_days_no_aspirin_excld1 = any(
+        (DD_AspirinAdministered == "No" | is.na(DD_AspirinAdministered)) & (DD_StudyDay > 1 & DD_StudyDay < max(DD_StudyDay)),
+        na.rm = TRUE) | all(is.na(DD_AspirinAdministered)) | all(DD_AspirinAdministered == "No"),
       DD_n_aspirin = sum(DD_AspirinAdministered == "Yes", na.rm = TRUE),
-      DD_n_aspirin_2to27 = sum((DD_AspirinAdministered == "Yes") & (DD_StudyDay > 1 & DD_StudyDay < 28), na.rm = TRUE),
+      DD_n_aspirin_2toDis =
+        sum((DD_AspirinAdministered == "Yes") & (DD_StudyDay > 1),
+            na.rm = TRUE),
+      DD_n_aspirin_2toDisExcl =
+        sum((DD_AspirinAdministered == "Yes") & (DD_StudyDay > 1 & DD_StudyDay < pmin(max(DD_StudyDay), 28)),
+            na.rm = TRUE),
       .groups = "drop"
     ) %>%
     mutate(

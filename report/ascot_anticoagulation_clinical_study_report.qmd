@@ -1245,7 +1245,7 @@ knitr::include_graphics(
 
 ### Post-hoc Sensitivity Analyses
 
-The following sections report on other post-hoc analyses which were undertaken, but not explicitly specified in the SAP. These include simplifications of the model by dropping the site and epoch terms, and alteration of the model priors.
+The following sections report on other post-hoc analyses which were undertaken, but not explicitly specified in the SAP.
 
 #### Prior Sensitivity - Treatment Contrasts
 
@@ -1269,6 +1269,33 @@ writeLines(tab)
 #|   the primary model fit to the ACS-ITT set with priors on treatment conrasts.
 knitr::include_graphics(
   "../outputs/figures/outcomes/primary/primary-model-acs-itt-trt-ctr-epoch-site-terms.pdf"
+)
+```
+
+\clearpage
+
+#### Prior Sensitivity - Weaker priors on fixed-effects
+
+The primary analyses model was re-fit with weaker priors ($\text{Normal}(0, 10^2)$) on the fixed-effects terms in place of the pre-specified priors.
+
+```{r}
+#| label: tbl-primary-model-acs-itt-other-priors-summary
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios) 
+#|   for primary model fit to the ACS-ITT set with weaker priors on fixed-effects.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-other-priors-summary-table.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-primary-model-acs-itt-other-priors-site-epoch-parameters
+#| fig-cap: |
+#|   Posterior Summaries (point - median, block - 0.75 CrI, line - 0.95 CrI) 
+#|   of odds ratio for epoch and site effects for
+#|   the primary model fit to the ACS-ITT set with weaker priors on fixed-effects.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/primary-model-acs-itt-other-priors-epoch-site-terms.pdf"
 )
 ```
 
