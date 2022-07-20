@@ -474,6 +474,12 @@ transmute_model_cols_grp_aus_nz <- function(dat) {
       oxygen_sat = if_else(BAS_PeripheralOxygen < 10, NA_real_, BAS_PeripheralOxygen),
       airoxy = case_when(
         is.na(BAS_OnRoomAir24hrs) ~ NA_real_,
+        BAS_OnRoomAir24hrs == "No" | (BAS_OnRoomAir24hrs == "Yes" & oxygen_sat < 94) ~ 0,
+        BAS_OnRoomAir24hrs == "Yes" ~ 1,
+        TRUE ~ NA_real_
+      ),
+      airoxy2 = case_when(
+        is.na(BAS_OnRoomAir24hrs) ~ NA_real_,
         BAS_OnRoomAir24hrs == "No" | (BAS_OnRoomAir24hrs == "Yes" & oxygen_sat >= 94) ~ 0,
         BAS_OnRoomAir24hrs == "Yes" ~ 1,
         TRUE ~ NA_real_

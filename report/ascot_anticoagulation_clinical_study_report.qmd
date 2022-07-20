@@ -247,11 +247,11 @@ In this set (excluding those who withdrew consent for follow-up):
 
 Of the 1,574 participants randomised to the anticoagulation domain, 18 withdrew consent for follow-up leaving 1,556 participants continuing to study day 28. The analyses and summaries included in this report exclude data on participants who withdrew consent for follow-up.
 
-Platform and domain specific flow diagrams are included in @fig-platform-flow and @fig-anticoagulation-flow respectively.
+Platform and domain specific flow diagrams is shown in in @fig-combined-flow respectively.
 
-![Platform flowchart.](platform_flowchart.tex){#fig-platform-flow}
+<!-- ![Platform flowchart.](platform_flowchart.tex){#fig-platform-flow} -->
 
-![Anticoagulation domain flowchart.](domain_anticoagulation_flowchart.tex){#fig-anticoagulation-flow}
+<!-- ![Anticoagulation domain flowchart.](domain_anticoagulation_flowchart.tex){#fig-anticoagulation-flow} -->
 
 ![Combined domain flowchart.](combined_anticoagulation_flowchart.tex){#fig-combined-flow}
 
@@ -727,6 +727,59 @@ knitr::include_graphics(
 
 \clearpage
 
+#### On Room Air and Oxygen Saturation
+
+A subgroup analysis for supplemental oxygen requirement at baseline (not on room air or oxygen saturation $\geq$ 94% or on room air and oxygen saturation < 94%) was undertaken using the ACS-ITT set.
+
+```{r}
+#| label: tbl-descriptive-acs-itt-subgroup-air
+#| tbl-cap: |
+#|   Summary of participant outcomes by room air and oxygen saturation in
+#|   the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", 
+  "descriptive-acs-itt-subgroup-air-descriptive.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-odds-ratio-acs-itt-subgroup-air
+#| tbl-cap: |
+#|   Summary of odds ratios for treatment effects by room air and oxygen saturation at enrolment in
+#|   the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "air-odds-ratios.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-odds-ratio-compare-acs-itt-subgroup-air
+#| tbl-cap: |
+#|   Summary of odds ratio comparisons of treatment effects by room air and oxygen saturation at enrolment
+#|   the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup",
+  "air-odds-ratios-compare.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-subgroup-acs-itt-air
+#| fig-cap: |
+#|   Posterior densities of odds ratio for anticoagulation interventions
+#|   relative to standard dose by room air and oxygen saturation subgroup using
+#|   ACS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/acs-itt-subgroup-air-hte.pdf"
+)
+```
+
+\clearpage
+
 #### Receipt of Corticosteroids
 
 A subgroup analysis by whether patient received corticosteroids (did not receive or did receive) was undertaken using the ACS-ITT set. A summary of the primary outcome by receipt of corticosteroids and intervention is reported in @tbl-descriptive-acs-itt-subgroup-steroids.
@@ -1011,6 +1064,57 @@ writeLines(tab)
 #|   ACS-ITT set.
 knitr::include_graphics(
   "../outputs/figures/outcomes/primary/acs-itt-subgroup-aspirin-hte.pdf"
+)
+```
+
+#### Vaccination Status
+
+A post-hoc subgroup analysis by whether a patient was vaccinated or not at baseline (vaccinated, not vaccinated, unknown vaccination status) was undertaken using the ACS-ITT set.
+
+```{r}
+#| label: tbl-descriptive-acs-itt-subgroup-vax
+#| tbl-cap: |
+#|   Summary of participant outcomes by whether patient
+#|   vaccination status at baseline in the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", 
+  "descriptive-acs-itt-subgroup-vax-descriptive.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-odds-ratio-acs-itt-subgroup-vax
+#| tbl-cap: |
+#|   Summary of odds ratios for treatment effects by patient vaccination status
+#|   at baseline in the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup", 
+  "vax-odds-ratios.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-odds-ratio-compare-acs-itt-subgroup-vax
+#| tbl-cap: |
+#|   Summary of odds ratio comparisons of treatment effects by patient vaccination status
+#|   at baseline in the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path(
+  "..", "outputs", "tables", "outcomes", "primary", "subgroup", 
+  "vax-odds-ratios-compare.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: fig-subgroup-acs-itt-vax
+#| fig-cap: |
+#|   Posterior densities of odds ratio for anticoagulation interventions 
+#|   relative to standard dose by patient vaccination status at baseline using 
+#|   ACS-ITT set.
+knitr::include_graphics(
+  "../outputs/figures/outcomes/primary/acs-itt-subgroup-vax-hte.pdf"
 )
 ```
 
