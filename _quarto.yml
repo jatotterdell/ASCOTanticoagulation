@@ -34,7 +34,7 @@ website:
           - "analyses/7-5_days_alive_ventilation_free.qmd"
           - "analyses/7-6_shortness_of_breath.qmd"
           - "analyses/7-7_breathlessness_scale.qmd"
-          - "analyses/7-8_eq-5d-5l.qmd"
+          - "analyses/7-8_eq_5d_5l.qmd"
           - "analyses/8-0_anticoagulation_specific_secondary.qmd"
 
 format:

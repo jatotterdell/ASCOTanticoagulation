@@ -106,9 +106,9 @@ out <- counts %>% kable(format = format, digits = 2, booktabs = TRUE, linesep = 
                         col.names = c("Health state", "n", "%", "n", "%"),
                         caption = "Prevelance of 10 most frequent, and worst, reported EQ-5D-5L profiles by treatment (day 28).") %>%
   kable_styling(latex_options = "HOLD_position", font_size = 12) %>%
-  group_rows(paste0("Standard, missing = ",   missing[["missing_state"]][missing[["CAssignment"]] == "C1"]), 1, 12) %>%
+  group_rows(paste0("Low, missing = ",   missing[["missing_state"]][missing[["CAssignment"]] == "C1"]), 1, 12) %>%
   group_rows(paste0("Intermediate, missing = ",   missing[["missing_state"]][missing[["CAssignment"]] == "C2"]), 13, 24) %>%
-  group_rows(paste0("Standard plus aspirin, missing = ",   missing[["missing_state"]][missing[["CAssignment"]] == "C3"]), 25, 36) %>%
+  group_rows(paste0("Low with aspirin, missing = ",   missing[["missing_state"]][missing[["CAssignment"]] == "C3"]), 25, 36) %>%
   group_rows(paste0("Therapeutic, missing = ",   missing[["missing_state"]][missing[["CAssignment"]] == "C4"]), 37, 48) %>%
   add_header_above(c(" " = 1, "Frequency" = 2, "Cumulative frequency" = 2))
 
@@ -123,9 +123,9 @@ out <- counts %>%
     col.names = c("Health state", "n", "%", "n", "%"),
     caption = "Prevelance of 10 most frequent, and worst, reported EQ-5D-5L profiles by treatment (day 28).") %>%
   kable_styling(latex_options = "HOLD_position", font_size = 9) %>%
-  group_rows("Standard", 1, 12) %>%
+  group_rows("Low", 1, 12) %>%
   group_rows("Intermediate", 13, 24) %>%
-  group_rows("Standard plus aspirin", 25, 36) %>%
+  group_rows("Low with aspirin", 25, 36) %>%
   group_rows("Therapeutic", 37, 48) %>%
   add_header_above(c(" " = 1, "Frequency" = 2, "Cumulative" = 2))
   if (!is.null(fn) & format == "latex") {
@@ -155,9 +155,9 @@ get_profiles <- function(x)
     rbind(colSums(.[-c(1),])) %>% select(-!!sym(x)) %>%
     mutate(across(C1:Overall, ~ sprintf("%i (%.0f)", .x, 100 * .x / sum(.x)))) %>%
     rename(
-      Standard = C1,
+      Low = C1,
       Intermediate = C2,
-      `Standard plus aspirin` = C3,
+      `Low with aspirin` = C3,
       Therapeutic = C4
     )
 }
@@ -228,7 +228,7 @@ vas <- acs_itt_dat %>%
             `Missing, n (%)` = paste0(sum(is.na(D28_EQOverallHealthScore)), " (", round(sum(is.na(D28_EQOverallHealthScore))/n(),4)*100,")")) %>% t %>% as.data.frame()
 names(vas) <- vas[1,]
 vas <- vas[-1,]
-colnames(vas) <- c("Standard", "Intermediate", "Standard plus aspirin", "Therapeutic")
+colnames(vas) <- c("Low", "Intermediate", "Low with aspirin", "Therapeutic")
 
 make_table <- function(format = "html", fn = NULL)
 {  
@@ -269,7 +269,7 @@ value <- eq5d %>%
             Min     = min(eq5d_value, na.rm = T),
             Max     = max(eq5d_value, na.rm = T),
             `Missing, n (%)` = paste0(sum(is.na(eq5d_value)), " (", round(sum(is.na(eq5d_value))/n(),4)*100,")")) %>% t %>% as.data.frame()
-names(value) <- c("Standard", "Intermediate", "Standard plus aspirin", "Therapeutic")
+names(value) <- c("Low", "Intermediate", "Low with aspirin", "Therapeutic")
 value <- value[-1,]
 
 make_table <- function(format = "html", fn = NULL)
@@ -312,7 +312,7 @@ value <- eq5d %>%
             Min     = min(value, na.rm = T),
             Max     = max(value, na.rm = T),
             `Missing, n (%)` = paste0(sum(is.na(value)), " (", round(sum(is.na(value))/n(),4)*100,")")) %>% t %>% as.data.frame()
-names(value) <- c("Standard", "Intermediate", "Standard plus aspirin", "Therapeutic")
+names(value) <- c("Low", "Intermediate", "Low with aspirin", "Therapeutic")
 value <- value[-1,]
 
 make_table <- function(format = "html", fn = NULL)

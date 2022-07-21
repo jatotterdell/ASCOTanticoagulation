@@ -648,7 +648,15 @@ generate_baseline_prognostics_by <- function(dat, grpvar = NULL) {
         "%.0f (%.0f, %.0f)",
         median(as.numeric(RandDate - EL_AdmittedToHospital)),
         quantile(as.numeric(RandDate - EL_AdmittedToHospital), 0.25),
-        quantile(as.numeric(RandDate - EL_AdmittedToHospital), 0.75))
+        quantile(as.numeric(RandDate - EL_AdmittedToHospital), 0.75)),
+      "D-dimer_Test performed, n(\\%)" = sprintf("%i (%.0f)",
+        sum(BAS_DDimerTestPerformed == "Yes", na.rm = TRUE),
+        100 * mean(BAS_DDimerTestPerformed == "Yes")
+      ),
+      "D-dimer_Out of range, n(\\%)" = sprintf("%i (%.0f)",
+        sum(BAS_DDimerOutOfRange == "Yes", na.rm = TRUE),
+        100 * mean(BAS_DDimerOutOfRange == "Yes", na.rm = TRUE)
+      )
     ) %>%
     gather(Variable, value, -!!grpvar, factor_key = TRUE) %>%
     spread(!!grpvar, value)
@@ -740,7 +748,15 @@ generate_baseline_prognostics <- function(dat) {
         "%.0f (%.0f, %.0f)",
         median(as.numeric(RandDate - EL_AdmittedToHospital)),
         quantile(as.numeric(RandDate - EL_AdmittedToHospital), 0.25),
-        quantile(as.numeric(RandDate - EL_AdmittedToHospital), 0.75))
+        quantile(as.numeric(RandDate - EL_AdmittedToHospital), 0.75)),
+      "D-dimer_Test performed, n(\\%)" = sprintf("%i (%.0f)",
+                                                 sum(BAS_DDimerTestPerformed == "Yes", na.rm = TRUE),
+                                                 100 * mean(BAS_DDimerTestPerformed == "Yes")
+      ),
+      "D-dimer_Out of range, n(\\%)" = sprintf("%i (%.0f)",
+                                               sum(BAS_DDimerOutOfRange == "Yes", na.rm = TRUE),
+                                               100 * mean(BAS_DDimerOutOfRange == "Yes", na.rm = TRUE)
+      )
 
     ) %>%
     gather(Variable, value, factor_key = TRUE)
@@ -789,6 +805,7 @@ generate_baseline_prognostics_table <- function(dat, format = "html") {
       group_rows("Taking aspirin", 21, 22) %>%
       group_rows("Time from onset of symptoms to hospitalisation", 23, 23) %>%
       group_rows("Time from hospitalisation to randomisation", 24, 24) %>%
+      group_rows("D-dimer", 25, 26) %>%
       add_header_above(c(" " = 1, "Anticoagulation" = ncol(byCgrp) - 1, " " = 1)) %>%
       row_spec(0, align = "c") %>%
       footnote(number = "For APTT, INR, Fibrinogen, and Prothrombin only at least one required.")
