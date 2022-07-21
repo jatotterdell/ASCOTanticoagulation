@@ -347,7 +347,7 @@ p <- tmp_agg %>%
   labs(x = "Study day", y = "Cumulative proportion", fill = "Status", colour = "Status") +
   theme(panel.grid.minor = element_blank())
 path <- file.path("outputs", "figures", "outcomes", "secondary")
-ggsave(file.path(path, "7-1-age.pdf"), p, height = 2, width = 6)
+ggsave(file.path(path, "7-1-age.pdf"), p, height = 2, width = 6, device = cairo_pdf)
 p
 ```
 
@@ -697,7 +697,7 @@ sdat <- list(
 fit <- mlogit_rw$sample(
   data = sdat, 
   seed = 71252,
-  chains = 4,
+  chains = 8,
   parallel_chains = parallel::detectCores(),
   iter_sampling = 2500, 
   iter_warmup = 250,

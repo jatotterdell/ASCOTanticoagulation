@@ -449,7 +449,7 @@ The primary outcome is a composite comprised of:
 
 The definition also allowed for patients who had unknown day 28 status, but were discharged against medical advice (DAMA) and designated as likely to die within 28 days. However, no participants met this criteria (all cases of DAMA and likely to die within 28 days had known day 28 status).
 
-The proportion of participants who met the primary outcome, and rates of missingness, are reported in @tbl-primary-composite-summary. A breakdown of the composite, including missingness by component is reported in @tbl-primary-composite-breakdown. Missingness was predominantly due to unknown patient status at study day 28. Amongst participants where the primary outcome was observed (1,526), 103 (7%) met the primary outcome criteria, most commonly due to requirement of new intensive ventilation and/or death (@tbl-primary-composite-combinations).
+The proportion of participants who met the primary outcome, and rates of missingness, are reported in @tbl-primary-composite-summary. A breakdown of the composite, including missingness by component is reported in @tbl-primary-composite-breakdown. Missingness was predominantly due to unknown patient status at study day 28.
 
 A summary of the primary outcome by each of the baseline covariates pre-specified to be included in the primary model (or as pre-specified subgroup analyses) are presented in the appendix (@sec-app-primary-outcome-model-cov).
 
@@ -551,7 +551,7 @@ knitr::include_graphics(
 The pre-specified subgroups where treatment effect heterogeneity was to be investigated were:
 
 -   region (India, Australia/New Zealand, Nepal)
--   days since symptom onset ($< 8$ or $\geq 8$ days)
+-   days since symptom onset ($\leq 7$ or $> 7$ days)
 -   age at enrolment ($<60$ or $\geq 60$ years of age)
 -   supplemental oxygen or oxygen saturation less than 94% at randomisation (yes or no)
 -   receipt of corticosteroid during hospital stay (yes or no)
@@ -2589,7 +2589,9 @@ knitr::include_graphics(
 
 # Appendix
 
-## Primary Outcome by Model Covariates (ACS-ITT) {#sec-app-primary-outcome-model-cov}
+## Outcomes by Model Covariates (ACS-ITT)
+
+### Primary Outcome by Model Covariates (ACS-ITT) {#sec-app-primary-outcome-model-cov}
 
 ```{r}
 #| label: fig-primary-outcome-age
@@ -2645,7 +2647,7 @@ knitr::include_graphics(
 
 \clearpage
 
-## Time to recovery to day 28 by model covariates (ACS-ITT) {#sec-app-7-1-model-cov}
+### Time to recovery to day 28 by model covariates (ACS-ITT) {#sec-app-7-1-model-cov}
 
 ```{r}
 #| label: fig-7-1-age
@@ -2689,7 +2691,7 @@ knitr::include_graphics(
 
 \clearpage
 
-## WHO outcome scale at day 28 by model covariates (ACS-ITT) {#sec-app-7-2-model-cov}
+### WHO outcome scale at day 28 by model covariates (ACS-ITT) {#sec-app-7-2-model-cov}
 
 ```{r}
 #| label: fig-7-2-age
@@ -2734,7 +2736,7 @@ knitr::include_graphics(
 
 \clearpage
 
-## Mortality to day 28 by Model Covariates (ACS-ITT) {#sec-app-7-3-model-cov}
+### Mortality to day 28 by Model Covariates (ACS-ITT) {#sec-app-7-3-model-cov}
 
 ```{r}
 #| label: fig-7-3-age
@@ -2779,7 +2781,7 @@ knitr::include_graphics(
 
 \clearpage
 
-## Days alive and free of hospital to day 28 by Model Covariates (ACS-ITT) {#sec-app-7-4-model-cov}
+### Days alive and free of hospital to day 28 by Model Covariates (ACS-ITT) {#sec-app-7-4-model-cov}
 
 ```{r}
 #| label: fig-7-4-age
@@ -2823,7 +2825,7 @@ knitr::include_graphics(
 
 \clearpage
 
-## Days alive and free of ventilation to day 28 by Model Covariates (ACS-ITT) {#sec-app-7-5-model-cov}
+### Days alive and free of ventilation to day 28 by Model Covariates (ACS-ITT) {#sec-app-7-5-model-cov}
 
 ```{r}
 #| label: fig-7-5-age
@@ -2867,7 +2869,7 @@ knitr::include_graphics(
 
 \clearpage
 
-## Presence of patient reported shortness of breath at day 28 by model covariates (ACS-ITT) {#sec-app-7-6-model-cov}
+### Presence of patient reported shortness of breath at day 28 by model covariates (ACS-ITT) {#sec-app-7-6-model-cov}
 
 ```{r}
 #| label: fig-7-6-age
@@ -2911,7 +2913,7 @@ knitr::include_graphics(
 
 \clearpage
 
-## Primary Model Posterior Predictive Summary
+## Primary Model Posterior Predictive Summaries
 
 ### Primary Outcome
 
@@ -3047,6 +3049,7 @@ pth <- file.path("..", "outputs", "figures", "outcomes", "secondary",
                  "7-7-primary-model-acs-itt-ppc.pdf")
 knitr::include_graphics(pth)
 ```
+
 
 ## Baseline Characteristics for Concurrent Sets
 
