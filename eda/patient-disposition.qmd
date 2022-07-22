@@ -34,6 +34,10 @@ dat <- read_all_no_daily()
 #| label: eligibility-overview
 #| code-summary: Overview Eligibility
 dat %>%
+  filter(as.Date(EL_Screened) <= as.Date("2022-04-08")) %>%
+  dplyr::count(ENR_rec)
+dat %>%
+  filter(as.Date(EL_Screened) <= as.Date("2022-04-08")) %>%
   dplyr::count(ENR_rec, EL_OutcomeReason) %>%
   group_by(ENR_rec) %>%
   arrange(-n, .by_group = TRUE) %>%
