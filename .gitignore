@@ -23,6 +23,8 @@ renv/*
 *.aux
 *.fls
 *.fdb_latexmk
+*.synctex.gz
+*.xdv
 
 # Ignore PDFs and DOCX
 *.pdf
@@ -38,5 +40,5 @@ renv/*
 # Custom
 outputs/*
 /.quarto/
-_freeze
 docs
+scratch

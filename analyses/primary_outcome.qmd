@@ -264,6 +264,11 @@ fit_primary_model <- function(
   # Get odds ratios
   mdrws$OR <- exp(mdrws$Ctrt)
   mdrws$OR <- c(mdrws$OR, exp(mdrws$beta[!grepl("(Intercept|rand)", names(mdrws$beta))]))
+  # Get other comparison odds ratios
+  mdrws$ORother <- exp(c(
+    "Intermediate vs. low with aspirin" = mdrws$Ctrt[1] - mdrws$Ctrt[2],
+    "Intermediate vs. therapeutic" = mdrws$Ctrt[1] - mdrws$Ctrt[3],
+    "Low with aspirin vs. therapeutic" = mdrws$Ctrt[2] - mdrws$Ctrt[3]))
   return(list(dat = mdat, fit = mfit, drws = mdrws))
 }
 
@@ -1295,6 +1300,15 @@ decision_quantity_summary_table(
 ```
 
 ```{r}
+#| label: tbl-other-contrasts
+#| tbl-cap: Other intervention contrasts
+save_tex_table(
+  odds_ratio_summary_table(res$drws$ORother, "latex"),
+  "outcomes/primary/primary-model-acs-itt-summary-table-other-contrasts")
+odds_ratio_summary_table(res$drws$ORother)
+```
+
+```{r}
 #| label: fig-or-densities-acs-itt-model
 #| fig-cap: Posterior densities for odds ratio contrasts.
 p <- plot_or_densities(res$drws$OR[1:3]) +
@@ -1680,11 +1694,17 @@ snk <- capture.output(
 )
 sdrws <- as_draws_rvars(sfit$draws("beta"))
 names(sdrws$beta) <- colnames(X)
+
+Cc <- attr(X, "contrasts")$CAssignment  
+sdrws$Ccon <- as.vector(Cc %**% sdrws$beta[grepl("CAssignment[0-9]", names(sdrws$beta))])
+names(sdrws$Ccon) <- rownames(Cc)
+sdrws$Ctrt <- sdrws$Ccon[-1] - sdrws$Ccon[1]
+
 sdrws$beta_trt <- as.vector(
   transform_coding(cbind(1, ctr(2)), cbind(1, contr.treatment(2))) %**% sdrws$beta[1:2]
 )
 sdrws$OR <- c(
-  "Intermediate-dose" = exp(sdrws$beta_trt[2]),
+  "Intermediate-dose" = exp(sdrws$Ctrt),
   "Age \u2265 60" = exp(sdrws$beta[3]),
   "Australia/New Zealand" = exp(sdrws$beta[4]),
   "Nepal" = exp(sdrws$beta[5])
@@ -1701,7 +1721,7 @@ odds_ratio_summary_table(sdrws$OR)
 ```
 
 :::{.callout-caution collapse="true"}
-#### Diagnostics
+##### Diagnostics
 ```{r}
 res$fit$summary(c("beta"))
 res$fit$diagnostic_summary()
@@ -1709,7 +1729,7 @@ res$fit$diagnostic_summary()
 :::
 
 :::{.callout-caution collapse="true"}
-#### Trace plots
+##### Trace plots
 ```{r}
 mcmc_trace(res$drws["beta"])
 ```
@@ -1757,16 +1777,26 @@ snk <- capture.output(
 sdrws <- as_draws_rvars(sfit$draws("beta"))
 names(sdrws$beta) <- colnames(X)
 
+Cc <- attr(X, "contrasts")$CAssignment  
+sdrws$Ccon <- as.vector(Cc %**% sdrws$beta[grepl("CAssignment[0-9]", names(sdrws$beta))])
+names(sdrws$Ccon) <- rownames(Cc)
+sdrws$Ctrt <- sdrws$Ccon[-1] - sdrws$Ccon[1]
+
 sdrws$beta_trt <- as.vector(
   transform_coding(cbind(1, contr.orthonorm(3)), cbind(1, contr.treatment(3))) %**% sdrws$beta[1:3]
 )
 
 sdrws$OR <- c(
-  "Intermediate-dose" = exp(sdrws$beta_trt[2]),
-  "Low-dose with aspirin" = exp(sdrws$beta_trt[3]),
+  "Intermediate-dose" = exp(sdrws$Ctrt[1]),
+  "Low-dose with aspirin" = exp(sdrws$Ctrt[2]),
   "Age \u2265 60" = exp(sdrws$beta[4]),
   "Australia/New Zealand" = exp(sdrws$beta[5])
 )
+
+# Get other comparison odds ratios
+sdrws$ORother <- exp(c(
+  "Intermediate vs. low with aspirin" = sdrws$Ctrt[1] - sdrws$Ctrt[2]
+))
 ```
 
 ```{r}
@@ -1776,6 +1806,45 @@ save_tex_table(
   odds_ratio_summary_table(sdrws$OR, "latex"),
   "outcomes/primary/primary-model-acs-itt-c3-summary-table")
 odds_ratio_summary_table(sdrws$OR)
+```
+
+```{r}
+#| label: tbl-acs-itt-c3-primary-model-summary-other-contrasts
+#| tbl-cap: Parameter posterior summaries.
+OR <- sdrws$ORother
+tdat <- tibble(
+    Parameter = names(OR),
+    Median = median(OR),
+    `95% CrI` = sprintf("(%.2f, %.2f)", quantile(OR, 0.025), quantile(OR, 0.975)), 
+    `Mean (SD)` = sprintf("%.2f (%.2f)", E(OR), sd(OR)),
+    `Pr(OR < 1)` = Pr(OR < 1),
+)
+
+save_tex_table(
+  kable(
+    tdat,
+    format = "latex", 
+    digits = 2, 
+    align = "lrrrr",
+    linesep = "",
+    booktabs = TRUE) %>%
+  kable_styling(
+    font_size = 9,
+    bootstrap_options = "striped", 
+    latex_options = "HOLD_position"),
+  "outcomes/primary/primary-model-acs-itt-c3-summary-table-other-contrasts")
+
+kable(
+    tdat,
+    format = "html", 
+    digits = 2, 
+    align = "lrrrr",
+    linesep = "",
+    booktabs = TRUE) %>%
+  kable_styling(
+    font_size = 9,
+    bootstrap_options = "striped", 
+    latex_options = "HOLD_position")
 ```
 
 #### Therapeutic-dose
@@ -1818,17 +1887,28 @@ snk <- capture.output(
 sdrws <- as_draws_rvars(sfit$draws("beta"))
 names(sdrws$beta) <- colnames(X)
 
+Cc <- attr(X, "contrasts")$CAssignment  
+sdrws$Ccon <- as.vector(Cc %**% sdrws$beta[grepl("CAssignment[0-9]", names(sdrws$beta))])
+names(sdrws$Ccon) <- rownames(Cc)
+sdrws$Ctrt <- sdrws$Ccon[-1] - sdrws$Ccon[1]
+
+
 sdrws$beta_trt <- as.vector(
   transform_coding(cbind(1, contr.orthonorm(3)), cbind(1, contr.treatment(3))) %**% sdrws$beta[1:3]
 )
 
 sdrws$OR <- c(
-  "Intermediate dose" = exp(sdrws$beta_trt[2]),
-  "Therapeutic dose" = exp(sdrws$beta_trt[3]),
+  "Intermediate-dose" = exp(sdrws$beta_trt[2]),
+  "Therapeutic-dose" = exp(sdrws$beta_trt[3]),
   "Age \u2265 60" = exp(sdrws$beta[4]),
   "India" = exp(sdrws$beta[5]),
   "Australia/New Zealand" = exp(sdrws$beta[6])
 )
+
+# Get other comparison odds ratios
+sdrws$ORother <- exp(c(
+  "Intermediate vs. therapeutic" = sdrws$Ctrt[1] - sdrws$Ctrt[2]
+))
 ```
 
 ```{r}
@@ -1838,6 +1918,62 @@ save_tex_table(
   odds_ratio_summary_table(sdrws$OR, "latex"),
   "outcomes/primary/primary-model-acs-itt-c4-summary-table")
 odds_ratio_summary_table(sdrws$OR)
+```
+
+```{r}
+#| label: tbl-acs-itt-c4-primary-model-summary-other-contrasts
+#| tbl-cap: Parameter posterior summaries.
+OR <- sdrws$ORother
+tdat <- tibble(
+    Parameter = names(OR),
+    Median = sprintf("%.2f", median(OR)),
+    `95% CrI` = sprintf("(%.2f, %.2f)", quantile(OR, 0.025), quantile(OR, 0.975)), 
+    `Mean (SD)` = sprintf("%.2f (%.2f)", E(OR), sd(OR)),
+    `Pr(OR < 1)` = Pr(OR < 1),
+)
+
+save_tex_table(
+  kable(
+    tdat,
+    format = "latex", 
+    digits = 2, 
+    align = "lrrrr",
+    linesep = "",
+    booktabs = TRUE) %>%
+  kable_styling(
+    font_size = 9,
+    bootstrap_options = "striped", 
+    latex_options = "HOLD_position"),
+  "outcomes/primary/primary-model-acs-itt-c4-summary-table-other-contrasts")
+
+kable(
+    tdat,
+    format = "html", 
+    digits = 2, 
+    align = "lrrrr",
+    linesep = "",
+    booktabs = TRUE) %>%
+  kable_styling(
+    font_size = 9,
+    bootstrap_options = "striped", 
+    latex_options = "HOLD_position")
+```
+
+### Sensitivity: Age as linear term
+
+```{r}
+res <- fit_primary_model(
+  acs_itt_nona_dat,
+  primary_mod,
+  vars = c("inelgc3", "age_c", "ctry"),
+  beta_sd_var = c(10, 2.5, 1, 1),
+  beta_sd_trt = 10,
+  seed = 32915,
+  adapt_delta = 0.99
+)
+names(res$drws$OR) <- c(
+  intervention_labels2()$CAssignment[-(1:2)], 
+  "Ineligible aspirin", "Age", "Australia/New Zealand", "Nepal")
 ```
 
 ## Per-Protocol Analysis

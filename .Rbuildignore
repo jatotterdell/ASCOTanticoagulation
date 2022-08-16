@@ -1,2 +1,8 @@
 ^.*\.Rproj$
 ^\.Rproj\.user$
+analyses/*
+docs/*
+eda/*
+outputs/*
+report/*
+stan/*

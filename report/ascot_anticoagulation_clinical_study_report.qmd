@@ -525,6 +525,16 @@ writeLines(tab)
 ```
 
 ```{r}
+#| label: tbl-primary-model-acs-itt-summary-other-contrasts
+#| tbl-cap: |
+#|   Summary of other intervention contrasts
+#|   for primary outcome model fit to the ACS-ITT set.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-summary-table-other-contrasts.tex"))
+writeLines(tab)
+```
+
+```{r}
 #| label: fig-primary-model-acs-itt-site-odds-ratio-densities
 #| fig-cap: |
 #|   Posterior densities for the treatment effect odds ratios.
@@ -1243,6 +1253,16 @@ tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "pr
 writeLines(tab)
 ```
 
+```{r}
+#| label: tbl-primary-model-acs-itt-c3-summary-other-contrasts
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios) 
+#|   for primary outcome model fit to the ACS-ITT-aspirin set.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-c3-summary-table-other-contrasts.tex"))
+writeLines(tab)
+```
+
 ##### Therapeutic dose
 
 - **Model**: logistic regression
@@ -1265,6 +1285,16 @@ writeLines(tab)
 #|   for primary outcome model fit to the ACS-ITT-therapeutic set.
 #| results: asis
 tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-c4-summary-table.tex"))
+writeLines(tab)
+```
+
+```{r}
+#| label: tbl-primary-model-acs-itt-c4-summary-other-contrasts
+#| tbl-cap: |
+#|   Summary of model parameters (fixed-effects odds-ratios) 
+#|   for primary outcome model fit to the ACS-ITT-therapeutic set.
+#| results: asis
+tab <- readLines(file.path("..", "outputs", "tables", "outcomes", "primary", "primary-model-acs-itt-c4-summary-table-other-contrasts.tex"))
 writeLines(tab)
 ```
 

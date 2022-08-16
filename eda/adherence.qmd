@@ -1,0 +1,597 @@
+---
+title: "Adherence check and summary"
+description: |
+  Summarise anticoagulation domain adherence
+author: 
+  - name: James Totterdell
+    affiliation: University of Sydney
+  - name: Rob Mahar
+    affiliation: University of Melbourne
+date: today
+--- 
+
+
+```{r}
+#| label: pkgs
+#| code-summary: Load packages
+library(tidyverse)
+library(labelled)
+library(kableExtra)
+library(cmdstanr)
+library(posterior)
+library(bayestestR)
+library(bayesplot)
+library(matrixStats)
+library(ggdist)
+```
+
+```{r}
+devtools::load_all()
+all_dat <- read_all_no_daily()
+all_dat_daily <- read_all_daily()
+saes <- read_sae_file()
+pp <- read_per_protocol_list()
+dev <- read_protocol_deviations()
+
+site_list <- all_dat_daily %>%
+  select(PT_CountryName, PT_LocationName) %>%
+  distinct(PT_LocationName, .keep_all = TRUE)
+```
+
+```{r}
+all_dat %>% 
+  filter(ENR_rec == 1) %>% select(StudyPatientID, CAssignment, WTH_FU) %>% 
+  left_join(pp, by = "StudyPatientID") %>% 
+  dplyr::count(
+    `Withdrew consent for followup` = WTH_FU, 
+    `Allocated anticoagulation intervention` = CAssignment != "C0", 
+    Reason) %>% 
+  spread(Reason, n)
+
+all_dat %>% 
+  left_join(pp, by = "StudyPatientID") %>%
+  filter(WTH_FU == 0, !is.na(Reason)) %>%
+  select(StudyPatientID, Reason, CON_WithdrawnContact28, CON_WithdrawnDailyCollection) %>%
+  print(n = Inf)
+```
+
+
+## Per-Protocol
+
+Patients adherence to treatment was assessed, and patients who were deemed not per-protocol were identified. The result of this is reported in table
+
+```{r}
+#| label: tbl-pp-by-intervention
+#| tbl-cap: |
+#|   Number and proportion of patients deemed per-protocol by intervention group.
+pp_dat <- left_join(
+  all_dat %>% 
+    filter_acs_itt() %>% 
+    select(StudyPatientID, CAssignment),
+  pp, by = "StudyPatientID"
+) %>%
+  mutate(adherence = factor(
+    if_else(is.na(Reason), "Per-protocol", "Not per-protocol"),
+    levels = c("Per-protocol", "Not per-protocol")))
+
+pp_tab1 <- pp_dat %>%
+  dplyr::count(
+    CAssignment = factor(CAssignment, labels = intervention_labels2()$CAssignment[-1]),
+    adherence) %>%
+  spread(CAssignment, n) %>%
+  mutate(across(`Low-dose`:`Therapeutic-dose`, 
+                ~ sprintf("%i (%.0f)", .x, 100 * .x / sum(.x))))
+pp_tab2 <- pp_dat %>% 
+  filter(adherence == "Not per-protocol") %>%
+  dplyr::count(
+    CAssignment = factor(CAssignment, labels = intervention_labels2()$CAssignment[-1]), 
+    adherence, 
+    Reason) %>% 
+  spread(CAssignment, n, fill = 0) %>%
+  mutate(across(`Low-dose`:`Therapeutic-dose`, 
+                ~ sprintf("%i (%.0f)", .x, 100 * .x / sum(.x))))
+
+pp_tab <- bind_rows(pp_tab1, pp_tab2) %>%
+  select(adherence, Reason, everything()) %>%
+  mutate(Reason = if_else(is.na(Reason), as.character(adherence), Reason)) %>%
+  rename(Status = Reason)
+kable(
+  pp_tab[, -1],
+  format = "html",
+  align = "lrrrr"
+) %>%
+  kable_styling(font_size = 11) %>%
+  pack_rows("Reason", 3, 5)
+
+tab <- kable(
+  pp_tab[, -1],
+  format = "latex",
+  align = "lrrrr",
+  booktabs = TRUE
+) %>%
+  kable_styling(latex_options = "HOLD_position", font_size = 9) %>%
+  pack_rows("Reason", 3, 5)
+save_tex_table(tab, fn = file.path("baseline", "per-protocol"))
+```
+
+## Aspirin
+
+The treatment protocol for participants assigned to receive aspirin was one dose daily until discharge. Exceptions were allowed for day 1 (time of randomisation may have prohibited receipt of aspirin), day of discharge (again, may have prohibited treatment), and SAE's.
+
+```{r}
+pt_vars <- c("StudyPatientID", "EL_ProtocolVersion", "WTH_FU")
+rand_vars <- c("AAssignment", "BAssignment", "CAssignment")
+day_vars <- c("RandDate", "DD_Date", "DD_StudyDay")
+date_vars <- c("DIS_DateOfDischarge", "D28_DateOfFollowUp")
+flag_vars <- c("DD_n", "DD_rec")
+site_vars <- c("PT_CountryName", "PT_LocationName")
+aspirin_vars <- colnames(all_dat_daily)[grepl("Aspirin", colnames(all_dat_daily))]
+
+aspirin_dat <- all_dat_daily %>%
+  filter(ENR_rec == 1) %>%
+  select(all_of(site_vars),
+         all_of(pt_vars),
+         all_of(rand_vars),
+         all_of(day_vars),
+         all_of(aspirin_vars),
+         all_of(date_vars),
+         all_of(flag_vars)
+  ) %>%
+  left_join(pp, by = "StudyPatientID")
+
+# Who didn't get aspirin on day 1 AND was allocated to receive aspirin? Consider
+# this case to be per-protocol (e.g. randomisation timing may have prevented
+# drug administration).
+asp_missing_on_d1 <- aspirin_dat %>%
+  filter(CAssignment == "C3") %>%
+  filter(DD_StudyDay == 1) %>%
+  filter(DD_AspirinAdministered == "No" | is.na(DD_AspirinAdministered)) %>%
+  select(-all_of(rand_vars))
+# asp_missing_on_d1 %>% distinct(StudyPatientID, Reason)
+
+# Which Dailies are missing an expected aspirin
+# administration after Day 1 excluding the date of discharge?
+asp_missing_after_d1 <-  aspirin_dat %>%
+  filter(CAssignment == "C3") %>%
+  filter(DD_StudyDay > 1) %>%
+  filter(DD_Date < DIS_DateOfDischarge) %>%
+  filter(DD_AspirinAdministered == "No" | is.na(DD_AspirinAdministered)) %>%
+  select(-all_of(rand_vars))
+asp_missing_after_d1 %>% 
+  distinct(StudyPatientID, Reason)
+
+# Why were three not deviations?
+# - Two participants had SAEs, not sure why 3rd wasn't considered a deviation
+asp_sae <- saes %>% 
+  filter(StudyPatientID %in% (asp_missing_after_d1 %>% pull(StudyPatientID) %>% unique()))
+
+# Patients not on aspirin at baseline + not randomised to aspirin but received
+# aspirin during hospitalisation. Used to query sites if clarification needed.
+asp_given_unexpected <- aspirin_dat %>%
+  filter(CAssignment == "C1" | CAssignment == "C2" | CAssignment == "C4") %>%
+  filter(DD_StudyDay > 1) %>%
+  filter(BAS_PatientTakingAspirin == "No") %>% # filter added 06.06.2022
+  filter(DD_Date < DIS_DateOfDischarge) %>%
+  filter(DD_AspirinAdministered == "Yes") %>%
+  select(-AAssignment, -BAssignment)
+asp_given_unexpected %>%  distinct(StudyPatientID)
+```
+
+### Dosing
+
+```{r}
+asdat <- all_dat %>%
+  filter_acs_itt() %>%
+  group_by(CAssignment = factor(CAssignment, labels = intervention_labels2()$CAssignment[-1])) %>%
+  summarise(
+    `Randomised` = n(),
+    `Any aspirin received` = sum(DD_any_aspirin, na.rm = TRUE),
+    `Any days of no aspirin` = sum(DD_any_days_no_aspirin_excld1, na.rm = TRUE),
+    `Days hospitalised` = sum(pmin(DIS_day, 28), na.rm = TRUE),
+    `Days received aspirin` = sum(DD_n_aspirin, na.rm = TRUE)
+  ) %>%
+  gather(Outcome, value, -CAssignment) %>%
+  spread(CAssignment, value)
+kable(
+  asdat,
+  format = "html",
+  align = "lrrrr"
+) %>%
+  kable_styling(font_size = 11) %>%
+  footnote(general = "Any days of no aspirin excludes day 1 and day of discharge.",
+           general_title = "")
+```
+
+## LMWH
+
+The treatment protocol was LWMH was conditional on the patients assigned intervention, baseline weight, and their creatinine clearance.
+
+### Type of LMWH Administered
+
+Only two types of anticoagulation agent were reportedly used: Enoxaparin and Tinzaparin. Only one participant received Tinzaparin. One participant had no reported anticoagulation agent.
+
+```{r}
+totals <- all_dat %>%
+  filter_acs_itt() %>%
+  dplyr::count(CAssignment = factor(CAssignment, labels = intervention_labels2()$CAssignment[-1])) %>%
+  spread(CAssignment, n) %>%
+  mutate(DD_TypeLMWH = "Randomised")
+tdat <- all_dat_daily %>%
+  filter_acs_itt() %>%
+  filter(!is.na(DD_TypeLMWH)) %>%
+  select(StudyPatientID, CAssignment, DD_TypeLMWH) %>%
+  distinct() %>%
+  right_join(all_dat %>% filter_acs_itt() %>% select(StudyPatientID, CAssignment), by = c("StudyPatientID", "CAssignment")) %>%
+  dplyr::count(
+    CAssignment = factor(CAssignment, labels = intervention_labels2()$CAssignment[-1]), 
+    DD_TypeLMWH = fct_explicit_na(DD_TypeLMWH)) %>%
+  spread(CAssignment, n, fill = 0) %>%
+  bind_rows(totals)
+kable(
+  tdat,
+  format = "html",
+  align = "lrrrr"
+) %>%
+  kable_styling()
+```
+
+### Dosing
+
+All but one participant had at least one dose administered. Some participants had days with no doses administered. Many of these were on the day of discharge.
+
+```{r}
+totals <- all_dat %>%
+  filter_acs_itt() %>%
+  dplyr::count(CAssignment = factor(CAssignment, labels = intervention_labels2()$CAssignment[-1])) %>%
+  spread(CAssignment, n) %>%
+  mutate(DD_LMWHAdministered = "Randomised")
+tdat <- all_dat_daily %>%
+  filter_acs_itt() %>%
+  filter(!is.na(DD_LMWHAdministered)) %>%
+  select(StudyPatientID, CAssignment, DD_LMWHAdministered) %>%
+  distinct() %>%
+  right_join(all_dat %>% filter_acs_itt() %>% select(StudyPatientID, CAssignment), by = c("StudyPatientID", "CAssignment")) %>%
+  dplyr::count(
+    CAssignment = factor(CAssignment, labels = intervention_labels2()$CAssignment[-1]), 
+    DD_LMWHAdministered = fct_explicit_na(DD_LMWHAdministered)) %>%
+  spread(CAssignment, n, fill = 0) %>%
+  bind_rows(totals)
+```
+
+```{r}
+all_dat_daily %>%
+  filter_acs_itt() %>%
+  filter(DD_LMWHAdministered == "No" & DD_StudyDay != DIS_day & DD_StudyDay != 1) %>%
+  select(StudyPatientID) %>%
+  distinct() %>%
+  left_join(
+    all_dat_daily %>% select(StudyPatientID, DIS_Outcome, DD_StudyDay, DD_LMWHAdministered)
+  ) %>% 
+  left_join(saes %>% select(StudyPatientID, DateofSAEOnset)) %>%
+  left_join(pp, by = "StudyPatientID") %>%
+  spread(DD_StudyDay, DD_LMWHAdministered) %>%
+  print(n = Inf)
+```
+
+#### Intermediate-dose
+
+```{r}
+pp_lwmh_dose() %>% 
+  filter(CAssignment == "C2", DD_TypeLMWH == "Enoxaparin")
+```
+
+
+
+```{r}
+generate_lmwh_dosing_table <- function(ddat) {
+  lwmhdat <- ddat %>%
+    filter(grepl("[1-4]", CAssignment)) %>% # omits anyone not in Domain C
+    select(
+      StudyPatientID,
+      CAssignment,
+      BAS_Weight,
+      DD_StudyDay,
+      DD_Date,
+      DIS_DateOfDischarge,
+      DD_LMWHAdministered,
+      DD_TypeLMWH,
+      DD_DoseLMWH,
+      DD_LMWHAdministeredToday,
+      DD_AspirinAdministered
+    ) %>%
+    mutate(DD_DoseLMWH = as.numeric(DD_DoseLMWH)) %>%
+    arrange(StudyPatientID, DD_StudyDay) %>%
+    # May not dose on day of discharge
+    filter(DD_Date < DIS_DateOfDischarge) %>%
+    # Disregard dosing on day 1
+    filter(DD_StudyDay > 1) %>%
+    # The one occasion reported in IU rather than IU/kg, convert
+    mutate(DD_DoseLMWH = if_else(DD_TypeLMWH == "Tinzaparin", DD_DoseLMWH / BAS_Weight, DD_DoseLMWH))
+  n_by_CAssignment <- lwmhdat %>%
+    group_by(CAssignment, DD_LMWHAdministered, DD_TypeLMWH, DD_LMWHAdministeredToday, DD_DoseLMWH) %>%
+    summarise(n = n(), .groups = "drop") %>%
+    group_by(CAssignment) %>%
+    mutate(value = sprintf("%s (%3.1f)", formatC(n, big.mark = ","), 100 * n / sum(n))) %>%
+    ungroup() %>%
+    select(-n) %>%
+    spread(CAssignment, value, fill = "0 (0.0)")
+  n_total <- lwmhdat %>%
+    group_by(DD_LMWHAdministered = "Total days", CAssignment) %>%
+    summarise(value = formatC(n(), big.mark = ","), .groups = "drop")
+  tabdat <- n_by_CAssignment %>%
+    rename(
+      Administered = DD_LMWHAdministered,
+      Type = DD_TypeLMWH,
+      Occasions = DD_LMWHAdministeredToday,
+      Dose = DD_DoseLMWH
+    ) %>%
+    mutate(Administered = factor(Administered, levels = c("Yes", "No"))) %>%
+    arrange(Administered)
+  colnames(tabdat)[-(1:4)] <- n_total %>%
+    mutate(lab = linebreak(paste0(CAssignment, "\n(Days = ", value, ")"), align = "c")) %>%
+    pull(lab)
+  tab <- kable(tabdat,
+               booktabs = T, linesep = "",
+               caption = "Daily dosing of low molecular weight heparin participants randomised to domain C.",
+               align = "lrrrrrrrr", escape = F, longtable = T
+  ) %>%
+    kable_styling(font_size = 9, latex_options = "HOLD_position") %>%
+    collapse_rows(2:3) %>%
+    add_header_above(c(" " = 4, "Anticoagulation" = 4))
+  return(tab)
+}
+
+generate_lmwh_dosing_table(all_dat_daily)
+```
+
+
+```{r}
+check_lmwh_dose <- function(ddat) {
+  ddat %>%
+    mutate(
+      expected_dose = case_when(
+        CAssignment %in% c("C1", "C3") & DD_TypeLMWH == "Enoxaparin" & BAS_Weight < 50 & DD_LMWHAdministeredToday == "Once" ~ 20,
+        CAssignment %in% c("C1", "C3") & DD_TypeLMWH == "Enoxaparin" & (BAS_Weight >= 50 & BAS_Weight < 120) & DD_LMWHAdministeredToday == "Once" ~ 40,
+        CAssignment %in% c("C1", "C3") & DD_TypeLMWH == "Enoxaparin" & BAS_Weight > 120 & DD_LMWHAdministeredToday == "Once" ~ 60,
+        CAssignment %in% c("C1", "C3") & DD_TypeLMWH == "Tinzaparin" & DD_LMWHAdministeredToday == "Once" ~ 75 * BAS_Weight,
+
+        # Invalid dosing as no "Twice per day" option specified in protocol
+        CAssignment %in% c("C1", "C3") & DD_TypeLMWH == "Enoxaparin" & DD_LMWHAdministeredToday == "Twice" ~ -9999,
+
+        # C2 per-protocol dosing check
+        CAssignment == "C2" & DD_TypeLMWH == "Enoxaparin" & BAS_Weight < 50 & DD_LMWHAdministeredToday == "Once" ~ 40,
+        CAssignment == "C2" & DD_TypeLMWH == "Enoxaparin" & (BAS_Weight >= 50 & BAS_Weight < 120) & DD_LMWHAdministeredToday == "Once" ~ 80,
+        CAssignment == "C2" & DD_TypeLMWH == "Enoxaparin" & (BAS_Weight >= 50 & BAS_Weight < 120) & DD_LMWHAdministeredToday == "Twice" ~ 40,
+        CAssignment == "C2" & DD_TypeLMWH == "Enoxaparin" & BAS_Weight > 120 & DD_LMWHAdministeredToday == "Once" ~ 120,
+        CAssignment == "C2" & DD_TypeLMWH == "Enoxaparin" & BAS_Weight > 120 & DD_LMWHAdministeredToday == "Twice" ~ 60,
+        CAssignment == "C2" & DD_TypeLMWH == "Tinzaparin" & DD_LMWHAdministeredToday == "Once" ~ 125 * BAS_Weight,
+
+        # Invalid dosing as no "Twice per day" option specified in protocol
+        CAssignment == "C2" & DD_TypeLMWH == "Enoxaparin" & BAS_Weight < 50 & DD_LMWHAdministeredToday == "Twice" ~ -9999,
+
+        # C4 per-protocol dosing check
+        CAssignment == "C4" & DD_TypeLMWH == "Enoxaparin" & DD_LMWHAdministeredToday == "Once" ~ 1.5 * BAS_Weight,
+        CAssignment == "C4" & DD_TypeLMWH == "Enoxaparin" & DD_LMWHAdministeredToday == "Twice" ~ BAS_Weight,
+        CAssignment == "C4" & DD_TypeLMWH == "Tinzaparin" & DD_LMWHAdministeredToday == "Once" ~ 175 * BAS_Weight,
+
+        is.na(CAssignment) | is.na(DD_TypeLMWH) | is.na(DD_LMWHAdministeredToday) | is.na(DD_DoseLMWH) | is.na(BAS_Weight) ~ NA_real_,
+        TRUE ~ NA_real_
+      ),
+
+      # actual_dose = if_else((CAssignment == "C0" & is.na(DD_LMWHAdministeredToday)), 0, DD_DoseLMWH)),
+      dose_given = DD_LMWHAdministered,
+      dose_equal_expected = expected_dose == DD_DoseLMWH,
+      dose_close_expected = abs(expected_dose - DD_DoseLMWH) < 10
+    )
+}
+lmwh <- check_lmwh_dose(all_dat_daily %>% filter_acs_itt())
+# show counts in console
+lmwh %>% dplyr::count(dose_equal_expected, dose_close_expected)
+
+# Apply creatinine clearance rate for records of interest----
+anticoag_all <- lmwh %>%
+  # Omit patients not in Anticoag domain
+  filter(grepl("[1-4]", CAssignment)) %>%
+  # Note, checking function ignores discharge day but keeps Day 1
+  select(StudyPatientID, PT_CountryName, PT_LocationName, AgeAtEntry, Sex, BAS_Weight, EL_SerumCreatinineBlood,
+         EL_SerumCreatinineUnits, EL_SerumCreatinine_umolL, DD_Date,  DD_StudyDay, DIS_DateOfDischarge,
+         DD_TypeLMWH, DD_LMWHAdministeredToday, DD_DoseLMWH, expected_dose,
+         dose_equal_expected, dose_close_expected) %>%
+  # serum creatinine clearance by Cockcroft-Gault formula
+  # https://www.eviq.org.au/clinical-resources/eviq-calculators/3200-creatinine-clearance-calculator
+  mutate(
+    creat_clearance = creatinine_clearance(Sex, AgeAtEntry, BAS_Weight, EL_SerumCreatinine_umolL)
+  )
+# List patients with dose_equal_expected != TRUE and keep nulls
+anticoag_neq <-  anticoag_all %>%
+  filter(DD_StudyDay > 1) %>% # Ignore day 1
+  filter(DD_Date < DIS_DateOfDischarge) %>% # Ignore discharge day
+  filter(dose_equal_expected == FALSE | is.na(dose_equal_expected))
+anticoag_neq %>% dplyr::count(dose_equal_expected, dose_close_expected)
+```
+
+
+### Reviewer Requests
+
+In response to reviewer comments the following was requested:
+
+1. The number/% of participants allocated to intermediate dose who received once daily dosing and twice daily dosing. For the once daily dosing is it possible to have the median weight?
+2. The median (IQR) treatment duration for each treatment arm and overall.
+
+#### Item 1
+
+Item 1. was requested due to the nature of the therapeutic dosing intervention. Given that the therapeutic dosings are weight based they may collide with the intermediate dosing. For example, a 50 kg subject with creatinine clearance > 30 ml/min would be assigned to 75 mg once daily on therapeutic dose but 80 mg once daily on intermediate dose.
+
+```{r}
+intdose <- all_dat_daily |>
+  filter_acs_itt() |>
+  filter(CAssignment == "C2") |>
+  select(
+    StudyPatientID,
+    CAssignment, 
+    BAS_Weight,
+    DD_StudyDay, 
+    DD_LMWHAdministered, 
+    DD_LMWHAdministeredToday, 
+    DD_TypeLMWH, 
+    DD_DoseLMWH)
+intdose <- all_dat_daily |>
+  filter_acs_itt() |>
+  filter(CAssignment == "C2", DD_StudyDay > 1) |>
+  select(
+    StudyPatientID,
+    CAssignment, 
+    BAS_Weight,
+    DD_StudyDay, 
+    DD_LMWHAdministered, 
+    DD_LMWHAdministeredToday, 
+    DD_TypeLMWH, 
+    DD_DoseLMWH)
+
+intdose_summary <- intdose |>
+  dplyr::count(StudyPatientID, BAS_Weight, DD_LMWHAdministered, DD_LMWHAdministeredToday) |>
+  group_by(StudyPatientID, BAS_Weight) |>
+  summarise(
+    any_na_dose = any(is.na(DD_LMWHAdministered)),
+    only_na_dose = all(is.na(DD_LMWHAdministered)),
+    any_no_dose = any(DD_LMWHAdministered == "No", na.rm = TRUE),
+    only_no_dose = all(DD_LMWHAdministered == "No", na.rm = TRUE),
+    any_once_daily = any(DD_LMWHAdministered == "Yes" & DD_LMWHAdministeredToday == "Once", na.rm = T),
+    only_once_daily = !any(DD_LMWHAdministered == "Yes" & DD_LMWHAdministeredToday == "Twice", na.rm = T) & !only_no_dose,
+    any_twice_daily = any(DD_LMWHAdministered == "Yes" & DD_LMWHAdministeredToday == "Twice", na.rm = T),
+    only_twice_daily = !any(DD_LMWHAdministered == "Yes" & DD_LMWHAdministeredToday == "Once", na.rm = T) & !only_no_dose,
+    any_both = any(any_once_daily & any_twice_daily, na.rm = T),
+    any_once_no = any(any_once_daily & any_no_dose, na.rm = T),
+    any_twice_no = any(any_twice_daily & any_no_dose, na.rm = T),
+  ) |>
+  ungroup()
+
+intdose_summary |>
+  summarise(
+    randomised = n(),
+    any_na_dose = sprintf("%i (%.2f)", sum(any_na_dose), mean(any_na_dose)),
+    only_na_dose = sprintf("%i (%.2f)", sum(only_na_dose), mean(only_na_dose)),
+    any_no_dose = sprintf("%i (%.2f)", sum(any_no_dose), mean(any_no_dose)),
+    only_no_dose = sprintf("%i (%.2f)", sum(only_no_dose), mean(only_no_dose)),
+    any_once_daily = sprintf("%i (%.2f)", sum(any_once_daily), mean(any_once_daily)),
+    only_once_daily = sprintf("%i (%.2f)", sum(only_once_daily), mean(only_once_daily)),
+    any_twice_daily = sprintf("%i (%.2f)", sum(any_twice_daily), mean(any_twice_daily)),
+    only_twice_daily = sprintf("%i (%.2f)", sum(only_twice_daily), mean(only_twice_daily)),
+    any_both = sprintf("%i (%.2f)", sum(any_both), mean(any_both)),
+    any_once_no = sprintf("%i (%.2f)", sum(any_once_no), mean(any_once_no)),
+    any_twice_no = sprintf("%i (%.2f)", sum(any_twice_no), mean(any_twice_no)),
+  )
+
+intdose |> 
+  filter(DD_StudyDay > 1) |>
+  dplyr::count(DD_LMWHAdministered, DD_LMWHAdministeredToday) 
+
+# For patients who received any once daily dosing what was their baseline weight?
+intdose_summary |>
+  filter(any_once_daily == 1) |>
+  select(BAS_Weight) |>
+  ggplot(aes(BAS_Weight)) + geom_histogram()
+intdose_summary |>
+  filter(any_once_daily == 1) |>
+  summarise(median(BAS_Weight), quantile(BAS_Weight, 0.25), quantile(BAS_Weight, 0.75))
+
+intdose_summary |>
+  filter(only_once_daily == 1) |>
+  select(BAS_Weight) |>
+  ggplot(aes(BAS_Weight)) + geom_histogram()
+intdose_summary |>
+  filter(only_once_daily == 1) |>
+  summarise(median(BAS_Weight), quantile(BAS_Weight, 0.25), quantile(BAS_Weight, 0.75))
+```
+
+#### Item 2
+
+Item 2 requests the median treatment duration and IQR for all arms. It's expected that this will be equal to the median number of study days given that the treatment was expected to be given on all days of hospital admission.
+
+```{r}
+dose <- all_dat_daily |>
+  filter_acs_itt() |>
+  select(
+    StudyPatientID,
+    CAssignment, 
+    BAS_Weight,
+    DD_StudyDay, 
+    DD_LMWHAdministered, 
+    DD_LMWHAdministeredToday, 
+    DD_TypeLMWH, 
+    DD_DoseLMWH)
+
+dose <- all_dat_daily |>
+  filter_acs_itt() |>
+  filter(DD_StudyDay > 1) |>
+  select(
+    StudyPatientID,
+    CAssignment, 
+    BAS_Weight,
+    DD_StudyDay, 
+    DD_LMWHAdministered, 
+    DD_LMWHAdministeredToday, 
+    DD_TypeLMWH, 
+    DD_DoseLMWH)
+
+dose |> 
+  group_by(DD_StudyDay, CAssignment) |>
+  summarise(
+    n = n(),
+    dose_administered = sum(DD_LMWHAdministered == "Yes", na.rm = T),
+    once_daily = sum(DD_LMWHAdministeredToday == "Once", na.rm = T),
+    twice_daily = sum(DD_LMWHAdministeredToday == "Twice", na.rm = T)
+  ) |>
+  print(n = Inf)
+```
+
+So, for each participant, how many days did they receive a dose and how many days were they hospitalised?
+
+```{r}
+dose_rec <- dose |>
+  group_by(StudyPatientID, CAssignment) |>
+  summarise(
+    days = max(DD_StudyDay),
+    doses = sum(DD_LMWHAdministered == "Yes", na.rm = T),
+    missed = days - doses,
+    p = doses / days
+  ) |>
+  ungroup()
+
+dose_rec |> 
+  dplyr::count(CAssignment) 
+table(dose_rec$missed) 
+
+dose_rec |>
+  group_by(CAssignment) |>
+  summarise(
+    med_days = median(days),
+    q25_days = quantile(days, 0.25),
+    q75_days = quantile(days, 0.75),
+    med_doses = median(doses),
+    q25_doses = quantile(doses, 0.25),
+    q75_doses = quantile(doses, 0.75)
+  )
+
+dose_rec |>
+  summarise(
+    med_days = median(days),
+    q25_days = quantile(days, 0.25),
+    q75_days = quantile(days, 0.75),
+    med_doses = median(doses),
+    q25_doses = quantile(doses, 0.25),
+    q75_doses = quantile(doses, 0.75)
+  )
+
+dose_rec |>
+  ggplot(aes(p)) +
+  facet_wrap( ~ CAssignment) +
+  geom_histogram()
+
+dose_rec |>
+  ggplot(aes(doses)) +
+  facet_wrap( ~ CAssignment) +
+  geom_histogram(binwidth = 1)
+
+
+```
