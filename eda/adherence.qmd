@@ -442,7 +442,7 @@ intdose <- all_dat_daily |>
     DD_DoseLMWH)
 intdose <- all_dat_daily |>
   filter_acs_itt() |>
-  filter(CAssignment == "C2", DD_StudyDay > 1) |>
+  filter(CAssignment == "C2", DD_StudyDay > 1, DD_StudyDay < DD_total_days) |>
   select(
     StudyPatientID,
     CAssignment, 
@@ -473,7 +473,7 @@ intdose_summary <- intdose |>
 
 intdose_summary |>
   summarise(
-    randomised = n(),
+    randomised = sprintf("%i", n()),
     any_na_dose = sprintf("%i (%.2f)", sum(any_na_dose), mean(any_na_dose)),
     only_na_dose = sprintf("%i (%.2f)", sum(only_na_dose), mean(only_na_dose)),
     any_no_dose = sprintf("%i (%.2f)", sum(any_no_dose), mean(any_no_dose)),
@@ -485,7 +485,8 @@ intdose_summary |>
     any_both = sprintf("%i (%.2f)", sum(any_both), mean(any_both)),
     any_once_no = sprintf("%i (%.2f)", sum(any_once_no), mean(any_once_no)),
     any_twice_no = sprintf("%i (%.2f)", sum(any_twice_no), mean(any_twice_no)),
-  )
+  ) |>
+  pivot_longer(everything())
 
 intdose |> 
   filter(DD_StudyDay > 1) |>
@@ -711,21 +712,25 @@ dose_avg <- dose |>
   ungroup()
 
 p <- dose_avg |> 
+  filter(times == "Once daily" | (times == "Twice daily" & CAssignment %in% c("C2", "C4"))) |>
   group_by(Intervention, times, weight_grp) |>
   summarise(avg_dose = mean(dose), n = n()) |> 
   ggplot(aes(weight_grp, avg_dose)) + 
   facet_wrap( ~ times, ncol = 1) +
   geom_point(aes(colour = Intervention, size = n)) + 
   scale_size("Participants", breaks = c(1, 10, 25, 50, 100, 200)) +
-  scale_colour_viridis_d("Intervention", begin = 0.2, end = 0.8, option = "B") +
+  scale_colour_viridis_d("Treatment group", begin = 0.2, end = 0.8, option = "B") +
   scale_y_continuous(breaks = seq(20, 120, 20)) +
-  labs(x = "Baseline weight (kg)", y = "Average dose (mg)")
+  labs(x = "Baseline weight (kg)", y = "Mean dose (mg)")
 
 ggsave(file.path("outputs", "figures", "dosings.pdf"), p, height = 6, width = 7, dpi = 444)
+p
 ```
 
 
 ```{r}
+counts <- dose_avg |>
+  dplyr::count(times, Intervention)
 p <- dose_avg |>
   filter(!(DD_LMWHAdministeredToday == "Twice" & CAssignment %in% c("C1", "C3"))) |>
   ggplot(aes(mg_per_kg)) +
@@ -735,6 +740,7 @@ p <- dose_avg |>
   labs(y = "Empirical cumulative\ndistribution function", x = "Mean dose (mg/kg) per participant")
 
 ggsave(file.path("outputs", "figures", "dosings_ecdf.pdf"), p, height = 3, width = 6, dpi = 444)
+p
 ```
 
 ## Once Daily
