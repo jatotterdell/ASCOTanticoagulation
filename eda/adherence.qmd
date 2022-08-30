@@ -23,6 +23,11 @@ library(bayestestR)
 library(bayesplot)
 library(matrixStats)
 library(ggdist)
+library(ggside)
+
+theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank()))
 ```
 
 ```{r}
@@ -592,6 +597,332 @@ dose_rec |>
   ggplot(aes(doses)) +
   facet_wrap( ~ CAssignment) +
   geom_histogram(binwidth = 1)
+```
+
+## Dosing Issue
+
+The real issue with the dosing is the fact that therapeutic dosing may overlap with intermediate dosing. The dosing is as follows:
+
+![Dosing 1](dosing1.png)
+
+![Dosing 2](dosing2.png)
+
+Suppose a participant is 50kg, then their intermediate dose would be either 40mg bi-daily or 80mg once daily. But their therapeutic dose would be 50mg bi-daily or 75mg daily. So the once daily intermediate dose is greater than the once daily therapeutic dose. So therapeutic is a lower dose in such a case!
+
+How many participants would this affect?
+
+```{r}
+thdose <- all_dat_daily |>
+  filter_acs_itt() |>
+  filter(CAssignment == "C4", DD_StudyDay > 1) |>
+  select(
+    StudyPatientID,
+    CAssignment, 
+    BAS_Weight,
+    DD_StudyDay, 
+    DD_LMWHAdministered, 
+    DD_LMWHAdministeredToday, 
+    DD_TypeLMWH, 
+    DD_DoseLMWH)
+
+thdose_summary <- thdose |>
+  dplyr::count(StudyPatientID, BAS_Weight, DD_LMWHAdministered, DD_LMWHAdministeredToday) |>
+  group_by(StudyPatientID, BAS_Weight) |>
+  summarise(
+    any_na_dose = any(is.na(DD_LMWHAdministered)),
+    only_na_dose = all(is.na(DD_LMWHAdministered)),
+    any_no_dose = any(DD_LMWHAdministered == "No", na.rm = TRUE),
+    only_no_dose = all(DD_LMWHAdministered == "No", na.rm = TRUE),
+    any_once_daily = any(DD_LMWHAdministered == "Yes" & DD_LMWHAdministeredToday == "Once", na.rm = T),
+    only_once_daily = !any(DD_LMWHAdministered == "Yes" & DD_LMWHAdministeredToday == "Twice", na.rm = T) & !only_no_dose,
+    any_twice_daily = any(DD_LMWHAdministered == "Yes" & DD_LMWHAdministeredToday == "Twice", na.rm = T),
+    only_twice_daily = !any(DD_LMWHAdministered == "Yes" & DD_LMWHAdministeredToday == "Once", na.rm = T) & !only_no_dose,
+    any_both = any(any_once_daily & any_twice_daily, na.rm = T),
+    any_once_no = any(any_once_daily & any_no_dose, na.rm = T),
+    any_twice_no = any(any_twice_daily & any_no_dose, na.rm = T),
+  ) |>
+  ungroup()
+
+thdose_summary |>
+  summarise(
+    randomised = n(),
+    any_na_dose = sprintf("%i (%.2f)", sum(any_na_dose), mean(any_na_dose)),
+    only_na_dose = sprintf("%i (%.2f)", sum(only_na_dose), mean(only_na_dose)),
+    any_no_dose = sprintf("%i (%.2f)", sum(any_no_dose), mean(any_no_dose)),
+    only_no_dose = sprintf("%i (%.2f)", sum(only_no_dose), mean(only_no_dose)),
+    any_once_daily = sprintf("%i (%.2f)", sum(any_once_daily), mean(any_once_daily)),
+    only_once_daily = sprintf("%i (%.2f)", sum(only_once_daily), mean(only_once_daily)),
+    any_twice_daily = sprintf("%i (%.2f)", sum(any_twice_daily), mean(any_twice_daily)),
+    only_twice_daily = sprintf("%i (%.2f)", sum(only_twice_daily), mean(only_twice_daily)),
+    any_both = sprintf("%i (%.2f)", sum(any_both), mean(any_both)),
+    any_once_no = sprintf("%i (%.2f)", sum(any_once_no), mean(any_once_no)),
+    any_twice_no = sprintf("%i (%.2f)", sum(any_twice_no), mean(any_twice_no)),
+  )
+```
+
+```{r}
+#| label: fig-therapeutic-dosings
+#| fig-cap: Therapeutic daily dosings by baseline weight and number of doses. For once daily expect 1.5mg/kg and for twice daily expect 1mg/kg.
+ggplot(thdose |> filter(!is.na(DD_LMWHAdministeredToday)), aes(BAS_Weight, DD_DoseLMWH)) +
+  facet_wrap( ~ DD_LMWHAdministeredToday) +
+  geom_jitter(width = 2, height = 2) +
+  geom_abline(data = data.frame(DD_LMWHAdministeredToday = c("Once", "Twice"), intercept = c(0, 0), slope = c(1.5, 1)),
+              aes(intercept = intercept, slope = slope))
+```
+
+## Dosing Summary Figure
+
+```{r}
+dose <- all_dat_daily |>
+  filter_acs_itt() |>
+  filter(
+    DD_LMWHAdministeredToday %in% c("Once", "Twice"), 
+    DD_StudyDay > 1, 
+    DD_StudyDay < DD_total_days, 
+    BAS_Weight > 30,
+    DD_TypeLMWH != "Tinzaparin") |>
+  select(
+    StudyPatientID,
+    CAssignment, 
+    BAS_Weight,
+    DD_StudyDay, 
+    DD_LMWHAdministered, 
+    DD_LMWHAdministeredToday, 
+    DD_TypeLMWH, 
+    DD_DoseLMWH) |>
+  mutate(
+    Intervention = factor(
+      CAssignment, 
+      levels = c("C1", "C2", "C3", "C4"),
+      labels = c("Low-dose", "Intermediate-dose", "Low-dose with aspirin", "Therapeutic-dose")),
+    times = factor(
+      DD_LMWHAdministeredToday,
+      levels = c("Once", "Twice"), 
+      labels = c("Once daily", "Twice daily")),
+    mg_per_kg = DD_DoseLMWH / BAS_Weight,
+    weight_grp = cut(
+      BAS_Weight, 
+      breaks = c(seq(0, 120, 10), Inf),
+      labels = c(paste0("(", seq(0, 110, 10), ", ", seq(10, 120, 10), "]"), "> 120"))
+  )
+dose_avg <- dose |>
+  group_by(StudyPatientID, CAssignment, Intervention, times, DD_LMWHAdministeredToday, BAS_Weight, weight_grp) |>
+  summarise(mg_per_kg = mean(mg_per_kg), dose = mean(DD_DoseLMWH)) |>
+  ungroup()
+
+p <- dose_avg |> 
+  group_by(Intervention, times, weight_grp) |>
+  summarise(avg_dose = mean(dose), n = n()) |> 
+  ggplot(aes(weight_grp, avg_dose)) + 
+  facet_wrap( ~ times, ncol = 1) +
+  geom_point(aes(colour = Intervention, size = n)) + 
+  scale_size("Participants", breaks = c(1, 10, 25, 50, 100, 200)) +
+  scale_colour_viridis_d("Intervention", begin = 0.2, end = 0.8, option = "B") +
+  scale_y_continuous(breaks = seq(20, 120, 20)) +
+  labs(x = "Baseline weight (kg)", y = "Average dose (mg)")
+
+ggsave(file.path("outputs", "figures", "dosings.pdf"), p, height = 6, width = 7, dpi = 444)
+```
 
 
+```{r}
+p <- dose_avg |>
+  filter(!(DD_LMWHAdministeredToday == "Twice" & CAssignment %in% c("C1", "C3"))) |>
+  ggplot(aes(mg_per_kg)) +
+  facet_wrap( ~ times, ncol = 2) +
+  stat_ecdf(aes(colour = Intervention)) +
+  scale_colour_viridis_d("Treatment group", begin = 0.2, end = 0.8, option = "B") +
+  labs(y = "Empirical cumulative\ndistribution function", x = "Mean dose (mg/kg) per participant")
+
+ggsave(file.path("outputs", "figures", "dosings_ecdf.pdf"), p, height = 3, width = 6, dpi = 444)
+```
+
+## Once Daily
+
+```{r}
+once_dose <- all_dat_daily |>
+  filter_acs_itt() |>
+  filter(
+    DD_LMWHAdministeredToday == "Once", 
+    DD_StudyDay > 1, 
+    DD_StudyDay < DD_total_days, 
+    BAS_Weight != 0, 
+    DD_TypeLMWH != "Tinzaparin") |>
+  select(
+    StudyPatientID,
+    CAssignment, 
+    BAS_Weight,
+    DD_StudyDay, 
+    DD_LMWHAdministered, 
+    DD_LMWHAdministeredToday, 
+    DD_TypeLMWH, 
+    DD_DoseLMWH) |>
+  mutate(
+    mg_per_kg = DD_DoseLMWH / BAS_Weight,
+    weight_grp = cut(BAS_Weight, c(seq(0, 120, 10), Inf))
+  )
+
+once_dose_avg <- once_dose |>
+  group_by(StudyPatientID, CAssignment, BAS_Weight, weight_grp) |>
+  summarise(mg_per_kg = mean(mg_per_kg), dose = mean(DD_DoseLMWH)) |>
+  ungroup()
+
+once_dose_avg |> 
+  group_by(CAssignment, weight_grp) |>
+  summarise(avg_dose = mean(dose), n = n()) |> 
+  ggplot(aes(weight_grp, avg_dose)) + 
+  geom_point(aes(colour = CAssignment, size = n)) + 
+  theme_bw()
+
+ggplot(once_dose, aes(DD_DoseLMWH / BAS_Weight)) +
+  stat_ecdf(aes(colour = CAssignment))
+ggplot(once_dose_avg, aes(mg_per_kg)) +
+  stat_ecdf(aes(colour = CAssignment)) +
+  labs(y = "eCDF", x = "average mg/kg (per participant) amongst once daily doses") +
+  theme_bw()
+
+once_dose_avg |> 
+  ggplot(aes(BAS_Weight, dose, colour = CAssignment)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = F) +
+  geom_xsidedensity() +
+  geom_ysidedensity() +
+  scale_xsidey_continuous(n.breaks = 3) +
+  scale_ysidex_continuous(n.breaks = 3) +
+  theme_bw()
+
+
+once_dose_avg |> 
+  ggplot(aes(BAS_Weight, mg_per_kg, colour = CAssignment)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = F) +
+  geom_xsidedensity() +
+  geom_ysidedensity() +
+  scale_xsidey_continuous(n.breaks = 3) +
+  scale_ysidex_continuous(n.breaks = 3) +
+  theme_bw()
+
+
+once_dose_avg |> 
+  filter(BAS_Weight < 60) |>
+  ggplot(aes(BAS_Weight, dose, colour = CAssignment)) + 
+  geom_point() + 
+  # geom_smooth(method = "lm", se = F) +
+  geom_xsidedensity() +
+  geom_ysidedensity() +
+  scale_xsidey_continuous(n.breaks = 3) +
+  scale_ysidex_continuous(n.breaks = 3) +
+  theme_bw()
+
+once_dose_avg |> 
+  filter(CAssignment %in% c("C2", "C4")) |> 
+  lm(mg_per_kg ~ BAS_Weight * CAssignment, data = _) |>
+  summary()
+
+ggplot(once_dose, aes(BAS_Weight, DD_DoseLMWH)) +
+  facet_wrap( ~ CAssignment) +
+  geom_point() +
+  geom_xsidehistogram(bins = 20, colour = "grey80", size = 0) +
+  geom_ysidehistogram(bins = 20, colour = "grey80", size = 0) +
+    scale_xsidey_continuous(n.breaks = 3) +
+    scale_ysidex_continuous(n.breaks = 3) +
+    ggside(scales = "free", y.pos = "right") +
+    theme(panel.grid = element_blank(),
+          ggside.panel.scale.y = 0.3,
+          ggside.panel.scale.x = 0.3) +
+  theme_bw()
+
+ggplot(once_dose, aes(BAS_Weight, DD_DoseLMWH / BAS_Weight)) +
+  geom_point(aes(colour = CAssignment))
+```
+
+## Twice Daily
+
+```{r}
+twice_dose <- all_dat_daily |>
+  filter_acs_itt() |>
+  filter(
+    DD_LMWHAdministeredToday == "Twice", 
+    DD_StudyDay > 1, 
+    DD_StudyDay < DD_total_days, 
+    BAS_Weight != 0, 
+    DD_TypeLMWH != "Tinzaparin") |>
+  select(
+    StudyPatientID,
+    CAssignment, 
+    BAS_Weight,
+    DD_StudyDay, 
+    DD_LMWHAdministered, 
+    DD_LMWHAdministeredToday, 
+    DD_TypeLMWH, 
+    DD_DoseLMWH) |>
+  mutate(
+    mg_per_kg = DD_DoseLMWH / BAS_Weight,
+    weight_grp = cut(BAS_Weight, c(seq(0, 120, 10), Inf))
+  )
+
+twice_dose_avg <- twice_dose |>
+  group_by(StudyPatientID, CAssignment, BAS_Weight, weight_grp) |>
+  summarise(mg_per_kg = mean(mg_per_kg), dose = mean(DD_DoseLMWH)) |>
+  ungroup()
+
+twice_dose_avg |> 
+  filter(CAssignment %in% c("C2", "C4")) |>
+  group_by(CAssignment, weight_grp) |>
+  summarise(avg_dose = mean(dose), n = n()) |> 
+  ggplot(aes(weight_grp, avg_dose)) + 
+  geom_point(aes(colour = CAssignment, size = n)) + 
+  theme_bw()
+
+twice_dose_avg |> 
+  filter(CAssignment %in% c("C2", "C4")) |>
+  ggplot(aes(BAS_Weight, dose, colour = CAssignment)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = F) +
+  geom_xsidedensity() +
+  geom_ysidedensity() +
+  scale_xsidey_continuous(n.breaks = 3) +
+  scale_ysidex_continuous(n.breaks = 3) +
+  theme_bw()
+
+twice_dose_avg |> 
+  filter(CAssignment %in% c("C2", "C4")) |>
+  ggplot(aes(BAS_Weight, mg_per_kg, colour = CAssignment)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = F) +
+  geom_xsidedensity() +
+  geom_ysidedensity() +
+  scale_xsidey_continuous(n.breaks = 3) +
+  scale_ysidex_continuous(n.breaks = 3) +
+  theme_bw()
+
+twice_dose_avg |> 
+  filter(CAssignment %in% c("C2", "C4"), BAS_Weight < 60) |>
+  ggplot(aes(BAS_Weight, dose, colour = CAssignment)) + 
+  geom_point() + 
+  geom_smooth(method = "lm", se = F) +
+  geom_xsidedensity() +
+  geom_ysidedensity() +
+  scale_xsidey_continuous(n.breaks = 3) +
+  scale_ysidex_continuous(n.breaks = 3) +
+  theme_bw()
+
+twice_dose_avg |> 
+  filter(CAssignment %in% c("C2", "C4")) |>
+ggplot(aes(mg_per_kg)) +
+  stat_ecdf(aes(colour = CAssignment)) +
+  labs(y = "eCDF", x = "average mg/kg (per participant) amongst twice daily doses") +
+  theme_bw()
+
+ggplot(twice_dose |> filter(CAssignment %in% c("C2", "C4")), aes(BAS_Weight, DD_DoseLMWH)) +
+  facet_wrap( ~ CAssignment) +
+  geom_point() +
+  geom_xsidehistogram(bins = 20, colour = "grey80", size = 0) +
+  geom_ysidehistogram(bins = 20, colour = "grey80", size = 0) +
+    scale_xsidey_continuous(n.breaks = 3) +
+    scale_ysidex_continuous(n.breaks = 3) +
+    ggside(scales = "free", y.pos = "right") +
+    theme(panel.grid = element_blank(),
+          ggside.panel.scale.y = 0.3,
+          ggside.panel.scale.x = 0.3)
 ```
