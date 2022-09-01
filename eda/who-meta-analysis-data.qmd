@@ -1,0 +1,132 @@
+---
+title: "WHO Meta-Analysis"
+description: |
+  A request was made for inclusion of the ASCOT data into a 
+  meta-analysis on anticoagulation interventions in COVID-19.
+  The purpose of this document is to keep a record of the
+  extracted data summaries which will be sent to the investigator
+  group.
+author: 
+  - name: James Totterdell
+    affiliation: University of Sydney
+date: today
+---
+
+
+```{r}
+#| label: pkgs
+#| code-summary: Load packages
+library(tidyverse)
+library(patchwork)
+library(DT)
+library(plotly)
+library(knitr)
+library(lubridate)
+library(kableExtra)
+
+theme_set(theme_classic(base_size = 10, base_family = "Palatino") +
+  theme(panel.grid = element_blank(),
+        strip.background = element_blank()))
+```
+
+```{r}
+#| label: load-data
+#| code-summary: Load data
+devtools::load_all()
+all_data <- read_all_no_daily()
+all_daily_data <- read_all_daily()
+
+# ACS-ITT
+acs_itt_data <- all_data |> 
+  filter_acs_itt() |>
+  transmute_model_cols_grp_aus_nz() |>
+  left_join(all_data |> select(StudyPatientID, starts_with("BAS_DDimer")))
+
+acs_itt_concurc2_data <- acs_itt_data |>
+  filter_concurrent_intermediate()
+
+acs_itt_concurc4_data <- acs_itt_data %>%
+  filter_concurrent_therapeutic()
+```
+
+The research group do not want unit-record data for participants.
+Instead they want either: raw data summaries or adjusted effect estimates (they don't specify which).
+
+So, following some email correspondence, it was decided that the most relevant data summaries to provide are the concurrent sets for:
+
+- intermediate vs low
+- therapeutic vs low 
+- therapeutic vs intermediate (same set as above)
+
+They provided two forms: one for baseline summaries and one for outcome summaries by specified sub-groups.
+
+
+![Baseline characteristics](who-baseline.png)
+
+![Outcomes](who-outcomes.png)
+
+----
+
+# Intermediate-dose vs low-dose
+
+```{r}
+#| code-summary: Randomised
+# Number randomised
+acs_itt_concurc2_data |>
+  dplyr::count(CAssignment)
+```
+
+```{r}
+#| code-summary: Age
+# Age
+acs_itt_concurc2_data |>
+  group_by(CAssignment) |>
+  summarise(
+    n = n(), 
+    med_age = median(AgeAtEntry),
+    Q1_age = quantile(AgeAtEntry, p = 0.25),
+    Q3_age = quantile(AgeAtEntry, p = 0.75)
+  )
+```
+
+```{r}
+#| code-summary: Gender
+# Gender
+acs_itt_concurc2_data |>
+  dplyr::count(CAssignment, Sex) |>
+  pivot_wider(names_from = "CAssignment", values_from = "n") |>
+  mutate(across(C1:C2, ~ 100 * .x / sum(.x), .names = "p_{.col}"))
+```
+
+```{r}
+#| code-summary: SARS-COV-2 +ve vs -ve
+# All positive by eligibility?
+```
+
+```{r}
+#| code-summary: BMI
+# Unknown as height not collected
+```
+
+```{r}
+#| code-summary: Systemic steroids
+```
+
+```{r}
+#| code-summary: D-dimers
+acs_itt_concurc2_data |>
+  dplyr::count(CAssignment, BAS_DDimerTestPerformed) |>
+  pivot_wider(names_from = "CAssignment", values_from = "n") |>
+  mutate(across(C1:C2, ~ 100 * .x / sum(.x), .names = "p_{.col}"))
+
+acs_itt_concurc2_data |>
+  dplyr::count(CAssignment, BAS_DDimerOutOfRange) |>
+  pivot_wider(names_from = "CAssignment", values_from = "n") |>
+  mutate(across(C1:C2, ~ 100 * .x / sum(.x), .names = "p_{.col}"))
+```
+
+```{r}
+#| code-summary: Time of randomisation
+acs_itt_concurc2_data |>
+  dplyr::count(CAssignment, RandDate >= as.Date("2021-01-01"))
+```
