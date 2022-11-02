@@ -36,11 +36,111 @@ devtools::load_all()
 all_data <- read_all_no_daily()
 all_daily_data <- read_all_daily()
 
+daily_events <- all_daily_data %>%
+  filter_acs_itt() %>%
+  group_by(StudyPatientID) %>%
+  summarise(
+    dd_mb = as.numeric(any(DD_AE_C_MajorBleedingISTH == "Yes")),
+    dd_hit = as.numeric(any(DD_AE_C_HeparinHIT == "Yes")),
+    dd_worst = max(DD_who_worst, na.rm = TRUE)
+  )
+
+acs_itt_safety_dat <- all_data %>%
+  filter_acs_itt() %>%
+  left_join(daily_events, by = "StudyPatientID") %>%
+  transmute(
+    StudyPatientID,
+    # 8.0 death
+    out_dth = D28_death,
+    # 8.2 deep vein thrombosis
+    out_dvt = case_when(
+      D28_ABEventNone == "Yes" ~ 0,
+      D28_ABEventUnknown == "Yes" ~ NA_real_,
+      D28_ABDeepVein == "Yes" ~ 1,
+      TRUE ~ 0
+    ),
+    # 8.3 - pulmonary embolism
+    out_pe = case_when(
+      D28_ABEventNone == "Yes" ~ 0,
+      D28_ABEventUnknown == "Yes" ~ NA_real_,
+      D28_ABPulmonaryEmbolism == "Yes" ~ 1,
+      TRUE ~ 0
+    ),
+    # 8.4 - acute myocardial infarction
+    out_ami = case_when(
+      D28_ABEventNone == "Yes" ~ 0,
+      D28_ABEventUnknown == "Yes" ~ NA_real_,
+      D28_ABAcuteMyocardinalInfarction == "Yes" ~ 1,
+      TRUE ~ 0
+    ),
+    # 8.5 - ischemic cerebrovascular event
+    out_ice = case_when(
+      D28_ABEventNone == "Yes" ~ 0,
+      D28_ABEventUnknown == "Yes" ~ NA_real_,
+      D28_ABIschemicCerebrovascularEvent == "Yes" ~ 1,
+      TRUE ~ 0
+    ),
+    # 8.10 - other confirmed thrombotic event
+    out_ote = case_when(
+      D28_ABEventNone == "Yes" ~ 0,
+      D28_ABEventUnknown == "Yes" ~ NA_real_,
+      D28_ABOtherThromboEvent == "Yes" ~ 1,
+      TRUE ~ 0
+    ),
+    # Any thrombotic event
+    out_ate = case_when(
+      out_dvt == 1 | out_pe == 1 | out_ami == 1  | out_ice == 1 | out_ote == 1 ~ 1,
+      is.na(out_dvt) | is.na(out_pe) | is.na(out_ami) | is.na(out_ice) | is.na(out_ote) ~ NA_real_,
+      out_dvt == 0 & out_pe == 0 & out_ami == 0  & out_ice == 0 & out_ote == 0 ~ 0
+    ),
+    # 8.1 - any thrombotic event or death
+    out_ated = case_when(
+      out_dth == 1 | out_dvt == 1 | out_pe == 1 | out_ami == 1  | out_ice == 1 | out_ote == 1 ~ 1,
+      is.na(out_dth) | is.na(out_dvt) | is.na(out_pe) | is.na(out_ami) | is.na(out_ice) | is.na(out_ote) ~ NA_real_,
+      out_dth == 0 & out_dvt == 0 & out_pe == 0 & out_ami == 0  & out_ice == 0 & out_ote == 0 ~ 0
+    ),
+    # 8.7 - major bleeding
+    out_mb = case_when(
+      dd_mb == 1 ~ 1, # from daily data
+      D28_AECNone == "Yes" ~ 0,
+      D28_AECMajorBleeding == "No" ~ 0,
+      D28_AECMajorBleeding == "Yes" ~ 1,
+      D28_AECUnknown == "Yes" ~ NA_real_,
+      is.na(D28_AECMajorBleeding) ~ NA_real_,
+      TRUE ~ 0 
+    ),
+    # 8.8 - non-major bleeding
+    out_nmb = case_when(
+      D28_ABNonMajorBleeding == "Yes" ~ 1,
+      D28_ABNonMajorBleeding == "No" ~ 0,
+      D28_ABNonMajorBleeding == "Unknown" ~ NA_real_
+    ),
+    # 8.6 - any clinically relevant bleeding
+    out_crb = case_when(
+      out_mb == 1 | out_nmb == 1 ~ 1,
+      is.na(out_mb) | is.na(out_nmb) ~ NA_real_,
+      out_mb == 0 & out_nmb == 0 ~ 0
+    ),
+    # 8.9 - heparin-induced thrombocytopenia
+    out_hit = case_when(
+      dd_hit == 1 ~ 1, # from daily data
+      D28_AECNone == "Yes" ~ 0,
+      D28_AECUnknown == "Yes" ~ NA_real_,
+      D28_AECHIT == "Yes" ~ 1,
+      TRUE ~ 0 
+    )
+  )
+
 # ACS-ITT
 acs_itt_data <- all_data |> 
   filter_acs_itt() |>
   transmute_model_cols_grp_aus_nz() |>
-  left_join(all_data |> select(StudyPatientID, starts_with("BAS_DDimer")))
+  left_join(all_data |> select(StudyPatientID, D28_AECMajorBleeding, starts_with("BAS_DDimer"), BAS_OnRoomAir24hrs, BAS_OnRoomAir24hrsUnknown, BAS_PeripheralOxygen)) |>
+  left_join(acs_itt_safety_dat, by = "StudyPatientID") |>
+  left_join(daily_events) |>
+  mutate(
+    imv_death = dd_worst >= 6 | D28_death == 1
+  )
 
 acs_itt_concurc2_data <- acs_itt_data |>
   filter_concurrent_intermediate()
@@ -65,14 +165,29 @@ They provided two forms: one for baseline summaries and one for outcome summarie
 
 ![Outcomes](who-outcomes.png)
 
+Not all of the relevant information is available in ASCOT.
+For reference:
+
+- 100% of participants are SARS-CoV-2 positive
+- BMI is unknown for all participants as height was not collected
+- Systemic steroids use at baseline is unknown (only know if received during their hospital admission)
+- D-dimers - **Zoe to confirm**
+- Respiratory support - not known at baseline explicitly, but could use `DD_ParticipantDailyStatus` at `DD_StudyDay == 1`
+  - *should be able to distinguish no supp oxy vs oxy but have no patients in NIV group* - Steve
+
 ----
 
 # Intermediate-dose vs low-dose
+
+## Baseline
 
 ```{r}
 #| code-summary: Randomised
 # Number randomised
 acs_itt_concurc2_data |>
+  dplyr::count(CAssignment)
+acs_itt_concurc2_data |>
+  filter(EL_ProtocolVersion != "5.0") |>
   dplyr::count(CAssignment)
 ```
 
@@ -126,7 +241,451 @@ acs_itt_concurc2_data |>
 ```
 
 ```{r}
+#| code-summary: Supplemental Oxygen
+acs_itt_concurc2_data |>
+  dplyr::count(
+    CAssignment,
+    SuppOxy = case_when(
+      BAS_OnRoomAir24hrs == "No" ~ "Yes",
+      BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen < 94 ~ "Yes",
+      BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen >= 94 ~ "No",
+      TRUE ~ NA_character_  
+    )) |>
+  pivot_wider(names_from = "CAssignment", values_from = "n", values_fill = 0) |>
+  mutate(across(C1:C2, ~ 100 * .x / sum(.x), .names = "p_{.col}"))
+```
+
+```{r}
+#| code-summary: Respiratory support
+acs_itt_concurc2_data |>
+  left_join(all_daily_data |> filter(DD_StudyDay == 1) |> select(StudyPatientID, DD_ParticipantDailyStatus)) |>
+  dplyr::count(CAssignment, DD_ParticipantDailyStatus) |>
+  pivot_wider(names_from = "CAssignment", values_from = "n", values_fill = 0) |>
+  mutate(across(C1:C2, ~ 100 * .x / sum(.x), .names = "p_{.col}"))
+```
+
+```{r}
 #| code-summary: Time of randomisation
 acs_itt_concurc2_data |>
   dplyr::count(CAssignment, RandDate >= as.Date("2021-01-01"))
+```
+
+## Outcomes
+
+### Mortality
+
+#### Overall
+
+```{r}
+acs_itt_concurc2_data |>
+  dplyr::count(CAssignment, D28_death) |>
+  pivot_wider(names_from = "CAssignment", values_from = "n") |>
+  mutate(across(C1:C2, ~ 100 * .x / sum(.x), .names = "p_{.col}"))
+acs_itt_concurc2_data |>
+  filter(EL_ProtocolVersion != "5.0") |>
+  dplyr::count(CAssignment, D28_death) |>
+  pivot_wider(names_from = "CAssignment", values_from = "n") |>
+  mutate(across(C1:C2, ~ 100 * .x / sum(.x), .names = "p_{.col}"))
+```
+
+#### Age
+
+```{r}
+acs_itt_concurc2_data |>
+  dplyr::count(CAssignment, AgeAtEntry >= 70) |>
+  pivot_wider(names_from = "CAssignment", values_from = "n")
+acs_itt_concurc2_data |>
+  filter(EL_ProtocolVersion != "5.0", !is.na(D28_death)) |>
+  dplyr::count(CAssignment, AgeAtEntry >= 70) |>
+  pivot_wider(names_from = "CAssignment", values_from = "n")
+```
+
+
+```{r}
+acs_itt_concurc2_data |>
+  dplyr::count(CAssignment, AgeAtEntry >= 70, D28_death) |>
+  pivot_wider(names_from = "D28_death", values_from = "n", values_fill = 0)
+```
+
+#### Sex
+
+```{r}
+acs_itt_concurc2_data |>
+  dplyr::count(CAssignment, Sex) |>
+  pivot_wider(names_from = "CAssignment", values_from = "n")
+acs_itt_concurc2_data |>
+  filter(EL_ProtocolVersion != "5.0", !is.na(D28_death)) |>
+  dplyr::count(CAssignment, Sex) |>
+  pivot_wider(names_from = "CAssignment", values_from = "n")
+```
+
+
+```{r}
+acs_itt_concurc2_data |>
+  dplyr::count(CAssignment, Sex, D28_death) |>
+  pivot_wider(names_from = "D28_death", values_from = "n", values_fill = 0)
+```
+
+#### Supplemental Oxygen
+
+```{r}
+#| code-summary: Supplemental Oxygen
+acs_itt_concurc2_data |>
+  dplyr::count(
+    CAssignment,
+    SuppOxy = case_when(
+      BAS_OnRoomAir24hrs == "No" ~ "Yes",
+      BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen < 94 ~ "Yes",
+      BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen >= 94 ~ "No",
+      TRUE ~ NA_character_  
+    )) |>
+  pivot_wider(names_from = "CAssignment", values_from = "n", values_fill = 0)
+
+acs_itt_concurc2_data |>
+  filter(EL_ProtocolVersion != "5.0", !is.na(D28_death)) |>
+  dplyr::count(
+    CAssignment,
+    SuppOxy = case_when(
+      BAS_OnRoomAir24hrs == "No" ~ "Yes",
+      BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen < 94 ~ "Yes",
+      BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen >= 94 ~ "No",
+      TRUE ~ NA_character_  
+    )) |>
+  pivot_wider(names_from = "CAssignment", values_from = "n", values_fill = 0)
+```
+
+```{r}
+#| code-summary: Supplemental Oxygen
+acs_itt_concurc2_data |>
+  dplyr::count(
+    CAssignment,
+    D28_death,
+    SuppOxy = case_when(
+      BAS_OnRoomAir24hrs == "No" ~ "Yes",
+      BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen < 94 ~ "Yes",
+      BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen >= 94 ~ "No",
+      TRUE ~ NA_character_  
+    )) |>
+  pivot_wider(names_from = "D28_death", values_from = "n", values_fill = 0)
+
+acs_itt_concurc2_data |>
+  filter(EL_ProtocolVersion != "5.0", !is.na(D28_death)) |>
+  dplyr::count(
+    CAssignment,
+    D28_death,
+    SuppOxy = case_when(
+      BAS_OnRoomAir24hrs == "No" ~ "Yes",
+      BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen < 94 ~ "Yes",
+      BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen >= 94 ~ "No",
+      TRUE ~ NA_character_  
+    )) |>
+  pivot_wider(names_from = "D28_death", values_from = "n", values_fill = 0)
+```
+
+### IMV or Death
+
+```{r}
+acs_itt_concurc2_data |>
+  dplyr::count(CAssignment, imv_death) |>
+  pivot_wider(names_from = "CAssignment", values_from = "n") |>
+  mutate(across(C1:C2, ~ 100 * .x / sum(.x), .names = "p_{.col}"))
+acs_itt_concurc2_data |>
+  filter(EL_ProtocolVersion != "5.0") |>
+  dplyr::count(CAssignment, imv_death) |>
+  pivot_wider(names_from = "CAssignment", values_from = "n") |>
+  mutate(across(C1:C2, ~ 100 * .x / sum(.x), .names = "p_{.col}"))
+```
+
+```{r}
+acs_itt_concurc2_data |>
+  dplyr::count(CAssignment, AgeAtEntry >= 70, imv_death) |>
+  pivot_wider(names_from = "imv_death", values_from = "n", values_fill = 0)
+```
+
+```{r}
+acs_itt_concurc2_data |>
+  dplyr::count(CAssignment, Sex, imv_death) |>
+  pivot_wider(names_from = "imv_death", values_from = "n", values_fill = 0)
+```
+
+```{r}
+#| code-summary: Supplemental Oxygen
+acs_itt_concurc2_data |>
+  dplyr::count(
+    CAssignment,
+    imv_death,
+    SuppOxy = case_when(
+      BAS_OnRoomAir24hrs == "No" ~ "Yes",
+      BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen < 94 ~ "Yes",
+      BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen >= 94 ~ "No",
+      TRUE ~ NA_character_  
+    )) |>
+  pivot_wider(names_from = "imv_death", values_from = "n", values_fill = 0)
+```
+
+### Major Bleeding
+
+```{r}
+acs_itt_concurc2_data |>
+  dplyr::count(CAssignment, out_mb) |>
+  pivot_wider(names_from = "CAssignment", values_from = "n") |>
+  mutate(across(C1:C2, ~ 100 * .x / sum(.x), .names = "p_{.col}"))
+```
+
+```{r}
+acs_itt_concurc2_data |>
+  dplyr::count(CAssignment, AgeAtEntry >= 70, out_mb) |>
+  pivot_wider(names_from = "out_mb", values_from = "n", values_fill = 0)
+```
+
+```{r}
+acs_itt_concurc2_data |>
+  dplyr::count(CAssignment, Sex, out_mb) |>
+  pivot_wider(names_from = "out_mb", values_from = "n", values_fill = 0)
+```
+
+```{r}
+#| code-summary: Supplemental Oxygen
+acs_itt_concurc2_data |>
+  dplyr::count(
+    CAssignment,
+    out_mb,
+    SuppOxy = case_when(
+      BAS_OnRoomAir24hrs == "No" ~ "Yes",
+      BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen < 94 ~ "Yes",
+      BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen >= 94 ~ "No",
+      TRUE ~ NA_character_  
+    )) |>
+  pivot_wider(names_from = "out_mb", values_from = "n", values_fill = 0)
+```
+
+### Thromboembolic Event
+
+```{r}
+acs_itt_concurc2_data |>
+  dplyr::count(CAssignment, out_ate) |>
+  pivot_wider(names_from = "CAssignment", values_from = "n") |>
+  mutate(across(C1:C2, ~ 100 * .x / sum(.x), .names = "p_{.col}"))
+```
+
+```{r}
+acs_itt_concurc2_data |>
+  dplyr::count(CAssignment, AgeAtEntry >= 70, out_ate) |>
+  pivot_wider(names_from = "out_ate", values_from = "n", values_fill = 0)
+```
+
+```{r}
+acs_itt_concurc2_data |>
+  dplyr::count(CAssignment, Sex, out_ate) |>
+  pivot_wider(names_from = "out_ate", values_from = "n", values_fill = 0)
+```
+
+```{r}
+#| code-summary: Supplemental Oxygen
+acs_itt_concurc2_data |>
+  dplyr::count(
+    CAssignment,
+    out_ate,
+    SuppOxy = case_when(
+      BAS_OnRoomAir24hrs == "No" ~ "Yes",
+      BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen < 94 ~ "Yes",
+      BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen >= 94 ~ "No",
+      TRUE ~ NA_character_  
+    )) |>
+  pivot_wider(names_from = "out_ate", values_from = "n", values_fill = 0)
+```
+
+# Therapeutic-dose vs low-dose vs intermediate-dose
+
+## Baseline
+
+```{r}
+#| code-summary: Randomised
+# Number randomised
+acs_itt_concurc4_data |>
+  dplyr::count(CAssignment)
+```
+
+```{r}
+#| code-summary: Age
+# Age
+acs_itt_concurc4_data |>
+  group_by(CAssignment) |>
+  summarise(
+    n = n(), 
+    med_age = median(AgeAtEntry),
+    Q1_age = quantile(AgeAtEntry, p = 0.25),
+    Q3_age = quantile(AgeAtEntry, p = 0.75)
+  )
+```
+
+```{r}
+#| code-summary: Gender
+# Gender
+acs_itt_concurc4_data |>
+  dplyr::count(CAssignment, Sex) |>
+  pivot_wider(names_from = "CAssignment", values_from = "n") |>
+  mutate(across(C1:C4, ~ 100 * .x / sum(.x), .names = "p_{.col}"))
+```
+
+
+```{r}
+#| code-summary: Supplemental Oxygen
+acs_itt_concurc4_data |>
+  dplyr::count(
+    CAssignment,
+    SuppOxy = case_when(
+      BAS_OnRoomAir24hrs == "No" ~ "Yes",
+      BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen < 94 ~ "Yes",
+      BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen >= 94 ~ "No",
+      TRUE ~ NA_character_  
+    )) |>
+  pivot_wider(names_from = "CAssignment", values_from = "n", values_fill = 0) |>
+  mutate(across(C1:C4, ~ 100 * .x / sum(.x), .names = "p_{.col}"))
+```
+
+## Outcomes
+
+### Mortality
+
+```{r}
+acs_itt_concurc4_data |>
+  dplyr::count(CAssignment, D28_death) |>
+  pivot_wider(names_from = "CAssignment", values_from = "n") |>
+  mutate(across(C1:C2, ~ 100 * .x / sum(.x), .names = "p_{.col}"))
+```
+
+```{r}
+acs_itt_concurc4_data |>
+  dplyr::count(CAssignment, AgeAtEntry >= 70, D28_death) |>
+  pivot_wider(names_from = "D28_death", values_from = "n", values_fill = 0)
+```
+
+```{r}
+acs_itt_concurc4_data |>
+  dplyr::count(CAssignment, Sex, D28_death) |>
+  pivot_wider(names_from = "D28_death", values_from = "n", values_fill = 0)
+```
+
+```{r}
+#| code-summary: Supplemental Oxygen
+acs_itt_concurc4_data |>
+  dplyr::count(
+    CAssignment,
+    D28_death,
+    SuppOxy = case_when(
+      BAS_OnRoomAir24hrs == "No" ~ "Yes",
+      BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen < 94 ~ "Yes",
+      BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen >= 94 ~ "No",
+      TRUE ~ NA_character_  
+    )) |>
+  pivot_wider(names_from = "D28_death", values_from = "n", values_fill = 0)
+```
+
+### IMV or Death
+
+```{r}
+acs_itt_concurc4_data |>
+  dplyr::count(CAssignment, imv_death) |>
+  pivot_wider(names_from = "CAssignment", values_from = "n") |>
+  mutate(across(C1:C4, ~ 100 * .x / sum(.x), .names = "p_{.col}"))
+```
+
+```{r}
+acs_itt_concurc4_data |>
+  dplyr::count(CAssignment, AgeAtEntry >= 70, imv_death) |>
+  pivot_wider(names_from = "imv_death", values_from = "n", values_fill = 0)
+```
+
+```{r}
+acs_itt_concurc4_data |>
+  dplyr::count(CAssignment, Sex, imv_death) |>
+  pivot_wider(names_from = "imv_death", values_from = "n", values_fill = 0)
+```
+
+```{r}
+#| code-summary: Supplemental Oxygen
+acs_itt_concurc4_data |>
+  dplyr::count(
+    CAssignment,
+    imv_death,
+    SuppOxy = case_when(
+      BAS_OnRoomAir24hrs == "No" ~ "Yes",
+      BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen < 94 ~ "Yes",
+      BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen >= 94 ~ "No",
+      TRUE ~ NA_character_  
+    )) |>
+  pivot_wider(names_from = "imv_death", values_from = "n", values_fill = 0)
+```
+
+### Major Bleeding
+
+```{r}
+acs_itt_concurc4_data |>
+  dplyr::count(CAssignment, out_mb) |>
+  pivot_wider(names_from = "CAssignment", values_from = "n") |>
+  mutate(across(C1:C2, ~ 100 * .x / sum(.x), .names = "p_{.col}"))
+```
+
+```{r}
+acs_itt_concurc4_data |>
+  dplyr::count(CAssignment, AgeAtEntry >= 70, out_mb) |>
+  pivot_wider(names_from = "out_mb", values_from = "n", values_fill = 0)
+```
+
+```{r}
+acs_itt_concurc4_data |>
+  dplyr::count(CAssignment, Sex, out_mb) |>
+  pivot_wider(names_from = "out_mb", values_from = "n", values_fill = 0)
+```
+
+```{r}
+#| code-summary: Supplemental Oxygen
+acs_itt_concurc4_data |>
+  dplyr::count(
+    CAssignment,
+    out_mb,
+    SuppOxy = case_when(
+      BAS_OnRoomAir24hrs == "No" ~ "Yes",
+      BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen < 94 ~ "Yes",
+      BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen >= 94 ~ "No",
+      TRUE ~ NA_character_  
+    )) |>
+  pivot_wider(names_from = "out_mb", values_from = "n", values_fill = 0)
+```
+
+### Thromboembolic Event
+
+```{r}
+acs_itt_concurc4_data |>
+  dplyr::count(CAssignment, out_ate) |>
+  pivot_wider(names_from = "CAssignment", values_from = "n") |>
+  mutate(across(C1:C4, ~ 100 * .x / sum(.x), .names = "p_{.col}"))
+```
+
+```{r}
+acs_itt_concurc4_data |>
+  dplyr::count(CAssignment, AgeAtEntry >= 70, out_ate) |>
+  pivot_wider(names_from = "out_ate", values_from = "n", values_fill = 0)
+```
+
+```{r}
+acs_itt_concurc4_data |>
+  dplyr::count(CAssignment, Sex, out_ate) |>
+  pivot_wider(names_from = "out_ate", values_from = "n", values_fill = 0)
+```
+
+```{r}
+#| code-summary: Supplemental Oxygen
+acs_itt_concurc4_data |>
+  dplyr::count(
+    CAssignment,
+    out_ate,
+    SuppOxy = case_when(
+      BAS_OnRoomAir24hrs == "No" ~ "Yes",
+      BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen < 94 ~ "Yes",
+      BAS_OnRoomAir24hrs == "Yes" & BAS_PeripheralOxygen >= 94 ~ "No",
+      TRUE ~ NA_character_  
+    )) |>
+  pivot_wider(names_from = "out_ate", values_from = "n", values_fill = 0)
 ```
